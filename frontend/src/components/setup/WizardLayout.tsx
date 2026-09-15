@@ -22,7 +22,7 @@ export function WizardLayout({
   children,
   onNext,
   onPrev,
-  nextLabel = 'Next',
+  nextLabel = 'Próximo',
   isNextDisabled,
   isNextLoading,
   secondaryAction,
@@ -36,14 +36,14 @@ export function WizardLayout({
         <div className={`${SHELL_WIDTH} h-16 flex items-center justify-between gap-4`}>
           <div className="flex items-center gap-3">
             <img src={uryLogo} alt="URY Logo" className="h-7 w-auto" />
-            <span className="text-sm font-semibold text-foreground leading-none">Let's get your restaurant ready</span>
+            <span className="text-sm font-semibold text-foreground leading-none">Vamos deixar seu restaurante pronto</span>
           </div>
 
           {/* 2-step breadcrumb (Setup, Configure) */}
           <div className="hidden sm:flex items-center gap-2">
-            <BreadcrumbStep label="Setup" state={step === 1 ? 'active' : 'done'} />
+            <BreadcrumbStep label="Configuração Inicial" state={step === 1 ? 'active' : 'done'} />
             <div className={`w-8 h-px ${step === 2 ? 'bg-primary' : 'bg-border'}`} />
-            <BreadcrumbStep label="Configure" state={step === 2 ? 'active' : 'upcoming'} />
+            <BreadcrumbStep label="Configurar" state={step === 2 ? 'active' : 'upcoming'} />
           </div>
         </div>
       </header>
@@ -59,7 +59,7 @@ export function WizardLayout({
           <div className="flex items-center h-full">
             {step === 2 && onPrev && (
               <Button variant="outline" onClick={onPrev}>
-                Previous
+                Anterior
               </Button>
             )}
           </div>
@@ -67,7 +67,7 @@ export function WizardLayout({
           <div className="flex items-center gap-4 h-full">
             {secondaryAction}
             <Button variant="default" onClick={onNext} disabled={isNextDisabled || isNextLoading} className="px-6">
-              {isNextLoading ? 'Working...' : nextLabel}
+              {isNextLoading ? 'Processando...' : nextLabel}
             </Button>
           </div>
         </div>
@@ -91,7 +91,7 @@ function BreadcrumbStep({ label, state }: { label: string; state: 'active' | 'do
             state === 'active' ? 'bg-primary text-white ring-4 ring-primary/15' : 'bg-muted text-muted-foreground'
           }`}
         >
-          {label === 'Setup' ? 1 : 2}
+          {label === 'Configuração Inicial' ? 1 : 2}
         </div>
       )}
       <span className={`text-sm ${state === 'active' ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}>

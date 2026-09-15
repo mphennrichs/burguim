@@ -221,7 +221,7 @@ export const BranchPage: React.FC = () => {
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.branchName || !addForm.branchName.trim()) {
-      showToast.error('Branch Name is required');
+      showToast.error('Nome da Filial é obrigatório');
       return;
     }
     setSaving(true);
@@ -251,7 +251,7 @@ export const BranchPage: React.FC = () => {
       }
 
       if (!currentUser) {
-        showToast.error('Could not determine a valid user for Branch creation');
+        showToast.error('Não foi possível determinar um usuário válido para criar a Filial');
         setSaving(false);
         return;
       }
@@ -285,12 +285,12 @@ export const BranchPage: React.FC = () => {
           default_room: roomName
         }
       });
-      showToast.success('Branch created successfully');
+      showToast.success('Filial criada com sucesso');
       setIsAddDrawerOpen(false);
       fetchBranchList();
       fetchLinkedData();
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to create Branch');
+      showToast.error(err.message || 'Falha ao criar Filial');
     } finally {
       setSaving(false);
     }
@@ -301,7 +301,7 @@ export const BranchPage: React.FC = () => {
 
     // Validate invoice series prefix
     if (!restaurantForm.invoice_series_prefix || !restaurantForm.invoice_series_prefix.trim()) {
-      showToast.error('Invoice Series Prefix is required');
+      showToast.error('Prefixo da Série de Faturas é obrigatório');
       return;
     }
 
@@ -356,7 +356,7 @@ export const BranchPage: React.FC = () => {
     };
 
     if (JSON.stringify(original) === JSON.stringify(current)) {
-      showToast.warning('No changes in document');
+      showToast.warning('Nenhuma alteração no documento');
       return;
     }
 
@@ -416,12 +416,12 @@ export const BranchPage: React.FC = () => {
           doc: updatedDoc
         });
       }
-      showToast.success('Branch saved successfully');
+      showToast.success('Filial salva com sucesso');
       await fetchDetails(currentBranchName);
       await fetchBranchList();
       setIsEditMode(false); // Return to read-only View Mode after successful save
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to update branch settings');
+      showToast.error(err.message || 'Falha ao atualizar as configurações da filial');
     } finally {
       setSaving(false);
     }
@@ -441,13 +441,13 @@ export const BranchPage: React.FC = () => {
               className="text-gray-700 hover:text-primary flex items-center gap-1.5 shadow-2xs"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span>Voltar</span>
             </Button>
             <div className="h-5 w-px bg-gray-200" />
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Branch: {selectedBranch.branch_name || selectedBranch.name}</h2>
+              <h2 className="text-lg font-bold text-gray-900">Filial: {selectedBranch.branch_name || selectedBranch.name}</h2>
               <p className="text-xs text-gray-500">
-                Address: {branchForm.address || 'Not specified'}
+                Endereço: {branchForm.address || 'Não especificado'}
               </p>
             </div>
           </div>
@@ -460,7 +460,7 @@ export const BranchPage: React.FC = () => {
               className="w-24 h-9 bg-primary hover:bg-primary/90 text-white font-semibold flex items-center justify-center shadow-xs shrink-0 rounded-md"
             >
               <Save className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Save</span>
+              <span>Salvar</span>
             </Button>
           ) : (
             <Button
@@ -469,7 +469,7 @@ export const BranchPage: React.FC = () => {
               className="w-24 h-9 bg-primary hover:bg-primary/90 text-white font-semibold flex items-center justify-center shadow-xs shrink-0 rounded-md"
             >
               <Edit2 className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Edit</span>
+              <span>Editar</span>
             </Button>
           )}
         </div>
@@ -488,12 +488,12 @@ export const BranchPage: React.FC = () => {
                   <Building2 className="w-4 h-4" />
                 </div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  Branch Info
+                  Dados da Filial
                 </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Branch Name</label>
+                  <label className="text-sm font-medium text-gray-700">Nome da Filial</label>
                   <Input
                     value={branchForm.branch_name || ''}
                     onChange={(e) => setBranchForm(p => ({ ...p, branch_name: e.target.value }))}
@@ -502,7 +502,7 @@ export const BranchPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Address</label>
+                  <label className="text-sm font-medium text-gray-700">Endereço</label>
                   <Input
                     value={branchForm.address || ''}
                     onChange={(e) => setBranchForm(p => ({ ...p, address: e.target.value }))}
@@ -516,11 +516,11 @@ export const BranchPage: React.FC = () => {
             {/* RESTAURANT INFO SUBSECTION */}
             <div>
               <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
-                Restaurant Info
+                Dados do Restaurante
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Invoice Series Prefix <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-medium text-gray-700">Prefixo da Série de Faturas <span className="text-red-500">*</span></label>
                   <Input
                     value={restaurantForm.invoice_series_prefix || ''}
                     onChange={(e) => setRestaurantForm(p => ({ ...p, invoice_series_prefix: e.target.value }))}
@@ -529,7 +529,7 @@ export const BranchPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Aggregator Series Prefix</label>
+                  <label className="text-sm font-medium text-gray-700">Prefixo da Série de Agregador</label>
                   <Input
                     value={restaurantForm.aggregator_series_prefix || ''}
                     onChange={(e) => setRestaurantForm(p => ({ ...p, aggregator_series_prefix: e.target.value }))}
@@ -538,7 +538,7 @@ export const BranchPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Tax ID</label>
+                  <label className="text-sm font-medium text-gray-700">CNPJ</label>
                   <Input
                     value={restaurantForm.tax_id || ''}
                     onChange={(e) => setRestaurantForm(p => ({ ...p, tax_id: e.target.value }))}
@@ -547,13 +547,13 @@ export const BranchPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Default Tax Template</label>
+                  <label className="text-sm font-medium text-gray-700">Modelo de Imposto Padrão</label>
                   <Input
                     value={restaurantForm.default_tax_template || ''}
                     onChange={(e) => setRestaurantForm(p => ({ ...p, default_tax_template: e.target.value }))}
                     className="rounded-lg"
                     disabled={!isEditMode || !restaurantData}
-                    placeholder="e.g. GST 5% - Restaurant"
+                    placeholder="ex: ICMS 5% - Restaurante"
                   />
                 </div>
               </div>
@@ -566,24 +566,24 @@ export const BranchPage: React.FC = () => {
                   <UtensilsCrossed className="w-4 h-4" />
                 </div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  Menu
+                  Cardápio
                 </h3>
               </div>
               {restaurantData ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Default Menu (Active Menu)</label>
+                      <label className="text-sm font-medium text-gray-700">Cardápio Padrão (Cardápio Ativo)</label>
                       <SearchableSelect
                         id="active_menu"
                         value={restaurantForm.active_menu || ''}
                         onChange={(_, val) => setRestaurantForm(p => ({ ...p, active_menu: val }))}
                         options={[
-                          { value: '', label: 'None' },
+                          { value: '', label: 'Nenhum' },
                           ...menus.map((m) => ({ value: m.name, label: m.menu_name || m.name }))
                         ]}
                         disabled={!isEditMode}
-                        placeholder="None"
+                        placeholder="Nenhum"
                       />
                     </div>
                     <div className="flex items-center gap-2 pt-6">
@@ -602,7 +602,7 @@ export const BranchPage: React.FC = () => {
                         disabled={!isEditMode}
                       />
                       <label htmlFor="room_wise_menu" className="text-sm font-medium text-gray-700 cursor-pointer">
-                        Room Wise Menu
+                        Cardápio por Sala
                       </label>
                     </div>
                   </div>
@@ -611,8 +611,8 @@ export const BranchPage: React.FC = () => {
                       <table className="w-full text-xs text-gray-600">
                         <thead className="bg-gray-50 border-b border-gray-100 font-semibold">
                           <tr>
-                            <th className="px-4 py-2 text-left">Room</th>
-                            <th className="px-4 py-2 text-left">Menu</th>
+                            <th className="px-4 py-2 text-left">Sala</th>
+                            <th className="px-4 py-2 text-left">Cardápio</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -629,11 +629,11 @@ export const BranchPage: React.FC = () => {
                                     setRestaurantForm({...restaurantForm, menu_for_room: newRows});
                                   }}
                                   options={[
-                                    { value: '', label: 'Select Room' },
+                                    { value: '', label: 'Selecione a Sala' },
                                     ...rooms.map(r => ({ value: r.name, label: r.room_name || r.name }))
                                   ]}
                                   disabled={!isEditMode}
-                                  placeholder="Select Room"
+                                  placeholder="Selecione a Sala"
                                 />
                               </td>
                               <td className="px-4 py-2 flex items-center gap-2">
@@ -648,11 +648,11 @@ export const BranchPage: React.FC = () => {
                                       setRestaurantForm({...restaurantForm, menu_for_room: newRows});
                                     }}
                                     options={[
-                                      { value: '', label: 'Select Menu' },
+                                      { value: '', label: 'Selecione o Cardápio' },
                                       ...menus.map(m => ({ value: m.name, label: m.menu_name || m.name }))
                                     ]}
                                     disabled={!isEditMode}
-                                    placeholder="Select Menu"
+                                    placeholder="Selecione o Cardápio"
                                   />
                                 </div>
                                 {isEditMode && (
@@ -670,14 +670,14 @@ export const BranchPage: React.FC = () => {
                         <div className="p-2 border-t border-gray-100 bg-gray-50">
                           <Button type="button" variant="ghost" size="sm" className="text-primary h-7 text-xs" onClick={() => {
                             setRestaurantForm({...restaurantForm, menu_for_room: [...(restaurantForm.menu_for_room || []), {room: '', menu: ''}]});
-                          }}>+ Add Row</Button>
+                          }}>+ Adicionar Linha</Button>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No URY Restaurant linked to this branch.</p>
+                <p className="text-sm text-gray-400">Nenhum URY Restaurant vinculado a esta filial.</p>
               )}
             </div>
 
@@ -688,23 +688,23 @@ export const BranchPage: React.FC = () => {
                   <Map className="w-4 h-4" />
                 </div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  Room
+                  Sala
                 </h3>
               </div>
               {restaurantData ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Default Room</label>
+                    <label className="text-sm font-medium text-gray-700">Sala Padrão</label>
                     <SearchableSelect
                       id="default_room"
                       value={restaurantForm.default_room || ''}
                       onChange={(_, val) => setRestaurantForm(p => ({ ...p, default_room: val }))}
                       options={[
-                        { value: '', label: 'None' },
+                        { value: '', label: 'Nenhuma' },
                         ...rooms.map((r) => ({ value: r.name, label: r.room_name || r.name }))
                       ]}
                       disabled={!isEditMode}
-                      placeholder="None"
+                      placeholder="Nenhuma"
                     />
                   </div>
                   <div className="flex items-center gap-2 pt-6">
@@ -723,12 +723,12 @@ export const BranchPage: React.FC = () => {
                       disabled={!isEditMode}
                     />
                     <label htmlFor="order_type_wise_menu" className="text-sm font-medium text-gray-700 cursor-pointer">
-                      Order Type Wise Menu
+                      Cardápio por Tipo de Pedido
                     </label>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No URY Restaurant linked to this branch.</p>
+                <p className="text-sm text-gray-400">Nenhum URY Restaurant vinculado a esta filial.</p>
               )}
             </div>
 
@@ -741,15 +741,15 @@ export const BranchPage: React.FC = () => {
                       <table className="w-full text-xs text-gray-600">
                         <thead className="bg-gray-50 border-b border-gray-100 font-semibold">
                           <tr>
-                            <th className="px-4 py-2 text-left">Order Type</th>
-                            <th className="px-4 py-2 text-left">Menu</th>
+                            <th className="px-4 py-2 text-left">Tipo de Pedido</th>
+                            <th className="px-4 py-2 text-left">Cardápio</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {(restaurantForm.order_type_menu || []).map((row: any, idx: number) => (
                             <tr key={idx}>
                               <td className="px-4 py-2">
-                                <Input disabled={!isEditMode} className="w-full text-xs" placeholder="e.g. Dine In" value={row.order_type || ''} onChange={e => {
+                                <Input disabled={!isEditMode} className="w-full text-xs" placeholder="ex: Local" value={row.order_type || ''} onChange={e => {
                                   const newRows = [...restaurantForm.order_type_menu];
                                   newRows[idx].order_type = e.target.value;
                                   setRestaurantForm({...restaurantForm, order_type_menu: newRows});
@@ -767,11 +767,11 @@ export const BranchPage: React.FC = () => {
                                       setRestaurantForm({...restaurantForm, order_type_menu: newRows});
                                     }}
                                     options={[
-                                      { value: '', label: 'Select Menu' },
+                                      { value: '', label: 'Selecione o Cardápio' },
                                       ...menus.map(m => ({ value: m.name, label: m.menu_name || m.name }))
                                     ]}
                                     disabled={!isEditMode}
-                                    placeholder="Select Menu"
+                                    placeholder="Selecione o Cardápio"
                                   />
                                 </div>
                                 {isEditMode && (
@@ -789,14 +789,14 @@ export const BranchPage: React.FC = () => {
                         <div className="p-2 border-t border-gray-100 bg-gray-50">
                           <Button type="button" variant="ghost" size="sm" className="text-primary h-7 text-xs" onClick={() => {
                             setRestaurantForm({...restaurantForm, order_type_menu: [...(restaurantForm.order_type_menu || []), {order_type: '', menu: ''}]});
-                          }}>+ Add Row</Button>
+                          }}>+ Adicionar Linha</Button>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No URY Restaurant linked to this branch.</p>
+                <p className="text-sm text-gray-400">Nenhum URY Restaurant vinculado a esta filial.</p>
               )}
             </div>
           </Card>
@@ -815,7 +815,7 @@ export const BranchPage: React.FC = () => {
           className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Branch</span>
+          <span>Adicionar Filial</span>
         </Button>
       </div>
 
@@ -829,16 +829,16 @@ export const BranchPage: React.FC = () => {
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Building2 className="w-6 h-6 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No Branch Configured</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Nenhuma Filial Configurada</h3>
           <p className="text-gray-500 mb-6 max-w-sm">
-            Create a Branch to manage restaurant settings and menus.
+            Crie uma Filial para gerenciar as configurações e cardápios do restaurante.
           </p>
           <Button
             onClick={() => setIsAddDrawerOpen(true)}
             className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Branch</span>
+            <span>Adicionar Filial</span>
           </Button>
         </Card>
       ) : (
@@ -846,9 +846,9 @@ export const BranchPage: React.FC = () => {
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold">
               <tr>
-                <th className="px-6 py-4">Branch</th>
-                <th className="px-6 py-4">Default Menu</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">Filial</th>
+                <th className="px-6 py-4">Cardápio Padrão</th>
+                <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -866,7 +866,7 @@ export const BranchPage: React.FC = () => {
                         size="sm"
                         onClick={() => handleBranchView(b)}
                         className="text-gray-500 hover:text-primary p-1.5 h-8 w-8"
-                        title="View Branch"
+                        title="Ver Filial"
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
@@ -875,7 +875,7 @@ export const BranchPage: React.FC = () => {
                         size="sm"
                         onClick={() => handleBranchEdit(b)}
                         className="text-gray-500 hover:text-primary p-1.5 h-8 w-8"
-                        title="Edit Branch"
+                        title="Editar Filial"
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
@@ -892,48 +892,48 @@ export const BranchPage: React.FC = () => {
       <SideDrawer
         isOpen={isAddDrawerOpen}
         onClose={() => setIsAddDrawerOpen(false)}
-        title="Add Branch"
+        title="Adicionar Filial"
       >
         <form onSubmit={handleAddBranch} className="space-y-6 text-sm">
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Branch Name <span className="text-red-500">*</span></label>
-            <Input required value={addForm.branchName} onChange={e => setAddForm({...addForm, branchName: e.target.value})} placeholder="e.g. Main Branch" />
+            <label className="block font-semibold text-gray-700 mb-1.5">Nome da Filial <span className="text-red-500">*</span></label>
+            <Input required value={addForm.branchName} onChange={e => setAddForm({...addForm, branchName: e.target.value})} placeholder="ex: Filial Principal" />
           </div>
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Company <span className="text-red-500">*</span></label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Empresa <span className="text-red-500">*</span></label>
             <SearchableSelect
               id="add_branch_company"
               value={addForm.company}
               onChange={(_, val) => setAddForm({...addForm, company: val})}
               options={[
-                { value: '', label: 'Select Company' },
+                { value: '', label: 'Selecione a Empresa' },
                 ...companies.map((c: any) => ({ value: c.name, label: c.name }))
               ]}
-              placeholder="Select Company"
+              placeholder="Selecione a Empresa"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Invoice Prefix <span className="text-red-500">*</span></label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Prefixo de Fatura <span className="text-red-500">*</span></label>
               <Input required value={addForm.invoicePrefix} onChange={e => setAddForm({...addForm, invoicePrefix: e.target.value})} />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Aggregator Prefix <span className="text-red-500">*</span></label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Prefixo de Agregador <span className="text-red-500">*</span></label>
               <Input required value={addForm.aggregatorPrefix} onChange={e => setAddForm({...addForm, aggregatorPrefix: e.target.value})} />
             </div>
           </div>
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Tax ID (Optional)</label>
+            <label className="block font-semibold text-gray-700 mb-1.5">CNPJ (Opcional)</label>
             <Input value={addForm.taxId} onChange={e => setAddForm({...addForm, taxId: e.target.value})} />
           </div>
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Address (Optional)</label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Endereço (Opcional)</label>
             <Input value={addForm.address} onChange={e => setAddForm({...addForm, address: e.target.value})} />
           </div>
           <div className="pt-6 flex justify-end gap-3 border-t border-gray-100">
-            <Button type="button" variant="outline" onClick={() => setIsAddDrawerOpen(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setIsAddDrawerOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 text-white">
-              Save
+              Salvar
             </Button>
           </div>
         </form>

@@ -33,11 +33,11 @@ interface TimeWiseSalesData {
 }
 
 const columns: DataTableColumn<IntervalRow>[] = [
-  { key: 'interval_label', header: 'Time Interval' },
-  { key: 'sales', header: 'Sales', render: (r) => formatCurrency(r.sales), align: 'right' },
-  { key: 'bills', header: 'Bills', align: 'right' },
-  { key: 'pct_of_daily_total', header: '% of Day', render: (r) => `${r.pct_of_daily_total}%`, align: 'right' },
-  { key: 'avg_transaction_value', header: 'Avg / Bill', render: (r) => formatCurrency(r.avg_transaction_value), align: 'right' },
+  { key: 'interval_label', header: 'Intervalo de Horário' },
+  { key: 'sales', header: 'Vendas', render: (r) => formatCurrency(r.sales), align: 'right' },
+  { key: 'bills', header: 'Contas', align: 'right' },
+  { key: 'pct_of_daily_total', header: '% do Dia', render: (r) => `${r.pct_of_daily_total}%`, align: 'right' },
+  { key: 'avg_transaction_value', header: 'Média / Conta', render: (r) => formatCurrency(r.avg_transaction_value), align: 'right' },
 ];
 
 const BUCKET_OPTIONS = [1, 2, 4];
@@ -62,7 +62,7 @@ export function TimeWiseSales() {
       });
       setData(res.message ?? (res as unknown as TimeWiseSalesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -76,9 +76,9 @@ export function TimeWiseSales() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Time Wise Sales</h1>
+          <h1 className="text-xl font-semibold">Vendas por Horário</h1>
           <p className="text-sm text-muted-foreground">
-            Sales by time of day {activeBranchId === 'all' ? '· All Branches' : ''}
+            Vendas por horário do dia {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -89,7 +89,7 @@ export function TimeWiseSales() {
               onChange={(_, val) => setBucketSize(Number(val))}
               options={BUCKET_OPTIONS.map((b) => ({
                 value: String(b),
-                label: `${b}-hour buckets`,
+                label: `Intervalos de ${b}h`,
               }))}
               strict
             />
@@ -111,23 +111,23 @@ export function TimeWiseSales() {
       )}
 
       {isLoading && !data ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">Carregando...</div>
       ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              label="Total Sales"
+              label="Total de Vendas"
               value={formatCurrency(data.summary.total_sales)}
               icon={<IndianRupee className="w-4 h-4" />}
             />
-            <StatCard label="Total Bills" value={data.summary.total_bills} icon={<Receipt className="w-4 h-4" />} />
+            <StatCard label="Total de Contas" value={data.summary.total_bills} icon={<Receipt className="w-4 h-4" />} />
             <StatCard
-              label="Avg / Bill"
+              label="Média / Conta"
               value={formatCurrency(data.summary.avg_sale_per_bill)}
               icon={<TrendingUp className="w-4 h-4" />}
             />
             <StatCard
-              label="Peak Interval"
+              label="Melhor Intervalo"
               value={data.summary.peak_interval ?? '—'}
               delta={
                 data.summary.peak_interval
@@ -139,11 +139,11 @@ export function TimeWiseSales() {
           </div>
 
           <BarChartCard
-            title="Sales by Time of Day"
+            title="Vendas por Horário do Dia"
             data={data.intervals}
             xKey="interval_label"
             yKeys={['sales']}
-            labels={{ sales: 'Sales' }}
+            labels={{ sales: 'Vendas' }}
           />
 
           <DataTable columns={columns} rows={data.intervals} isLoading={isLoading} />

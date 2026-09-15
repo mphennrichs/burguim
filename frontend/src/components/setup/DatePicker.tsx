@@ -26,11 +26,11 @@ interface DatePickerProps {
 }
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-const WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+const WEEKDAYS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
 
 function useDropdownPosition(
   isOpen: boolean,
@@ -347,7 +347,7 @@ export function DatePicker({
               onClick={handleTodayClick}
               className="text-sm font-medium text-gray-700 hover:text-primary transition-colors"
             >
-              Today
+              Hoje
             </button>
           </div>
         </div>
@@ -413,21 +413,21 @@ export function UryDateRangePicker({ value, onChange, className }: UryDateRangeP
 
   const presets = [
     {
-      label: 'Today',
+      label: 'Hoje',
       getRange: (): DateRangeValue => {
         const today = new Date();
         return { from: startOfDay(today), to: endOfDay(today) };
       },
     },
     {
-      label: 'This Week',
+      label: 'Esta Semana',
       getRange: (): DateRangeValue => {
         const today = new Date();
         return { from: startOfWeek(today), to: endOfWeek(today) };
       },
     },
     {
-      label: 'This Month',
+      label: 'Este Mês',
       getRange: (): DateRangeValue => {
         const today = new Date();
         return { from: startOfMonth(today), to: endOfMonth(today) };

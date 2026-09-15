@@ -30,13 +30,13 @@ interface MonthWiseSalesData {
 }
 
 const columns: DataTableColumn<MonthRow>[] = [
-  { key: 'month', header: 'Month' },
-  { key: 'item_total', header: 'Item Total', render: (r) => formatCurrency(r.item_total), align: 'right' },
-  { key: 'taxes', header: 'Taxes', render: (r) => formatCurrency(r.taxes), align: 'right' },
-  { key: 'grand_total', header: 'Grand Total', render: (r) => formatCurrency(r.grand_total), align: 'right' },
+  { key: 'month', header: 'Mês' },
+  { key: 'item_total', header: 'Total de Itens', render: (r) => formatCurrency(r.item_total), align: 'right' },
+  { key: 'taxes', header: 'Impostos', render: (r) => formatCurrency(r.taxes), align: 'right' },
+  { key: 'grand_total', header: 'Total Geral', render: (r) => formatCurrency(r.grand_total), align: 'right' },
   {
     key: 'growth_percentage',
-    header: 'Growth',
+    header: 'Crescimento',
     align: 'right',
     render: (r) =>
       r.growth_percentage === null ? '—' : `${r.growth_percentage > 0 ? '+' : ''}${r.growth_percentage}%`,
@@ -63,7 +63,7 @@ export function MonthWiseSales() {
       });
       setData(res.message ?? (res as unknown as MonthWiseSalesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -77,9 +77,9 @@ export function MonthWiseSales() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Month Wise Sales</h1>
+          <h1 className="text-xl font-semibold">Vendas por Mês</h1>
           <p className="text-sm text-muted-foreground">
-            Monthly revenue trend {activeBranchId === 'all' ? '· All Branches' : ''}
+            Tendência mensal de receita {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <div className="w-44">
@@ -89,7 +89,7 @@ export function MonthWiseSales() {
             onChange={(_, val) => setMonthsBack(Number(val))}
             options={MONTH_OPTIONS.map((m) => ({
               value: String(m),
-              label: `Last ${m} months`,
+              label: `Últimos ${m} meses`,
             }))}
             strict
           />
@@ -103,34 +103,34 @@ export function MonthWiseSales() {
       )}
 
       {isLoading && !data ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">Carregando...</div>
       ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              label="Total Revenue"
+              label="Receita Total"
               value={formatCurrency(data.summary.total_revenue)}
               icon={<IndianRupee className="w-4 h-4" />}
             />
             <StatCard
-              label="Avg Monthly"
+              label="Média Mensal"
               value={formatCurrency(data.summary.average_monthly_revenue)}
               icon={<TrendingUp className="w-4 h-4" />}
             />
-            <StatCard label="Best Month" value={data.summary.best_month ?? '—'} icon={<Trophy className="w-4 h-4" />} />
+            <StatCard label="Melhor Mês" value={data.summary.best_month ?? '—'} icon={<Trophy className="w-4 h-4" />} />
             <StatCard
-              label="Weakest Month"
+              label="Mês Mais Fraco"
               value={data.summary.worst_month ?? '—'}
               icon={<TrendingDown className="w-4 h-4" />}
             />
           </div>
 
           <BarChartCard
-            title="Monthly Grand Total"
+            title="Total Geral Mensal"
             data={data.data}
             xKey="month"
             yKeys={['grand_total']}
-            labels={{ grand_total: 'Grand Total' }}
+            labels={{ grand_total: 'Total Geral' }}
           />
 
           <DataTable columns={columns} rows={data.data} isLoading={isLoading} />

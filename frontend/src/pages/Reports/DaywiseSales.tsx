@@ -33,13 +33,13 @@ interface DaywiseSalesData {
 }
 
 const columns: DataTableColumn<DayRow>[] = [
-  { key: 'date', header: 'Date' },
-  { key: 'total_invoices', header: 'Invoices', align: 'right' },
-  { key: 'item_total', header: 'Item Total', render: (r) => formatCurrency(r.item_total), align: 'right' },
-  { key: 'total_taxes', header: 'Taxes', render: (r) => formatCurrency(r.total_taxes), align: 'right' },
-  { key: 'grand_total', header: 'Grand Total', render: (r) => formatCurrency(r.grand_total), align: 'right' },
-  { key: 'round_off', header: 'Round Off', render: (r) => formatCurrency(r.round_off), align: 'right' },
-  { key: 'cash_discount', header: 'Cash Discounts', render: (r) => formatCurrency(r.cash_discount), align: 'right' },
+  { key: 'date', header: 'Data' },
+  { key: 'total_invoices', header: 'Pedidos', align: 'right' },
+  { key: 'item_total', header: 'Total de Itens', render: (r) => formatCurrency(r.item_total), align: 'right' },
+  { key: 'total_taxes', header: 'Impostos', render: (r) => formatCurrency(r.total_taxes), align: 'right' },
+  { key: 'grand_total', header: 'Total Geral', render: (r) => formatCurrency(r.grand_total), align: 'right' },
+  { key: 'round_off', header: 'Arredondamento', render: (r) => formatCurrency(r.round_off), align: 'right' },
+  { key: 'cash_discount', header: 'Descontos', render: (r) => formatCurrency(r.cash_discount), align: 'right' },
 ];
 
 export function DaywiseSales() {
@@ -64,7 +64,7 @@ export function DaywiseSales() {
       });
       setData(res.message ?? (res as unknown as DaywiseSalesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -78,9 +78,9 @@ export function DaywiseSales() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Daywise Sales</h1>
+          <h1 className="text-xl font-semibold">Vendas por Dia</h1>
           <p className="text-sm text-muted-foreground">
-            Daily sales trend {activeBranchId === 'all' ? '· All Branches' : ''}
+            Tendência diária de vendas {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
@@ -93,27 +93,27 @@ export function DaywiseSales() {
       )}
 
       {isLoading && !data ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">Carregando...</div>
       ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              label="Period Total"
+              label="Total do Período"
               value={formatCurrency(data.summary.period_total)}
               icon={<IndianRupee className="w-4 h-4" />}
             />
             <StatCard
-              label="Avg Daily Sales"
+              label="Média Diária de Vendas"
               value={formatCurrency(data.summary.period_avg_daily)}
               icon={<TrendingUp className="w-4 h-4" />}
             />
             <StatCard
-              label="Total Invoices"
+              label="Total de Pedidos"
               value={data.summary.total_invoices}
               icon={<Receipt className="w-4 h-4" />}
             />
             <StatCard
-              label="Peak Day"
+              label="Melhor Dia"
               value={data.summary.peak_day ? `${data.summary.peak_day}` : '—'}
               delta={
                 data.summary.peak_day
@@ -125,11 +125,11 @@ export function DaywiseSales() {
           </div>
 
           <LineChartCard
-            title="Grand Total Trend"
+            title="Tendência do Total Geral"
             data={data.rows}
             xKey="date"
             yKeys={['grand_total']}
-            labels={{ grand_total: 'Grand Total' }}
+            labels={{ grand_total: 'Total Geral' }}
           />
 
           <DataTable columns={columns} rows={data.rows} isLoading={isLoading} />

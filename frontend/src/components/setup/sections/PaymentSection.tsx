@@ -35,7 +35,7 @@ export function PaymentSection() {
         });
       })
       .catch(() =>
-        setFetchError('Could not load payment methods, check your connection.')
+        setFetchError('Não foi possível carregar as formas de pagamento, verifique sua conexão.')
       )
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,7 +56,7 @@ export function PaymentSection() {
                 value={method.name}
                 options={allModes}
                 onChange={(_id, value) => updatePaymentMethod(method.id, { name: value })}
-                placeholder="Select Mode of Payment"
+                placeholder="Selecionar Forma de Pagamento"
                 disabled={loading}
               />
             </div>
@@ -66,7 +66,7 @@ export function PaymentSection() {
                 variant="ghost"
                 onClick={() => deletePaymentMethod(method.id)}
                 className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0 p-2 h-auto"
-                title="Delete Method"
+                title="Excluir Método"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -86,7 +86,7 @@ export function PaymentSection() {
         className="w-full py-2.5 border-dashed border-primary text-primary hover:bg-primary/10 flex items-center justify-center gap-2 text-sm font-medium"
       >
         <Plus className="w-4 h-4" />
-        Add Payment Method
+        Adicionar Forma de Pagamento
       </Button>
     </div>
   );

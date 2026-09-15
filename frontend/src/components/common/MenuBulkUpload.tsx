@@ -13,8 +13,8 @@ interface MenuBulkUploadProps {
 
 export function MenuBulkUpload({
   onItemsParsed,
-  title = "Bulk Upload (Optional)",
-  subtitle = "Import items from a CSV file",
+  title = "Upload em Massa (Opcional)",
+  subtitle = "Importar itens de um arquivo CSV",
   file = null,
   onFileChange,
 }: MenuBulkUploadProps) {
@@ -46,16 +46,16 @@ export function MenuBulkUpload({
       const rows = parseMenuCsv(text);
 
       if (rows.length === 0) {
-        setImportError("Couldn't read that file, make sure it matches the template format.");
+        setImportError("Não foi possível ler o arquivo. Verifique se ele segue o formato do modelo.");
         setFile(null);
         return;
       }
 
       onItemsParsed(rows);
-      setImportMessage(`Imported ${rows.length} item${rows.length === 1 ? '' : 's'} from ${selectedFile.name}, review and edit below.`);
+      setImportMessage(`${rows.length} ${rows.length === 1 ? 'item importado' : 'itens importados'} de ${selectedFile.name}, revise e edite abaixo.`);
       messageTimeoutRef.current = setTimeout(() => setImportMessage(null), 5000);
     } catch {
-      setImportError("Couldn't read that file, make sure it matches the template format.");
+      setImportError("Não foi possível ler o arquivo. Verifique se ele segue o formato do modelo.");
       setFile(null);
     }
   };
@@ -96,7 +96,7 @@ export function MenuBulkUpload({
           download 
           className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
         >
-          <Download className="w-3.5 h-3.5" /> Download Template
+          <Download className="w-3.5 h-3.5" /> Baixar Modelo
         </a>
       </div>
 
@@ -126,7 +126,7 @@ export function MenuBulkUpload({
               setImportError(null);
             }}
             className="text-muted-foreground hover:text-red-600 p-1 h-auto"
-            title="Remove File"
+            title="Remover Arquivo"
           >
             <X className="w-4 h-4" />
           </Button>
@@ -145,9 +145,9 @@ export function MenuBulkUpload({
         >
           <Upload className="w-5 h-5 text-gray-400 mx-auto mb-1.5" />
           <p className="text-xs font-medium text-gray-700">
-            Drag &amp; drop CSV file here, or <span className="text-primary hover:underline font-semibold">browse</span>
+            Arraste e solte o arquivo CSV aqui, ou <span className="text-primary hover:underline font-semibold">procure</span>
           </p>
-          <p className="text-[10px] text-gray-500 mt-0.5">Supports CSV files only</p>
+          <p className="text-[10px] text-gray-500 mt-0.5">Suporta apenas arquivos CSV</p>
         </div>
       )}
 

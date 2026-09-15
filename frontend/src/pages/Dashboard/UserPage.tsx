@@ -71,7 +71,7 @@ export const UserPage: React.FC = () => {
     if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
       return user.roles[0].role;
     }
-    return 'User';
+    return 'Usuário';
   };
 
   const openAddDrawer = () => {
@@ -132,7 +132,7 @@ export const UserPage: React.FC = () => {
         enabled: newUser.enabled ? 1 : 0,
       };
       if (JSON.stringify(original) === JSON.stringify(current)) {
-        showToast.warning('No changes in document');
+        showToast.warning('Nenhuma alteração no documento');
         return;
       }
     }
@@ -182,10 +182,10 @@ export const UserPage: React.FC = () => {
       }
       fetchUsers();
       setIsDrawerOpen(false);
-      showToast.success(`User ${editingUser ? 'updated' : 'added'} successfully`);
+      showToast.success(`Usuário ${editingUser ? 'atualizado' : 'adicionado'} com sucesso`);
     } catch (err: any) {
       console.error('Failed to save User', err);
-      let errorMessage = 'Failed to save User';
+      let errorMessage = 'Falha ao salvar Usuário';
       if (err._server_messages) {
         try {
           const messages = JSON.parse(err._server_messages);
@@ -199,7 +199,7 @@ export const UserPage: React.FC = () => {
       } else if (err.message) {
         errorMessage = err.message;
       } else if (err.exc) {
-        errorMessage = 'Duplicate entry or server error occurred.';
+        errorMessage = 'Ocorreu um erro de entrada duplicada ou erro no servidor.';
       }
       showToast.error(errorMessage);
     } finally {
@@ -216,7 +216,7 @@ export const UserPage: React.FC = () => {
           className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
         >
           <Plus className="w-4 h-4" />
-          <span>Add User</span>
+          <span>Adicionar Usuário</span>
         </Button>
       </div>
 
@@ -229,16 +229,16 @@ export const UserPage: React.FC = () => {
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Users className="w-6 h-6 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No Users Configured</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Nenhum Usuário Configurado</h3>
           <p className="text-gray-500 mb-6 max-w-sm">
-            Add staff users and assign them roles for this branch.
+            Adicione usuários da equipe e atribua funções para esta filial.
           </p>
           <Button
             onClick={openAddDrawer}
             className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>Add User</span>
+            <span>Adicionar Usuário</span>
           </Button>
         </Card>
       ) : (
@@ -246,10 +246,10 @@ export const UserPage: React.FC = () => {
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold">
               <tr>
-                <th className="px-6 py-4">User</th>
-                <th className="px-6 py-4">User ID</th>
-                <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">Usuário</th>
+                <th className="px-6 py-4">ID do Usuário</th>
+                <th className="px-6 py-4">Função</th>
+                <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -290,12 +290,12 @@ export const UserPage: React.FC = () => {
       <SideDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title={editingUser ? 'Edit User' : 'Add User'}
+        title={editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
       >
         <form onSubmit={handleSaveUser} className="space-y-5 text-sm">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">First Name</label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Nome</label>
               <Input
                 value={newUser.first_name}
                 onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
@@ -303,7 +303,7 @@ export const UserPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Last Name</label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Sobrenome</label>
               <Input
                 value={newUser.last_name}
                 onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
@@ -312,7 +312,7 @@ export const UserPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">User ID</label>
+            <label className="block font-semibold text-gray-700 mb-1.5">ID do Usuário</label>
             <Input
               type="email"
               value={newUser.email}
@@ -323,13 +323,13 @@ export const UserPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Role</label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Função</label>
             <SearchableSelect
               id="role"
               value={newUser.role}
               onChange={(_, value) => setNewUser({ ...newUser, role: value })}
               options={
-                allRoles.length > 0 
+                allRoles.length > 0
                   ? allRoles.map(r => ({ value: r.name, label: r.name }))
                   : [
                       { value: 'URY Cashier', label: 'URY Cashier' },
@@ -342,10 +342,10 @@ export const UserPage: React.FC = () => {
 
           <div className="pt-6 flex justify-end gap-3 border-t mt-4 border-gray-100">
             <Button type="button" variant="outline" onClick={() => setIsDrawerOpen(false)} disabled={saving}>
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" className="bg-primary hover:bg-primary/90 text-white px-6 flex items-center gap-2" disabled={saving}>
-              {editingUser ? 'Save Changes' : 'Create User'}
+              {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
             </Button>
           </div>
         </form>

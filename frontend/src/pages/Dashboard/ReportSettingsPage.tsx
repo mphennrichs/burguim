@@ -193,7 +193,7 @@ export const ReportSettingsPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to fetch report settings:', err);
-      showToast.error('Failed to load report settings');
+      showToast.error('Falha ao carregar configurações de relatório');
     } finally {
       setLoading(false);
     }
@@ -211,48 +211,48 @@ export const ReportSettingsPage: React.FC = () => {
   const addDirectFixed = () => {
     setDirectFixedExpenses([
       ...directFixedExpenses,
-      { id: Date.now().toString(), expense: 'New Direct Expense', amount: 0 },
+      { id: Date.now().toString(), expense: 'Nova Despesa Direta', amount: 0 },
     ]);
   };
 
   const addIndirectFixed = () => {
     setIndirectFixedExpenses([
       ...indirectFixedExpenses,
-      { id: Date.now().toString(), expense: 'New Indirect Expense', amount: 0 },
+      { id: Date.now().toString(), expense: 'Nova Despesa Indireta', amount: 0 },
     ]);
   };
 
   const addPercentageExpense = () => {
     setPercentageExpenses([
       ...percentageExpenses,
-      { id: Date.now().toString(), expense: 'New Fee', percent: 1.0, percentage_type: 'Gross Sales' },
+      { id: Date.now().toString(), expense: 'Nova Taxa', percent: 1.0, percentage_type: 'Gross Sales' },
     ]);
   };
 
   const addEmployeeCost = () => {
     setEmployeeCosts([
       ...employeeCosts,
-      { id: Date.now().toString(), expense: 'New Employee Cost', amount: 0 },
+      { id: Date.now().toString(), expense: 'Novo Custo de Funcionário', amount: 0 },
     ]);
   };
 
   const addMonthlyExpense = () => {
     setMonthlyFixedExpenses([
       ...monthlyFixedExpenses,
-      { id: Date.now().toString(), expense: 'New Monthly Expense', amount: 0 },
+      { id: Date.now().toString(), expense: 'Nova Despesa Mensal', amount: 0 },
     ]);
   };
 
   const addConsumable = () => {
     setConsumables([
       ...consumables,
-      { id: Date.now().toString(), material: 'New Consumable Item', cost_per_unit: 0 },
+      { id: Date.now().toString(), material: 'Novo Item Consumível', cost_per_unit: 0 },
     ]);
   };
 
   const handleSave = async () => {
     if (!branchToFetch) {
-      showToast.error('No branch selected');
+      showToast.error('Nenhuma filial selecionada');
       return;
     }
 
@@ -324,7 +324,7 @@ export const ReportSettingsPage: React.FC = () => {
       };
 
       if (JSON.stringify(original) === JSON.stringify(current)) {
-        showToast.warning('No changes in document');
+        showToast.warning('Nenhuma alteração no documento');
         return;
       }
     }
@@ -395,10 +395,10 @@ export const ReportSettingsPage: React.FC = () => {
         await call('frappe.client.insert', { doc: docToSave });
       }
 
-      showToast.success('Report settings saved successfully');
+      showToast.success('Configurações de relatório salvas com sucesso');
       await fetchReportSettings();
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to save report settings');
+      showToast.error(err.message || 'Falha ao salvar configurações de relatório');
     } finally {
       setSaving(false);
     }
@@ -412,7 +412,7 @@ export const ReportSettingsPage: React.FC = () => {
     );
   }
 
-  const branchLabel = activeBranchId === 'all' ? 'All Branches' : (activeBranch?.name || 'Selected Branch');
+  const branchLabel = activeBranchId === 'all' ? 'Todas as Filiais' : (activeBranch?.name || 'Filial Selecionada');
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-6 md:p-8">
@@ -424,8 +424,8 @@ export const ReportSettingsPage: React.FC = () => {
               <FileSpreadsheet className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daily P&L Settings</h1>
-              <p className="text-sm text-gray-500">Configure financial parameters, overhead cost basis, and operational shifts for <span className="font-semibold text-primary">{branchLabel}</span></p>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Configurações de DRE Diária</h1>
+              <p className="text-sm text-gray-500">Configure parâmetros financeiros, base de custos indiretos e turnos operacionais para <span className="font-semibold text-primary">{branchLabel}</span></p>
             </div>
           </div>
           <Button
@@ -434,7 +434,7 @@ export const ReportSettingsPage: React.FC = () => {
             className="bg-primary hover:bg-primary/90 text-white flex items-center gap-2"
           >
             <Save className="w-4 h-4" />
-            Save
+            Salvar
           </Button>
         </div>
 
@@ -452,8 +452,8 @@ export const ReportSettingsPage: React.FC = () => {
                   <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">1. Business Hours & Shift Cutoffs</h2>
-                  <p className="text-xs text-gray-500">Extended operating hours and reporting cut-off time offsets.</p>
+                  <h2 className="text-lg font-bold text-gray-900">1. Horário de Funcionamento e Corte de Turno</h2>
+                  <p className="text-xs text-gray-500">Horário estendido de funcionamento e deslocamento do horário de corte dos relatórios.</p>
                 </div>
               </div>
               {openSections.businessHours ? (
@@ -468,8 +468,8 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <div>
-                      <span className="text-sm font-semibold text-gray-900 block">Extended Hours</span>
-                      <span className="text-xs text-gray-500">Enable shift calculation beyond midnight (00:00).</span>
+                      <span className="text-sm font-semibold text-gray-900 block">Horário Estendido</span>
+                      <span className="text-xs text-gray-500">Habilita o cálculo de turno além da meia-noite (00:00).</span>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -484,16 +484,16 @@ export const ReportSettingsPage: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Hours Offset (hours)
+                      Deslocamento de Horas (horas)
                     </label>
                     <Input
                       type="number"
                       value={hoursOffset}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHoursOffset(Number(e.target.value))}
-                      placeholder="e.g. 4 for 4:00 AM cutoff"
+                      placeholder="ex: 4 para corte às 4:00"
                     />
                     <span className="text-xs text-gray-500 mt-1 block">
-                      Sales before this offset hour will be attributed to the previous business date.
+                      Vendas antes deste horário de corte serão atribuídas à data comercial anterior.
                     </span>
                   </div>
                 </div>
@@ -512,8 +512,8 @@ export const ReportSettingsPage: React.FC = () => {
                   <Calculator className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">2. Cost Configuration</h2>
-                  <p className="text-xs text-gray-500">Buying price lists, asset depreciation rates, and utility overhead allocations.</p>
+                  <h2 className="text-lg font-bold text-gray-900">2. Configuração de Custos</h2>
+                  <p className="text-xs text-gray-500">Listas de preços de compra, taxas de depreciação de ativos e rateio de custos com utilidades.</p>
                 </div>
               </div>
               {openSections.costConfig ? (
@@ -528,18 +528,18 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Buying Price List
+                      Lista de Preços de Compra
                     </label>
                     <Select value={buyingPriceList} onValueChange={(val: string) => setBuyingPriceList(val)}>
                       <SelectItem value="Standard Buying">Standard Buying</SelectItem>
-                      <SelectItem value="Wholesale Price List">Wholesale Price List</SelectItem>
-                      <SelectItem value="Vendor Cost Basis">Vendor Cost Basis</SelectItem>
+                      <SelectItem value="Wholesale Price List">Lista de Preços por Atacado</SelectItem>
+                      <SelectItem value="Vendor Cost Basis">Base de Custo do Fornecedor</SelectItem>
                     </Select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Depreciation Rate (%)
+                      Taxa de Depreciação (%)
                     </label>
                     <Input
                       type="number"
@@ -551,7 +551,7 @@ export const ReportSettingsPage: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Electricity Charges ($ / month)
+                      Conta de Energia (R$ / mês)
                     </label>
                     <Input
                       type="number"
@@ -575,8 +575,8 @@ export const ReportSettingsPage: React.FC = () => {
                   <Receipt className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">3. Expenses Tables</h2>
-                  <p className="text-xs text-gray-500">Manage direct, indirect, percentage, headcount, and consumable recurring cost tables.</p>
+                  <h2 className="text-lg font-bold text-gray-900">3. Tabelas de Despesas</h2>
+                  <p className="text-xs text-gray-500">Gerencie tabelas de custos recorrentes diretos, indiretos, percentuais, de pessoal e de consumíveis.</p>
                 </div>
               </div>
               {openSections.expenses ? (
@@ -593,11 +593,11 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900">Direct Fixed Expenses</h3>
-                      <p className="text-xs text-gray-500">Kitchen gas, raw material logistics, and direct production costs.</p>
+                      <h3 className="text-sm font-bold text-gray-900">Despesas Fixas Diretas</h3>
+                      <p className="text-xs text-gray-500">Gás de cozinha, logística de matéria-prima e custos diretos de produção.</p>
                     </div>
                     <Button size="sm" onClick={addDirectFixed} className="bg-primary text-white hover:bg-primary/90">
-                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                      <Plus className="w-4 h-4 mr-1" /> Adicionar Linha
                     </Button>
                   </div>
 
@@ -605,9 +605,9 @@ export const ReportSettingsPage: React.FC = () => {
                     <table className="w-full text-left text-sm text-gray-600">
                       <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
                         <tr>
-                          <th className="p-3.5">Expense</th>
-                          <th className="p-3.5">Amount ($)</th>
-                          <th className="p-3.5 text-right">Action</th>
+                          <th className="p-3.5">Despesa</th>
+                          <th className="p-3.5">Valor (R$)</th>
+                          <th className="p-3.5 text-right">Ação</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -659,11 +659,11 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="space-y-3 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900">Indirect Fixed Expenses</h3>
-                      <p className="text-xs text-gray-500">Building leases, software subscriptions, insurance, and administrative fees.</p>
+                      <h3 className="text-sm font-bold text-gray-900">Despesas Fixas Indiretas</h3>
+                      <p className="text-xs text-gray-500">Aluguel do imóvel, assinaturas de software, seguros e taxas administrativas.</p>
                     </div>
                     <Button size="sm" onClick={addIndirectFixed} className="bg-primary text-white hover:bg-primary/90">
-                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                      <Plus className="w-4 h-4 mr-1" /> Adicionar Linha
                     </Button>
                   </div>
 
@@ -671,9 +671,9 @@ export const ReportSettingsPage: React.FC = () => {
                     <table className="w-full text-left text-sm text-gray-600">
                       <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
                         <tr>
-                          <th className="p-3.5">Expense</th>
-                          <th className="p-3.5">Amount ($)</th>
-                          <th className="p-3.5 text-right">Action</th>
+                          <th className="p-3.5">Despesa</th>
+                          <th className="p-3.5">Valor (R$)</th>
+                          <th className="p-3.5 text-right">Ação</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -725,11 +725,11 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="space-y-3 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900">Percentage Expenses</h3>
-                      <p className="text-xs text-gray-500">Payment processor rates, delivery aggregator cuts, and royalties.</p>
+                      <h3 className="text-sm font-bold text-gray-900">Despesas Percentuais</h3>
+                      <p className="text-xs text-gray-500">Taxas de operadora de pagamento, comissões de agregadores de delivery e royalties.</p>
                     </div>
                     <Button size="sm" onClick={addPercentageExpense} className="bg-primary text-white hover:bg-primary/90">
-                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                      <Plus className="w-4 h-4 mr-1" /> Adicionar Linha
                     </Button>
                   </div>
 
@@ -737,10 +737,10 @@ export const ReportSettingsPage: React.FC = () => {
                     <table className="w-full text-left text-sm text-gray-600">
                       <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
                         <tr>
-                          <th className="p-3.5">Expense</th>
-                          <th className="p-3.5">Percentage (%)</th>
-                          <th className="p-3.5">Percentage Type</th>
-                          <th className="p-3.5 text-right">Action</th>
+                          <th className="p-3.5">Despesa</th>
+                          <th className="p-3.5">Percentual (%)</th>
+                          <th className="p-3.5">Tipo de Percentual</th>
+                          <th className="p-3.5 text-right">Ação</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -783,9 +783,9 @@ export const ReportSettingsPage: React.FC = () => {
                                   )
                                 }
                               >
-                                <SelectItem value="Gross Sales">Gross Sales</SelectItem>
-                                <SelectItem value="Net Sales">Net Sales</SelectItem>
-                                <SelectItem value="Online Orders">Online Orders</SelectItem>
+                                <SelectItem value="Gross Sales">Vendas Brutas</SelectItem>
+                                <SelectItem value="Net Sales">Vendas Líquidas</SelectItem>
+                                <SelectItem value="Online Orders">Pedidos Online</SelectItem>
                               </Select>
                             </td>
                             <td className="p-3.5 text-right">
@@ -809,11 +809,11 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="space-y-3 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900">Employee Costs</h3>
-                      <p className="text-xs text-gray-500">Staff role monthly compensation and headcount count.</p>
+                      <h3 className="text-sm font-bold text-gray-900">Custos com Funcionários</h3>
+                      <p className="text-xs text-gray-500">Remuneração mensal por função e quantidade de funcionários.</p>
                     </div>
                     <Button size="sm" onClick={addEmployeeCost} className="bg-primary text-white hover:bg-primary/90">
-                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                      <Plus className="w-4 h-4 mr-1" /> Adicionar Linha
                     </Button>
                   </div>
 
@@ -821,9 +821,9 @@ export const ReportSettingsPage: React.FC = () => {
                     <table className="w-full text-left text-sm text-gray-600">
                       <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
                         <tr>
-                          <th className="p-3.5">Expense</th>
-                          <th className="p-3.5">Amount ($)</th>
-                          <th className="p-3.5 text-right">Action</th>
+                          <th className="p-3.5">Despesa</th>
+                          <th className="p-3.5">Valor (R$)</th>
+                          <th className="p-3.5 text-right">Ação</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -875,11 +875,11 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="space-y-3 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900">Monthly Fixed Expenses</h3>
-                      <p className="text-xs text-gray-500">Recurring monthly telecom, maintenance, and sanitation overheads.</p>
+                      <h3 className="text-sm font-bold text-gray-900">Despesas Fixas Mensais</h3>
+                      <p className="text-xs text-gray-500">Telefonia, manutenção e custos recorrentes de limpeza.</p>
                     </div>
                     <Button size="sm" onClick={addMonthlyExpense} className="bg-primary text-white hover:bg-primary/90">
-                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                      <Plus className="w-4 h-4 mr-1" /> Adicionar Linha
                     </Button>
                   </div>
 
@@ -887,9 +887,9 @@ export const ReportSettingsPage: React.FC = () => {
                     <table className="w-full text-left text-sm text-gray-600">
                       <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
                         <tr>
-                          <th className="p-3.5">Expense</th>
-                          <th className="p-3.5">Amount ($)</th>
-                          <th className="p-3.5 text-right">Action</th>
+                          <th className="p-3.5">Despesa</th>
+                          <th className="p-3.5">Valor (R$)</th>
+                          <th className="p-3.5 text-right">Ação</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -941,11 +941,11 @@ export const ReportSettingsPage: React.FC = () => {
                 <div className="space-y-3 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900">Consumables Budget</h3>
-                      <p className="text-xs text-gray-500">Thermal paper rolls, take-away packaging, and disposable supplies.</p>
+                      <h3 className="text-sm font-bold text-gray-900">Orçamento de Consumíveis</h3>
+                      <p className="text-xs text-gray-500">Bobinas térmicas, embalagens para viagem e materiais descartáveis.</p>
                     </div>
                     <Button size="sm" onClick={addConsumable} className="bg-primary text-white hover:bg-primary/90">
-                      <Plus className="w-4 h-4 mr-1" /> Add Row
+                      <Plus className="w-4 h-4 mr-1" /> Adicionar Linha
                     </Button>
                   </div>
 
@@ -954,8 +954,8 @@ export const ReportSettingsPage: React.FC = () => {
                       <thead className="bg-gray-50 text-gray-700 font-medium border-b border-gray-200">
                         <tr>
                           <th className="p-3.5">Material</th>
-                          <th className="p-3.5">Cost Per Unit ($)</th>
-                          <th className="p-3.5 text-right">Action</th>
+                          <th className="p-3.5">Custo por Unidade (R$)</th>
+                          <th className="p-3.5 text-right">Ação</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">

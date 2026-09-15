@@ -28,15 +28,15 @@ interface DaywiseInvoicesData {
 }
 
 const columns: DataTableColumn<InvoiceRow>[] = [
-  { key: 'date', header: 'Date' },
-  { key: 'time', header: 'Time' },
-  { key: 'invoice', header: 'Invoice' },
-  { key: 'item_total', header: 'Item Total', render: (r) => formatCurrency(r.item_total), align: 'right' },
-  { key: 'total_taxes', header: 'Taxes', render: (r) => formatCurrency(r.total_taxes), align: 'right' },
-  { key: 'grand_total', header: 'Grand Total', render: (r) => formatCurrency(r.grand_total), align: 'right' },
-  { key: 'received_amount', header: 'Received', render: (r) => formatCurrency(r.received_amount), align: 'right' },
-  { key: 'cash_discounts', header: 'Cash Discounts', render: (r) => formatCurrency(r.cash_discounts), align: 'right' },
-  { key: 'payment_mode', header: 'Payment Mode', render: (r) => r.payment_mode || '—' },
+  { key: 'date', header: 'Data' },
+  { key: 'time', header: 'Hora' },
+  { key: 'invoice', header: 'Pedido' },
+  { key: 'item_total', header: 'Total de Itens', render: (r) => formatCurrency(r.item_total), align: 'right' },
+  { key: 'total_taxes', header: 'Impostos', render: (r) => formatCurrency(r.total_taxes), align: 'right' },
+  { key: 'grand_total', header: 'Total Geral', render: (r) => formatCurrency(r.grand_total), align: 'right' },
+  { key: 'received_amount', header: 'Recebido', render: (r) => formatCurrency(r.received_amount), align: 'right' },
+  { key: 'cash_discounts', header: 'Descontos', render: (r) => formatCurrency(r.cash_discounts), align: 'right' },
+  { key: 'payment_mode', header: 'Forma de Pagamento', render: (r) => r.payment_mode || '—' },
 ];
 
 const PAGE_SIZE = 50;
@@ -66,7 +66,7 @@ export function DaywiseInvoices() {
       });
       setData(res.message ?? (res as unknown as DaywiseInvoicesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -86,10 +86,10 @@ export function DaywiseInvoices() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Daywise Invoices</h1>
+          <h1 className="text-xl font-semibold">Pedidos por Dia</h1>
           <p className="text-sm text-muted-foreground">
-            Invoice-level detail {activeBranchId === 'all' ? '· All Branches' : ''}
-            {pagination ? ` · ${pagination.total} invoices` : ''}
+            Detalhamento por pedido {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
+            {pagination ? ` · ${pagination.total} pedidos` : ''}
           </p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
@@ -106,7 +106,7 @@ export function DaywiseInvoices() {
       {pagination && pagination.total_pages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            Page {pagination.page} of {pagination.total_pages}
+            Página {pagination.page} de {pagination.total_pages}
           </span>
           <div className="flex gap-2">
             <Button
@@ -115,7 +115,7 @@ export function DaywiseInvoices() {
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              <ChevronLeft className="w-4 h-4" /> Prev
+              <ChevronLeft className="w-4 h-4" /> Anterior
             </Button>
             <Button
               variant="outline"
@@ -123,7 +123,7 @@ export function DaywiseInvoices() {
               disabled={page >= pagination.total_pages}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next <ChevronRight className="w-4 h-4" />
+              Próxima <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>

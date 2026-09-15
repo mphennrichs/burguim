@@ -24,10 +24,10 @@ interface EmployeeSalesData {
 
 const columns: DataTableColumn<EmployeeRow>[] = [
   { key: 'rank', header: '#' },
-  { key: 'employee_name', header: 'Employee' },
-  { key: 'total_invoices', header: 'Invoices', align: 'right' },
-  { key: 'sales_amount', header: 'Sales Amount', render: (r) => formatCurrency(r.sales_amount), align: 'right' },
-  { key: 'average_invoice_value', header: 'Avg / Invoice', render: (r) => formatCurrency(r.average_invoice_value), align: 'right' },
+  { key: 'employee_name', header: 'Funcionário' },
+  { key: 'total_invoices', header: 'Pedidos', align: 'right' },
+  { key: 'sales_amount', header: 'Valor de Vendas', render: (r) => formatCurrency(r.sales_amount), align: 'right' },
+  { key: 'average_invoice_value', header: 'Média / Pedido', render: (r) => formatCurrency(r.average_invoice_value), align: 'right' },
 ];
 
 export function EmployeeSales() {
@@ -52,7 +52,7 @@ export function EmployeeSales() {
       });
       setData(res.message ?? (res as unknown as EmployeeSalesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -68,9 +68,9 @@ export function EmployeeSales() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Employee Sales</h1>
+          <h1 className="text-xl font-semibold">Vendas por Funcionário</h1>
           <p className="text-sm text-muted-foreground">
-            Staff leaderboard {activeBranchId === 'all' ? '· All Branches' : ''}
+            Ranking da equipe {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
@@ -85,14 +85,14 @@ export function EmployeeSales() {
       {data && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard label="Staff" value={data.summary.total_employees} icon={<Users className="w-4 h-4" />} />
+            <StatCard label="Equipe" value={data.summary.total_employees} icon={<Users className="w-4 h-4" />} />
             <StatCard
-              label="Total Invoices"
+              label="Total de Pedidos"
               value={data.summary.period_total_invoices}
               icon={<Receipt className="w-4 h-4" />}
             />
             <StatCard
-              label="Total Sales"
+              label="Total de Vendas"
               value={formatCurrency(data.summary.period_total_sales)}
               icon={<IndianRupee className="w-4 h-4" />}
             />
@@ -100,11 +100,11 @@ export function EmployeeSales() {
 
           {top10.length >= 2 && (
             <BarChartCard
-              title={`Top ${Math.min(10, top10.length)} by Sales`}
+              title={`Top ${Math.min(10, top10.length)} em Vendas`}
               data={top10}
               xKey="employee_name"
               yKeys={['sales_amount']}
-              labels={{ sales_amount: 'Sales Amount' }}
+              labels={{ sales_amount: 'Valor de Vendas' }}
             />
           )}
         </>

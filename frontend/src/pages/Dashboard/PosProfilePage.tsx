@@ -155,11 +155,11 @@ export const PosProfilePage: React.FC = () => {
           payments: addForm.payments.filter(p => p.mode_of_payment).map(p => ({ mode_of_payment: p.mode_of_payment, default: p.default }))
         }
       });
-      showToast.success('POS Profile created successfully');
+      showToast.success('Perfil de PDV criado com sucesso');
       setIsAddDrawerOpen(false);
       fetchProfiles();
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to create POS Profile');
+      showToast.error(err.message || 'Falha ao criar Perfil de PDV');
     } finally {
       setSaving(false);
     }
@@ -267,7 +267,7 @@ export const PosProfilePage: React.FC = () => {
     const currentNorm = getNormalizedProfileData(profileForm);
 
     if (JSON.stringify(originalNorm) === JSON.stringify(currentNorm)) {
-      showToast.warning('No changes in document');
+      showToast.warning('Nenhuma alteração no documento');
       return;
     }
 
@@ -311,11 +311,11 @@ export const PosProfilePage: React.FC = () => {
         });
       }
 
-      showToast.success('POS Profile saved successfully');
+      showToast.success('Perfil de PDV salvo com sucesso');
       fetchProfiles();
       setIsEditMode(false); // Return to read-only View Mode after successful save
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to save POS Profile');
+      showToast.error(err.message || 'Falha ao salvar Perfil de PDV');
       // Remains in Edit Mode if save fails
     } finally {
       setSaving(false);
@@ -336,13 +336,13 @@ export const PosProfilePage: React.FC = () => {
               className="text-gray-700 hover:text-primary flex items-center gap-1.5 shadow-2xs"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span>Voltar</span>
             </Button>
             <div className="h-5 w-px bg-gray-200" />
             <div>
-              <h2 className="text-lg font-bold text-gray-900">POS Profile: {selectedProfile.name}</h2>
+              <h2 className="text-lg font-bold text-gray-900">Perfil de PDV: {selectedProfile.name}</h2>
               <p className="text-xs text-gray-500">
-                Company: {selectedProfile.company || 'URY Restaurant'} &bull; Branch: {selectedProfile.branch || 'Main Branch'}
+                Empresa: {selectedProfile.company || 'URY Restaurant'} &bull; Filial: {selectedProfile.branch || 'Filial Principal'}
               </p>
             </div>
           </div>
@@ -354,7 +354,7 @@ export const PosProfilePage: React.FC = () => {
               className="w-24 h-9 bg-primary hover:bg-primary/90 text-white font-semibold flex items-center justify-center shadow-xs shrink-0 rounded-md"
             >
               <Save className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Save</span>
+              <span>Salvar</span>
             </Button>
           ) : (
             <Button
@@ -363,7 +363,7 @@ export const PosProfilePage: React.FC = () => {
               className="w-24 h-9 bg-primary hover:bg-primary/90 text-white font-semibold flex items-center justify-center shadow-xs shrink-0 rounded-md"
             >
               <Edit2 className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Edit</span>
+              <span>Editar</span>
             </Button>
           )}
         </div>
@@ -377,7 +377,7 @@ export const PosProfilePage: React.FC = () => {
             }`}
           >
             <Settings2 className="w-4 h-4" />
-            <span>Details</span>
+            <span>Detalhes</span>
           </button>
           <button
             onClick={() => setActiveDetailTab('print_settings')}
@@ -386,7 +386,7 @@ export const PosProfilePage: React.FC = () => {
             }`}
           >
             <Printer className="w-4 h-4" />
-            <span>Print Settings</span>
+            <span>Configurações de Impressão</span>
           </button>
           <button
             onClick={() => setActiveDetailTab('users_payments')}
@@ -395,7 +395,7 @@ export const PosProfilePage: React.FC = () => {
             }`}
           >
             <Shield className="w-4 h-4" />
-            <span>Users & Payments</span>
+            <span>Usuários e Pagamentos</span>
           </button>
         </div>
 
@@ -407,41 +407,41 @@ export const PosProfilePage: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <h4 className="font-bold text-gray-700 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
-                    General Settings
+                    Configurações Gerais
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <label className="block font-semibold text-gray-700 mb-1.5">Company</label>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Empresa</label>
                       <SearchableSelect
                         id="profile_company"
                         disabled={!isEditMode}
                         value={profileForm.company || ''}
                         onChange={(_, val) => setProfileForm(p => ({ ...p, company: val }))}
                         options={[
-                          { value: '', label: 'Select Company' },
+                          { value: '', label: 'Selecione a Empresa' },
                           ...options.companies.map((c: any) => ({ value: c.name, label: c.name }))
                         ]}
-                        placeholder="Select Company"
+                        placeholder="Selecione a Empresa"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-gray-700 mb-1.5">Warehouse</label>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Depósito</label>
                       <SearchableSelect
                         id="profile_warehouse"
                         disabled={!isEditMode}
                         value={profileForm.warehouse || ''}
                         onChange={(_, val) => setProfileForm(p => ({ ...p, warehouse: val }))}
                         options={[
-                          { value: '', label: 'Select Warehouse' },
+                          { value: '', label: 'Selecione o Depósito' },
                           ...options.warehouses.map((w: any) => ({ value: w.name, label: w.name }))
                         ]}
-                        placeholder="Select Warehouse"
+                        placeholder="Selecione o Depósito"
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-semibold text-gray-700 mb-1.5">Price List</label>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Lista de Preços</label>
                       <Input
                         disabled={!isEditMode}
                         value={profileForm.selling_price_list || ''}
@@ -450,12 +450,12 @@ export const PosProfilePage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-gray-700 mb-1.5">Print Format</label>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Formato de Impressão</label>
                       <Input
                         disabled={!isEditMode}
                         value={profileForm.print_format || ''}
                         onChange={(e) => setProfileForm(p => ({ ...p, print_format: e.target.value }))}
-                        placeholder="Default"
+                        placeholder="Padrão"
                       />
                     </div>
                   </div>
@@ -463,16 +463,16 @@ export const PosProfilePage: React.FC = () => {
 
                 <div>
                   <h4 className="font-bold text-gray-700 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
-                    Feature Toggles
+                    Funcionalidades
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
-                      { key: 'custom_enable_discount', label: 'Enable Item Discounts' },
-                      { key: 'custom_enable_kot_reprint', label: 'Enable KOT Reprint' },
-                      { key: 'custom_multiple_cashier_configuration', label: 'Enable Multiple Cashier Configuration' },
-                      { key: 'custom_daily_pos_close', label: 'Require Daily POS Closing' },
-                      { key: 'custom_edit_order_type', label: 'Enable Order Type Edit' },
-                      { key: 'custom_reset_order_number_daily', label: 'Reset Order Number Daily' },
+                      { key: 'custom_enable_discount', label: 'Habilitar Descontos por Item' },
+                      { key: 'custom_enable_kot_reprint', label: 'Habilitar Reimpressão de KOT' },
+                      { key: 'custom_multiple_cashier_configuration', label: 'Habilitar Múltiplos Caixas' },
+                      { key: 'custom_daily_pos_close', label: 'Exigir Fechamento Diário do PDV' },
+                      { key: 'custom_edit_order_type', label: 'Habilitar Edição do Tipo de Pedido' },
+                      { key: 'custom_reset_order_number_daily', label: 'Reiniciar Numeração de Pedido Diariamente' },
                     ].map(({ key, label }) => (
                       <div key={key} className="flex items-center gap-2 p-3 rounded-lg border border-gray-100 bg-gray-50/50">
                         <Switch
@@ -489,27 +489,27 @@ export const PosProfilePage: React.FC = () => {
 
                 <div>
                   <h4 className="font-bold text-gray-700 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
-                    Numeric Settings
+                    Configurações Numéricas
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-semibold text-gray-700 mb-1.5">Show Limited Paid Invoices (Number)</label>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Exibir Faturas Pagas Limitadas (Número)</label>
                       <Input
                         type="number"
                         disabled={!isEditMode}
                         value={profileForm.paid_limit || ''}
                         onChange={(e) => setProfileForm(p => ({ ...p, paid_limit: e.target.value }))}
-                        placeholder="e.g. 10"
+                        placeholder="ex: 10"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-gray-700 mb-1.5">Table Attention Time (minutes)</label>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Tempo de Atenção da Mesa (minutos)</label>
                       <Input
                         type="number"
                         disabled={!isEditMode}
                         value={profileForm.table_attention_time || ''}
                         onChange={(e) => setProfileForm(p => ({ ...p, table_attention_time: e.target.value }))}
-                        placeholder="e.g. 15"
+                        placeholder="ex: 15"
                       />
                     </div>
                   </div>
@@ -522,16 +522,16 @@ export const PosProfilePage: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <h4 className="font-bold text-gray-700 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
-                    Printer & QZ Configuration
+                    Configuração de Impressora e QZ
                   </h4>
                   <div className="space-y-4">
                     <div>
-                      <label className="block font-semibold text-gray-700 mb-1.5">Default Print Format</label>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Formato de Impressão Padrão</label>
                       <Input
                         disabled={!isEditMode}
                         value={profileForm.print_format || ''}
                         onChange={(e) => setProfileForm(p => ({ ...p, print_format: e.target.value }))}
-                        placeholder="Default"
+                        placeholder="Padrão"
                       />
                     </div>
 
@@ -539,14 +539,14 @@ export const PosProfilePage: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-gray-900 flex items-center gap-1.5">
                           <Printer className="w-4 h-4 text-primary" />
-                          QZ Tray Hardware Printing & KOT Routing
+                          Impressão em Hardware via QZ Tray e Roteamento de KOT
                         </span>
                         <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-                          Direct Thermal Ready
+                          Pronto para Térmica Direta
                         </Badge>
                       </div>
                       <p className="text-gray-600">
-                        Bill printer and KOT kitchen printer configuration are loaded automatically from POS Profile events and URY Printer Mappings.
+                        A configuração da impressora de conta e da impressora de cozinha (KOT) é carregada automaticamente a partir dos eventos do Perfil de PDV e dos Mapeamentos de Impressora URY.
                       </p>
                     </div>
                   </div>
@@ -560,7 +560,7 @@ export const PosProfilePage: React.FC = () => {
                 {/* Applicable For Users */}
                 <div>
                   <h4 className="font-bold text-gray-700 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
-                    Applicable For Users
+                    Aplicável Para Usuários
                   </h4>
                   <div className="space-y-2 mb-3">
                     {(profileForm.applicable_for_users || []).map((row: any, idx: number) => (
@@ -576,10 +576,10 @@ export const PosProfilePage: React.FC = () => {
                               setProfileForm({...profileForm, applicable_for_users: newRows});
                             }}
                             options={[
-                              { value: '', label: 'Select User' },
+                              { value: '', label: 'Selecione o Usuário' },
                               ...options.users.map((u: any) => ({ value: u.name, label: u.full_name || u.name }))
                             ]}
-                            placeholder="Select User"
+                            placeholder="Selecione o Usuário"
                           />
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -592,7 +592,7 @@ export const PosProfilePage: React.FC = () => {
                               setProfileForm({...profileForm, applicable_for_users: newRows});
                             }}
                           />
-                          <span>Default</span>
+                          <span>Padrão</span>
                         </div>
                         {isEditMode && (
                           <button type="button" className="text-gray-400 hover:text-red-500 p-1" onClick={() => {
@@ -614,7 +614,7 @@ export const PosProfilePage: React.FC = () => {
                       onClick={() => setProfileForm({...profileForm, applicable_for_users: [...(profileForm.applicable_for_users || []), {user:'', default:0}]})}
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Add User</span>
+                      <span>Adicionar Usuário</span>
                     </Button>
                   )}
                 </div>
@@ -622,7 +622,7 @@ export const PosProfilePage: React.FC = () => {
                 {/* Mode of Payment */}
                 <div>
                   <h4 className="font-bold text-gray-700 text-xs uppercase tracking-wider mb-3 pb-2 border-b border-gray-100">
-                    Mode of Payment
+                    Forma de Pagamento
                   </h4>
                   <div className="space-y-2 mb-3">
                     {(profileForm.payments || []).map((row: any, idx: number) => (
@@ -638,10 +638,10 @@ export const PosProfilePage: React.FC = () => {
                               setProfileForm({...profileForm, payments: newRows});
                             }}
                             options={[
-                              { value: '', label: 'Select Payment Mode' },
+                              { value: '', label: 'Selecione a Forma de Pagamento' },
                               ...options.payments.map((p: any) => ({ value: p.name, label: p.name }))
                             ]}
-                            placeholder="Select Payment Mode"
+                            placeholder="Selecione a Forma de Pagamento"
                           />
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -654,7 +654,7 @@ export const PosProfilePage: React.FC = () => {
                               setProfileForm({...profileForm, payments: newRows});
                             }}
                           />
-                          <span>Default</span>
+                          <span>Padrão</span>
                         </div>
                         {isEditMode && (
                           <button type="button" className="text-gray-400 hover:text-red-500 p-1" onClick={() => {
@@ -676,7 +676,7 @@ export const PosProfilePage: React.FC = () => {
                       onClick={() => setProfileForm({...profileForm, payments: [...(profileForm.payments || []), {mode_of_payment:'', default:0}]})}
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Add Payment</span>
+                      <span>Adicionar Pagamento</span>
                     </Button>
                   )}
                 </div>
@@ -698,7 +698,7 @@ export const PosProfilePage: React.FC = () => {
           className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Profile</span>
+          <span>Adicionar Perfil</span>
         </Button>
       </div>
 
@@ -712,16 +712,16 @@ export const PosProfilePage: React.FC = () => {
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Layers className="w-6 h-6 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No POS Profiles Configured</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Nenhum Perfil de PDV Configurado</h3>
           <p className="text-gray-500 mb-6 max-w-sm">
-            Create a POS Profile to manage billing terminals and cashier permissions.
+            Crie um Perfil de PDV para gerenciar terminais de faturamento e permissões de caixa.
           </p>
           <Button
             onClick={openAddDrawer}
             className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Profile</span>
+            <span>Adicionar Perfil</span>
           </Button>
         </Card>
       ) : (
@@ -729,11 +729,11 @@ export const PosProfilePage: React.FC = () => {
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold">
               <tr>
-                <th className="px-6 py-4">POS Profile</th>
-                <th className="px-6 py-4">Warehouse</th>
-                <th className="px-6 py-4">Price List</th>
-                <th className="px-6 py-4">Activation Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">Perfil de PDV</th>
+                <th className="px-6 py-4">Depósito</th>
+                <th className="px-6 py-4">Lista de Preços</th>
+                <th className="px-6 py-4">Status de Ativação</th>
+                <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -747,7 +747,7 @@ export const PosProfilePage: React.FC = () => {
                   <td className="px-6 py-4 text-gray-600">{p.selling_price_list || 'Standard Selling'}</td>
                   <td className="px-6 py-4">
                     <Badge variant={!p.disabled ? "success" : "outline"} size="sm">
-                      {!p.disabled ? 'Active' : 'Inactive'}
+                      {!p.disabled ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -757,7 +757,7 @@ export const PosProfilePage: React.FC = () => {
                         size="sm"
                         onClick={() => handleProfileView(p)}
                         className="text-gray-500 hover:text-primary p-1.5 h-8 w-8"
-                        title="View Profile"
+                        title="Ver Perfil"
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
@@ -766,7 +766,7 @@ export const PosProfilePage: React.FC = () => {
                         size="sm"
                         onClick={() => handleProfileEdit(p)}
                         className="text-gray-500 hover:text-primary p-1.5 h-8 w-8"
-                        title="Edit Profile"
+                        title="Editar Perfil"
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
@@ -783,39 +783,39 @@ export const PosProfilePage: React.FC = () => {
       <SideDrawer
         isOpen={isAddDrawerOpen}
         onClose={() => setIsAddDrawerOpen(false)}
-        title="Add POS Profile"
+        title="Adicionar Perfil de PDV"
       >
         <form onSubmit={handleAddProfile} className="space-y-6 text-sm">
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Profile Name <span className="text-red-500">*</span></label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Nome do Perfil <span className="text-red-500">*</span></label>
             <Input required value={addForm.name} onChange={e => setAddForm({...addForm, name: e.target.value})} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Company <span className="text-red-500">*</span></label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Empresa <span className="text-red-500">*</span></label>
               <SearchableSelect
                 id="add_profile_company"
                 value={addForm.company}
                 onChange={(_, val) => setAddForm({...addForm, company: val})}
                 options={[
-                  { value: '', label: 'Select Company' },
+                  { value: '', label: 'Selecione a Empresa' },
                   ...options.companies.map((c: any) => ({ value: c.name, label: c.name }))
                 ]}
-                placeholder="Select Company"
+                placeholder="Selecione a Empresa"
               />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Branch</label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Filial</label>
               {activeBranchId === 'all' ? (
                 <SearchableSelect
                   id="add_profile_branch"
                   value={addForm.branch}
                   onChange={(_, val) => setAddForm({...addForm, branch: val})}
                   options={[
-                    { value: '', label: 'Select Branch' },
+                    { value: '', label: 'Selecione a Filial' },
                     ...branches.map((b: any) => ({ value: b.name, label: b.name }))
                   ]}
-                  placeholder="Select Branch"
+                  placeholder="Selecione a Filial"
                 />
               ) : (
                 <Input value={addForm.branch} disabled />
@@ -824,37 +824,37 @@ export const PosProfilePage: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Warehouse</label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Depósito</label>
               <SearchableSelect
                 id="add_profile_warehouse"
                 value={addForm.warehouse}
                 onChange={(_, val) => setAddForm({...addForm, warehouse: val})}
                 options={[
-                  { value: '', label: 'Select Warehouse' },
+                  { value: '', label: 'Selecione o Depósito' },
                   ...options.warehouses.map((w: any) => ({ value: w.name, label: w.name }))
                 ]}
-                placeholder="Select Warehouse"
+                placeholder="Selecione o Depósito"
               />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">KOT Naming Series</label>
-              <Input value={addForm.custom_kot_naming_series} onChange={e => setAddForm({...addForm, custom_kot_naming_series: e.target.value})} placeholder="e.g. KOT-.YYYY.-" />
+              <label className="block font-semibold text-gray-700 mb-1.5">Série de Numeração do KOT</label>
+              <Input value={addForm.custom_kot_naming_series} onChange={e => setAddForm({...addForm, custom_kot_naming_series: e.target.value})} placeholder="ex: KOT-.YYYY.-" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Price List</label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Lista de Preços</label>
               <Input value={addForm.selling_price_list} onChange={e => setAddForm({...addForm, selling_price_list: e.target.value})} placeholder="Standard Selling" />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Print Format</label>
-              <Input value={addForm.print_format} onChange={e => setAddForm({...addForm, print_format: e.target.value})} placeholder="Default" />
+              <label className="block font-semibold text-gray-700 mb-1.5">Formato de Impressão</label>
+              <Input value={addForm.print_format} onChange={e => setAddForm({...addForm, print_format: e.target.value})} placeholder="Padrão" />
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="font-semibold text-gray-700">Applicable For Users</label>
+              <label className="font-semibold text-gray-700">Aplicável Para Usuários</label>
             </div>
             <div className="space-y-2 mb-3">
               {addForm.applicable_for_users.map((row, idx) => (
@@ -869,10 +869,10 @@ export const PosProfilePage: React.FC = () => {
                         setAddForm({...addForm, applicable_for_users: newRows});
                       }}
                       options={[
-                        { value: '', label: 'Select User' },
+                        { value: '', label: 'Selecione o Usuário' },
                         ...options.users.map((u: any) => ({ value: u.name, label: u.full_name || u.name }))
                       ]}
-                      placeholder="Select User"
+                      placeholder="Selecione o Usuário"
                     />
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -884,7 +884,7 @@ export const PosProfilePage: React.FC = () => {
                         setAddForm({...addForm, applicable_for_users: newRows});
                       }}
                     />
-                    <span>Default</span>
+                    <span>Padrão</span>
                   </div>
                   <button type="button" className="text-gray-400 hover:text-red-500 p-1" onClick={() => {
                     const newRows = addForm.applicable_for_users.filter((_, i) => i !== idx);
@@ -901,13 +901,13 @@ export const PosProfilePage: React.FC = () => {
               onClick={() => setAddForm({...addForm, applicable_for_users: [...addForm.applicable_for_users, {user:'', default:0}]})}
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add User</span>
+              <span>Adicionar Usuário</span>
             </Button>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="font-semibold text-gray-700">Mode of Payment</label>
+              <label className="font-semibold text-gray-700">Forma de Pagamento</label>
             </div>
             <div className="space-y-2 mb-3">
               {addForm.payments.map((row, idx) => (
@@ -922,10 +922,10 @@ export const PosProfilePage: React.FC = () => {
                         setAddForm({...addForm, payments: newRows});
                       }}
                       options={[
-                        { value: '', label: 'Select Payment Mode' },
+                        { value: '', label: 'Selecione a Forma de Pagamento' },
                         ...options.payments.map((p: any) => ({ value: p.name, label: p.name }))
                       ]}
-                      placeholder="Select Payment Mode"
+                      placeholder="Selecione a Forma de Pagamento"
                     />
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -937,7 +937,7 @@ export const PosProfilePage: React.FC = () => {
                         setAddForm({...addForm, payments: newRows});
                       }}
                     />
-                    <span>Default</span>
+                    <span>Padrão</span>
                   </div>
                   <button type="button" className="text-gray-400 hover:text-red-500 p-1" onClick={() => {
                     const newRows = addForm.payments.filter((_, i) => i !== idx);
@@ -954,14 +954,14 @@ export const PosProfilePage: React.FC = () => {
               onClick={() => setAddForm({...addForm, payments: [...addForm.payments, {mode_of_payment:'', default:0}]})}
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Payment</span>
+              <span>Adicionar Pagamento</span>
             </Button>
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t border-gray-100">
-            <Button type="button" variant="outline" onClick={() => setIsAddDrawerOpen(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setIsAddDrawerOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 text-white">
-              Save
+              Salvar
             </Button>
           </div>
         </form>

@@ -48,9 +48,9 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children }) => {
       <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <Card className="w-full max-w-md">
           <div className="p-6 text-center">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Acesso Negado</h2>
             <p className="text-gray-600">
-              You need the URY Manager role to access this section.
+              Você precisa da função URY Manager para acessar esta seção.
             </p>
           </div>
         </Card>

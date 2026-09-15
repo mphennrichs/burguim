@@ -8,12 +8,12 @@ interface SidebarItem {
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
-  { id: 'branch', label: 'Branch', icon: Building2 },
-  { id: 'rooms', label: 'Rooms', icon: Map },
-  { id: 'tables', label: 'Tables', icon: Grid3X3 },
-  { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
-  { id: 'payment', label: 'Payments', icon: CreditCard },
-  { id: 'users', label: 'User', icon: Users },
+  { id: 'branch', label: 'Filial', icon: Building2 },
+  { id: 'rooms', label: 'Salas', icon: Map },
+  { id: 'tables', label: 'Mesas', icon: Grid3X3 },
+  { id: 'menu', label: 'Cardápio', icon: UtensilsCrossed },
+  { id: 'payment', label: 'Pagamentos', icon: CreditCard },
+  { id: 'users', label: 'Usuário', icon: Users },
 ];
 
 export function ConfigureSidebar() {
@@ -24,7 +24,7 @@ export function ConfigureSidebar() {
       <div className="bg-muted border border-border rounded-lg p-4">
         {/* Section Title */}
         <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 px-1">
-          Configuration
+          Configuração
         </h2>
 
         <div className="space-y-1">

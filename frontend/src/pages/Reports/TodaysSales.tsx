@@ -38,7 +38,7 @@ export function TodaysSales() {
       });
       setData(res.message ?? (res as unknown as TodaySalesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -60,10 +60,10 @@ export function TodaysSales() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Today's Sales</h1>
+          <h1 className="text-xl font-semibold">Vendas de Hoje</h1>
           <p className="text-sm text-muted-foreground">
-            {data ? `${data.day_of_week}, ${data.query_date}` : 'Live sales snapshot'}
-            {activeBranchId === 'all' ? ' · All Branches' : ''}
+            {data ? `${data.day_of_week}, ${data.query_date}` : 'Panorama de vendas em tempo real'}
+            {activeBranchId === 'all' ? ' · Todas as Filiais' : ''}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -76,7 +76,7 @@ export function TodaysSales() {
           />
           {data && (
             <span className="text-xs text-muted-foreground">
-              Updated {new Date(data.last_updated_at).toLocaleTimeString()}
+              Atualizado {new Date(data.last_updated_at).toLocaleTimeString()}
             </span>
           )}
         </div>
@@ -89,38 +89,38 @@ export function TodaysSales() {
       )}
 
       {isLoading && !data ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">Carregando...</div>
       ) : data ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard label="Total Invoices" value={data.total_invoices} icon={<Receipt className="w-4 h-4" />} />
+          <StatCard label="Total de Pedidos" value={data.total_invoices} icon={<Receipt className="w-4 h-4" />} />
           <StatCard
-            label="Item Total"
+            label="Total de Itens"
             value={formatCurrency(data.item_total)}
             icon={<IndianRupee className="w-4 h-4" />}
           />
           <StatCard
-            label="Total Taxes & Charges"
+            label="Impostos e Taxas"
             value={formatCurrency(data.total_taxes_and_charges)}
             icon={<Percent className="w-4 h-4" />}
           />
           <StatCard
-            label="Grand Total"
+            label="Total Geral"
             value={formatCurrency(data.grand_total)}
             icon={<Sigma className="w-4 h-4" />}
             className="border-primary-200"
           />
           <StatCard
-            label="Round Off"
+            label="Arredondamento"
             value={formatCurrency(data.round_off)}
             icon={<Equal className="w-4 h-4" />}
           />
           <StatCard
-            label="Cash Discounts"
+            label="Descontos"
             value={formatCurrency(data.cash_discounts)}
             icon={<BadgePercent className="w-4 h-4" />}
             delta={
               data.cash_discounts !== 0
-                ? { value: data.cash_discounts < 0 ? 'given away' : 'owed to house', direction: data.cash_discounts < 0 ? 'down' : 'up' }
+                ? { value: data.cash_discounts < 0 ? 'concedido' : 'devido à casa', direction: data.cash_discounts < 0 ? 'down' : 'up' }
                 : undefined
             }
           />

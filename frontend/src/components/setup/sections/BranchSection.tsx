@@ -12,7 +12,7 @@ export function BranchSection() {
       <div className="grid grid-cols-1 w-full gap-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">
-            Branch Name <span className="text-red-500">*</span>
+            Nome da Filial <span className="text-red-500">*</span>
           </label>
           <Input
             type="text"
@@ -20,24 +20,24 @@ export function BranchSection() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               updateBranch({ branchName: e.target.value })
             }
-            placeholder="Main Branch"
+            placeholder="Filial Principal"
             className="w-full focus-visible:ring-primary"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Tax ID</label>
+          <label className="text-sm font-medium text-foreground">CNPJ</label>
           <Input
             type="text"
             value={branch.taxId}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               updateBranch({ taxId: e.target.value })
             }
-            placeholder="Optional"
+            placeholder="Opcional"
             className="w-full focus-visible:ring-primary"
           />
           <p className="text-xs text-muted-foreground">
-            Optional, add this now or later.
+            Opcional, adicione agora ou depois.
           </p>
         </div>
       </div>
@@ -46,7 +46,7 @@ export function BranchSection() {
       <div className="grid grid-cols-1 w-full gap-4 items-start">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">
-            Invoice Prefix <span className="text-red-500">*</span>
+            Prefixo da Fatura <span className="text-red-500">*</span>
           </label>
           <Input
             type="text"
@@ -54,11 +54,11 @@ export function BranchSection() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               updateBranch({ invoicePrefix: e.target.value })
             }
-            placeholder="INV-"
+            placeholder="FAT-"
             className="w-full focus-visible:ring-primary"
           />
           <p className="text-xs text-muted-foreground">
-            Shown at the start of every bill number, like INV-0001.
+            Exibido no início de cada número de fatura, como FAT-0001.
           </p>
         </div>
 
@@ -75,7 +75,7 @@ export function BranchSection() {
               htmlFor="takes-aggregator"
               className="text-sm font-medium text-foreground cursor-pointer leading-snug"
             >
-              Takes orders through food-delivery apps
+              Recebe pedidos através de aplicativos de entrega
             </label>
           </div>
         </div>
@@ -85,7 +85,7 @@ export function BranchSection() {
       {branch.takesAggregatorOrders && (
         <div className="space-y-1.5 w-full">
           <label className="text-sm font-medium text-foreground">
-            Aggregator Prefix
+            Prefixo do Agregador
           </label>
           <Input
             type="text"
@@ -93,11 +93,11 @@ export function BranchSection() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               updateBranch({ aggregatorPrefix: e.target.value })
             }
-            placeholder="AGG-"
+            placeholder="AGR-"
             className="w-full focus-visible:ring-primary"
           />
           <p className="text-xs text-muted-foreground">
-            A separate bill number series for delivery app orders.
+            Uma série de numeração separada para pedidos de aplicativos de entrega.
           </p>
         </div>
       )}

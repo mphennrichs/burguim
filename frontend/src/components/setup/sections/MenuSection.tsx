@@ -7,11 +7,11 @@ import { Switch } from '../../ui/switch';
 import { MenuBulkUpload } from '../../common/MenuBulkUpload';
 
 const COURSE_OPTIONS = [
-  { value: 'Starters', label: 'Starters' },
-  { value: 'Main Course', label: 'Main Course' },
-  { value: 'Beverages', label: 'Beverages' },
-  { value: 'Desserts', label: 'Desserts' },
-  { value: 'Sides', label: 'Sides' },
+  { value: 'Starters', label: 'Entradas' },
+  { value: 'Main Course', label: 'Prato Principal' },
+  { value: 'Beverages', label: 'Bebidas' },
+  { value: 'Desserts', label: 'Sobremesas' },
+  { value: 'Sides', label: 'Acompanhamentos' },
 ];
 
 export function MenuSection() {
@@ -29,7 +29,7 @@ export function MenuSection() {
   } = useConfigure();
 
   const currencyLabel = (window as any).frappe?.boot?.sysdefaults?.currency;
-  const priceColumnLabel = currencyLabel ? `Price (${currencyLabel})` : 'Price';
+  const priceColumnLabel = currencyLabel ? `Preço (${currencyLabel})` : 'Preço';
 
   const handleAdd = () => {
     addMenuItem({
@@ -44,7 +44,7 @@ export function MenuSection() {
       {/* 1. Bulk Menu Upload */}
       <MenuBulkUpload
         onItemsParsed={addMenuItems}
-        title="Bulk Menu Upload"
+        title="Upload de Cardápio em Massa"
         subtitle=""
         file={menuFile}
         onFileChange={setMenuFile}
@@ -66,18 +66,18 @@ export function MenuSection() {
                 htmlFor="tax-inclusive"
                 className="text-sm font-medium text-foreground cursor-pointer"
               >
-                {taxConfig.taxType === 'Inclusive' ? 'Tax Inclusive' : 'Tax Exclusive'}
+                {taxConfig.taxType === 'Inclusive' ? 'Imposto Incluso' : 'Imposto Não Incluso'}
               </label>
               <p className="text-xs text-muted-foreground">
                 {taxConfig.taxType === 'Inclusive'
-                  ? 'the tax amount will be considered as already included in the Print Rate / Print Amount'
-                  : 'The tax amount will be calculated separately and added to the Print Rate / Print Amount.'}
+                  ? 'o valor do imposto será considerado como já incluso na Taxa de Impressão / Valor de Impressão'
+                  : 'O valor do imposto será calculado separadamente e adicionado à Taxa de Impressão / Valor de Impressão.'}
               </p>
             </div>
           </div>
 
           <div className="space-y-1.5 w-full">
-            <label className="text-sm font-medium text-foreground">Tax Rate</label>
+            <label className="text-sm font-medium text-foreground">Taxa de Imposto</label>
             <Input
               type="number"
               min={0}
@@ -96,13 +96,13 @@ export function MenuSection() {
 
       {/* 3. Menu Items List */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">Menu Items</h3>
+        <h3 className="text-sm font-semibold text-foreground">Itens do Cardápio</h3>
 
         <div className="space-y-3">
           {/* Header Row */}
           <div className="hidden md:flex gap-3 px-2 text-xs font-medium text-muted-foreground">
-            <div className="flex-1">Item Name</div>
-            <div className="flex-1">Course</div>
+            <div className="flex-1">Nome do Item</div>
+            <div className="flex-1">Categoria</div>
             <div className="flex-1">{priceColumnLabel}</div>
             {menuItems.length > 1 && <div className="w-8"></div>}
           </div>
@@ -120,7 +120,7 @@ export function MenuSection() {
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updateMenuItem(item.id, { name: e.target.value })
                     }
-                    placeholder="Item Name"
+                    placeholder="Nome do Item"
                     className="w-full text-sm bg-white"
                   />
                 </div>
@@ -131,7 +131,7 @@ export function MenuSection() {
                     value={item.course}
                     options={COURSE_OPTIONS}
                     onChange={(_id, value) => updateMenuItem(item.id, { course: value })}
-                    placeholder="Course"
+                    placeholder="Categoria"
                   />
                 </div>
 
@@ -155,7 +155,7 @@ export function MenuSection() {
                   variant="ghost"
                   onClick={() => deleteMenuItem(item.id)}
                   className="text-red-500 hover:text-red-700 hover:bg-red-50 self-end md:self-center shrink-0 p-2 h-auto"
-                  title="Delete Item"
+                  title="Excluir Item"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -171,7 +171,7 @@ export function MenuSection() {
           className="w-full py-2.5 border-dashed border-primary text-primary hover:bg-primary/10 flex items-center justify-center gap-2 text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
-          Add Menu Item
+          Adicionar Item ao Cardápio
         </Button>
       </div>
     </div>

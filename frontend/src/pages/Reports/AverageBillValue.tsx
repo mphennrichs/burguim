@@ -21,10 +21,10 @@ interface AverageBillValueData {
 }
 
 const columns: DataTableColumn<ABVRow>[] = [
-  { key: 'date', header: 'Date' },
-  { key: 'bill_count', header: 'Bills', align: 'right' },
-  { key: 'total_sales', header: 'Total Sales', render: (r) => formatCurrency(r.total_sales), align: 'right' },
-  { key: 'abv', header: 'ABV', render: (r) => formatCurrency(r.abv), align: 'right' },
+  { key: 'date', header: 'Data' },
+  { key: 'bill_count', header: 'Contas', align: 'right' },
+  { key: 'total_sales', header: 'Total de Vendas', render: (r) => formatCurrency(r.total_sales), align: 'right' },
+  { key: 'abv', header: 'Ticket Médio', render: (r) => formatCurrency(r.abv), align: 'right' },
 ];
 
 export function AverageBillValue() {
@@ -49,7 +49,7 @@ export function AverageBillValue() {
       });
       setData(res.message ?? (res as unknown as AverageBillValueData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -63,9 +63,9 @@ export function AverageBillValue() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Average Bill Value</h1>
+          <h1 className="text-xl font-semibold">Ticket Médio</h1>
           <p className="text-sm text-muted-foreground">
-            Daily average bill trend {activeBranchId === 'all' ? '· All Branches' : ''}
+            Tendência diária do ticket médio {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
@@ -78,24 +78,24 @@ export function AverageBillValue() {
       )}
 
       {isLoading && !data ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">Carregando...</div>
       ) : data ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard label="Total Bills" value={data.summary.total_bills} icon={<Receipt className="w-4 h-4" />} />
+            <StatCard label="Total de Contas" value={data.summary.total_bills} icon={<Receipt className="w-4 h-4" />} />
             <StatCard
-              label="Total Sales"
+              label="Total de Vendas"
               value={formatCurrency(data.summary.total_sales)}
               icon={<IndianRupee className="w-4 h-4" />}
             />
             <StatCard
-              label="Average Bill Value"
+              label="Ticket Médio"
               value={formatCurrency(data.summary.average_abv)}
               icon={<Gauge className="w-4 h-4" />}
             />
           </div>
 
-          <LineChartCard title="ABV Trend" data={data.data} xKey="date" yKeys={['abv']} labels={{ abv: 'Avg Bill Value' }} />
+          <LineChartCard title="Tendência do Ticket Médio" data={data.data} xKey="date" yKeys={['abv']} labels={{ abv: 'Ticket Médio' }} />
 
           <DataTable columns={columns} rows={data.data} isLoading={isLoading} />
         </>

@@ -52,7 +52,7 @@ export function CancelledInvoices() {
       });
       setData(res.message ?? (res as unknown as CancelledInvoicesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -69,12 +69,12 @@ export function CancelledInvoices() {
   const threshold = data ? data.summary.avg_amount * HIGH_VALUE_MULTIPLIER : Infinity;
 
   const columns: DataTableColumn<CancelledInvoiceRow>[] = [
-    { key: 'date', header: 'Date' },
-    { key: 'time', header: 'Time' },
-    { key: 'invoice', header: 'Invoice' },
+    { key: 'date', header: 'Data' },
+    { key: 'time', header: 'Hora' },
+    { key: 'invoice', header: 'Pedido' },
     {
       key: 'amount',
-      header: 'Amount',
+      header: 'Valor',
       align: 'right',
       render: (r) => (
         <span className={r.amount > threshold ? 'flex items-center gap-1 text-red-600 font-semibold' : ''}>
@@ -83,8 +83,8 @@ export function CancelledInvoices() {
         </span>
       ),
     },
-    { key: 'cancelled_by', header: 'Cancelled By' },
-    { key: 'cancellation_reason', header: 'Reason', render: (r) => r.cancellation_reason || '—' },
+    { key: 'cancelled_by', header: 'Cancelado Por' },
+    { key: 'cancellation_reason', header: 'Motivo', render: (r) => r.cancellation_reason || '—' },
   ];
 
   const pagination = data?.pagination;
@@ -93,9 +93,9 @@ export function CancelledInvoices() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Cancelled Invoices</h1>
+          <h1 className="text-xl font-semibold">Pedidos Cancelados</h1>
           <p className="text-sm text-muted-foreground">
-            Cancellation audit {activeBranchId === 'all' ? '· All Branches' : ''}
+            Auditoria de cancelamentos {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
@@ -109,14 +109,14 @@ export function CancelledInvoices() {
 
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label="Total Cancelled" value={data.summary.total_count} icon={<Ban className="w-4 h-4" />} />
+          <StatCard label="Total Cancelado" value={data.summary.total_count} icon={<Ban className="w-4 h-4" />} />
           <StatCard
-            label="Total Amount"
+            label="Valor Total"
             value={formatCurrency(data.summary.total_amount)}
             icon={<IndianRupee className="w-4 h-4" />}
           />
           <StatCard
-            label="Unique Cancellers"
+            label="Pessoas que Cancelaram"
             value={data.summary.unique_cancellers}
             icon={<Users className="w-4 h-4" />}
           />
@@ -128,11 +128,11 @@ export function CancelledInvoices() {
       {pagination && pagination.total_pages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            Page {pagination.page} of {pagination.total_pages}
+            Página {pagination.page} de {pagination.total_pages}
           </span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              <ChevronLeft className="w-4 h-4" /> Prev
+              <ChevronLeft className="w-4 h-4" /> Anterior
             </Button>
             <Button
               variant="outline"
@@ -140,7 +140,7 @@ export function CancelledInvoices() {
               disabled={page >= pagination.total_pages}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next <ChevronRight className="w-4 h-4" />
+              Próxima <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>

@@ -42,7 +42,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, loading }) => {
       {loading ? (
         <div className="mt-2 flex items-center space-x-2">
           <Spinner className="w-4 h-4 text-primary" />
-          <span className="text-sm text-gray-400">Loading...</span>
+          <span className="text-sm text-gray-400">Carregando...</span>
         </div>
       ) : (
         <h3 className="mt-2 text-2xl font-bold text-gray-900 tracking-tight">{value}</h3>
@@ -79,37 +79,37 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ summary, loading }) => {
         />
 
         <KPICard
-          title="Today's Sales"
+          title="Vendas de Hoje"
           value={formatCurrency(todaySales)}
           loading={loading}
         />
 
         <KPICard
-          title="Orders Today"
+          title="Pedidos Hoje"
           value={ordersToday.toString()}
           loading={loading}
         />
 
         <KPICard
-          title="Table Occupancy"
+          title="Ocupação de Mesas"
           value={`${occupancyRate}%`}
           loading={loading}
         />
 
         <KPICard
-          title="Occupied Tables"
+          title="Mesas Ocupadas"
           value={`${occupiedTables} / ${totalTables}`}
           loading={loading}
         />
 
         <KPICard
-          title="Average Order Value"
+          title="Ticket Médio"
           value={formatCurrency(aov)}
           loading={loading}
         />
 
         <KPICard
-          title="Pending Kitchen Orders"
+          title="Pedidos Pendentes na Cozinha"
           value={`${pendingOrders} KOTs`}
           loading={loading}
         />

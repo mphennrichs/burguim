@@ -30,7 +30,7 @@ export function SearchableSelect({
   id,
   value,
   options = [],
-  placeholder = 'Select...',
+  placeholder = 'Selecionar...',
   error,
   onChange,
   onBlur,
@@ -217,7 +217,7 @@ export function SearchableSelect({
           );
         })
       ) : (
-        <div className="px-4 py-2 text-sm text-gray-400">No matching options</div>
+        <div className="px-4 py-2 text-sm text-gray-400">Nenhuma opção encontrada</div>
       )}
     </div>
   ) : null;

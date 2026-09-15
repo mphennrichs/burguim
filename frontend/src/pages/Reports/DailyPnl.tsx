@@ -62,8 +62,8 @@ function MissingPricesWarning({ sections }: { sections: MissingPriceSection[] })
       >
         <span className="flex items-center gap-2 font-medium">
           <AlertTriangle className="w-4 h-4 shrink-0" />
-          Buying price not set for {totalItems} item{totalItems === 1 ? '' : 's'} — Cost of Goods may be
-          understated
+          Preço de compra não definido para {totalItems} {totalItems === 1 ? 'item' : 'itens'} — o Custo das
+          Mercadorias pode estar subestimado
         </span>
         <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
@@ -84,7 +84,7 @@ function MissingPricesWarning({ sections }: { sections: MissingPriceSection[] })
             </div>
           ))}
           <p className="text-xs text-amber-700">
-            Update these item prices, then submit the document again for accurate Cost of Goods.
+            Atualize os preços desses itens e submeta o documento novamente para um Custo das Mercadorias preciso.
           </p>
         </div>
       )}
@@ -164,7 +164,7 @@ export function DailyPnl() {
       });
       setData(res.message ?? (res as unknown as DailyPnlData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -181,8 +181,8 @@ export function DailyPnl() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Daily P&amp;L</h1>
-          <p className="text-sm text-muted-foreground">Full daily profit &amp; loss breakdown</p>
+          <h1 className="text-xl font-semibold">DRE Diário</h1>
+          <p className="text-sm text-muted-foreground">Demonstrativo completo de lucros e perdas do dia</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-48">
@@ -228,10 +228,10 @@ export function DailyPnl() {
       )}
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">Carregando...</div>
       ) : !data?.exists ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          No submitted Daily P&amp;L exists for this branch/date. It must be created and submitted in Desk first.
+          Não existe DRE Diário submetido para esta filial/data. Ele precisa ser criado e submetido no Desk primeiro.
         </div>
       ) : (
         <>
@@ -257,24 +257,24 @@ export function DailyPnl() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              label="Gross Sales"
+              label="Vendas Brutas"
               value={formatCurrency(summaryMap.get('gross_sales')?.amount ?? 0)}
               icon={<IndianRupee className="w-4 h-4" />}
             />
             <StatCard
-              label="Net Sales"
+              label="Vendas Líquidas"
               value={formatCurrency(summaryMap.get('net_sales')?.amount ?? 0)}
               icon={<TrendingUp className="w-4 h-4" />}
             />
             <StatCard
-              label="Gross Profit"
+              label="Lucro Bruto"
               value={`${formatCurrency(summaryMap.get('gross_profit')?.amount ?? 0)} (${Number(
                 summaryMap.get('gross_profit')?.percent ?? 0
               ).toFixed(1)}%)`}
               icon={<Percent className="w-4 h-4" />}
             />
             <StatCard
-              label="Net Profit"
+              label="Lucro Líquido"
               value={`${formatCurrency(summaryMap.get('net_profit')?.amount ?? 0)} (${Number(
                 summaryMap.get('net_profit')?.percent ?? 0
               ).toFixed(1)}%)`}
@@ -290,7 +290,7 @@ export function DailyPnl() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">P&amp;L Statement</CardTitle>
+              <CardTitle className="text-base">Demonstrativo de Resultado</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
               {rest.map((r) => (
@@ -306,10 +306,10 @@ export function DailyPnl() {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-            <BreakupTable title="Direct Expenses" rows={data.direct_expenses_breakup ?? []} className="self-start" />
-            <BreakupTable title="Employee Costs" rows={data.employee_costs_breakup ?? []} className="self-start" />
+            <BreakupTable title="Despesas Diretas" rows={data.direct_expenses_breakup ?? []} className="self-start" />
+            <BreakupTable title="Custos com Funcionários" rows={data.employee_costs_breakup ?? []} className="self-start" />
             <BreakupTable
-              title="Indirect Expenses"
+              title="Despesas Indiretas"
               rows={data.indirect_expenses_breakup ?? []}
               className="lg:col-span-2"
               twoColumn
@@ -319,17 +319,17 @@ export function DailyPnl() {
           {data.cost_of_goods && data.cost_of_goods.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Cost of Goods Sold</CardTitle>
+                <CardTitle className="text-base">Custo das Mercadorias Vendidas</CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-muted-foreground border-b">
                       <th className="py-1.5 pr-4">Item</th>
-                      <th className="py-1.5 pr-4">Group</th>
-                      <th className="py-1.5 pr-4">Qty</th>
-                      <th className="py-1.5 pr-4">Buying Price</th>
-                      <th className="py-1.5">Amount</th>
+                      <th className="py-1.5 pr-4">Grupo</th>
+                      <th className="py-1.5 pr-4">Qtd.</th>
+                      <th className="py-1.5 pr-4">Preço de Compra</th>
+                      <th className="py-1.5">Valor</th>
                     </tr>
                   </thead>
                   <tbody>

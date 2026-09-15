@@ -22,11 +22,11 @@ interface CompletedWorkOrdersData {
 }
 
 const columns: DataTableColumn<WorkOrderRow>[] = [
-  { key: 'name', header: 'Work Order' },
+  { key: 'name', header: 'Ordem de Produção' },
   { key: 'item_name', header: 'Item', render: (r) => r.item_name || r.production_item },
-  { key: 'qty', header: 'Planned Qty', align: 'right' },
-  { key: 'produced_qty', header: 'Produced Qty', align: 'right' },
-  { key: 'actual_end_date', header: 'Completed', render: (r) => r.actual_end_date || r.planned_end_date || '—' },
+  { key: 'qty', header: 'Qtd. Planejada', align: 'right' },
+  { key: 'produced_qty', header: 'Qtd. Produzida', align: 'right' },
+  { key: 'actual_end_date', header: 'Concluída', render: (r) => r.actual_end_date || r.planned_end_date || '—' },
 ];
 
 export function CompletedWorkOrders() {
@@ -51,7 +51,7 @@ export function CompletedWorkOrders() {
       );
       setData(res.message ?? (res as unknown as CompletedWorkOrdersData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -65,8 +65,8 @@ export function CompletedWorkOrders() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Completed Work Orders</h1>
-          <p className="text-sm text-muted-foreground">Manufacturing production history</p>
+          <h1 className="text-xl font-semibold">Ordens de Produção Concluídas</h1>
+          <p className="text-sm text-muted-foreground">Histórico de produção industrial</p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
       </div>
@@ -79,8 +79,8 @@ export function CompletedWorkOrders() {
 
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard label="Completed" value={data.summary.total_completed} icon={<Factory className="w-4 h-4" />} />
-          <StatCard label="Qty Produced" value={data.summary.total_qty_produced} icon={<Package className="w-4 h-4" />} />
+          <StatCard label="Concluídas" value={data.summary.total_completed} icon={<Factory className="w-4 h-4" />} />
+          <StatCard label="Qtd. Produzida" value={data.summary.total_qty_produced} icon={<Package className="w-4 h-4" />} />
         </div>
       )}
 
@@ -88,7 +88,7 @@ export function CompletedWorkOrders() {
         columns={columns}
         rows={data?.work_orders ?? []}
         isLoading={isLoading}
-        emptyMessage="No completed work orders in this range."
+        emptyMessage="Nenhuma ordem de produção concluída neste período."
       />
     </div>
   );

@@ -12,7 +12,7 @@ interface ReportWidgetsProps {
 export const ReportWidgets: React.FC<ReportWidgetsProps> = ({ recentTransactions, loading }) => {
   const { activeBranchId, activeBranch } = useBranchContext();
 
-  const activeBranchName = activeBranchId === 'all' ? 'All Branches' : (activeBranch?.name || 'Selected Branch');
+  const activeBranchName = activeBranchId === 'all' ? 'Todas as Filiais' : (activeBranch?.name || 'Filial Selecionada');
 
   return (
     <div className="space-y-6">
@@ -21,10 +21,10 @@ export const ReportWidgets: React.FC<ReportWidgetsProps> = ({ recentTransactions
         <CardHeader className="border-b border-gray-100 bg-gray-50/50 p-5">
           <div>
             <CardTitle className="text-lg font-bold text-gray-900">
-              Live POS Transactions
+              Transações do PDV ao Vivo
             </CardTitle>
             <p className="text-xs text-gray-500 mt-0.5">
-              Real-time sales and active checkouts
+              Vendas em tempo real e caixas ativos
             </p>
           </div>
         </CardHeader>
@@ -39,34 +39,34 @@ export const ReportWidgets: React.FC<ReportWidgetsProps> = ({ recentTransactions
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-100">
                   <tr>
-                    <th className="px-5 py-3.5">Invoice ID</th>
-                    <th className="px-5 py-3.5">Customer</th>
-                    <th className="px-5 py-3.5">Table / Location</th>
-                    <th className="px-5 py-3.5">Order Type</th>
-                    <th className="px-5 py-3.5">Date &amp; Time</th>
+                    <th className="px-5 py-3.5">ID da Fatura</th>
+                    <th className="px-5 py-3.5">Cliente</th>
+                    <th className="px-5 py-3.5">Mesa / Local</th>
+                    <th className="px-5 py-3.5">Tipo de Pedido</th>
+                    <th className="px-5 py-3.5">Data e Hora</th>
                     <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5 text-right">Grand Total</th>
+                    <th className="px-5 py-3.5 text-right">Total Geral</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
                   {recentTransactions.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
-                        No transactions recorded yet today.
+                        Nenhuma transação registrada hoje ainda.
                       </td>
                     </tr>
                   ) : (
                     recentTransactions.map((tx) => (
                       <tr key={tx.name} className="hover:bg-primary/10 transition-colors">
                         <td className="px-5 py-3.5 font-bold text-primary">{tx.name}</td>
-                        <td className="px-5 py-3.5 text-gray-900 font-semibold">{tx.customer || 'Walk-in Customer'}</td>
-                        <td className="px-5 py-3.5 text-gray-600">{tx.restaurant_table || 'Counter'}</td>
+                        <td className="px-5 py-3.5 text-gray-900 font-semibold">{tx.customer || 'Cliente Avulso'}</td>
+                        <td className="px-5 py-3.5 text-gray-600">{tx.restaurant_table || 'Balcão'}</td>
                         <td className="px-5 py-3.5">
                           <Badge
                             variant="outline"
                             className="border-primary/20 bg-primary/10 text-primary font-semibold"
                           >
-                            {tx.order_type || 'Dine In'}
+                            {tx.order_type || 'Local'}
                           </Badge>
                         </td>
                         <td className="px-5 py-3.5 text-gray-500">{tx.posting_date} {tx.posting_time}</td>

@@ -110,7 +110,7 @@ const { registry } = defineRegistry(formCatalog, {
                 id={field.id}
                 value={val || ''}
                 options={props.options || []}
-                placeholder={`Select ${field.label}...`}
+                placeholder={`Selecionar ${field.label}...`}
                 error={!!props.error}
                 onChange={(_fieldId, newVal) => handleChange(newVal)}
                 strict={true}
@@ -146,10 +146,10 @@ function buildElementTree(oldSchema: any) {
     sections.push({ fields: oldSchema.fields });
   } else {
     if (oldSchema.company?.length) {
-      sections.push({ label: 'Company Details', fields: oldSchema.company });
+      sections.push({ label: 'Detalhes da Empresa', fields: oldSchema.company });
     }
     if (oldSchema.general?.length) {
-      sections.push({ label: 'General Settings', fields: oldSchema.general });
+      sections.push({ label: 'Configurações Gerais', fields: oldSchema.general });
     }
   }
 

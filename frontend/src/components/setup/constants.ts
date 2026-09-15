@@ -1,15 +1,15 @@
 export const PROGRESS_STEPS = [
-  "Initializing restaurant company & settings",
-  "Configuring currency & timezone",
-  "Setting up Chart of Accounts",
-  "Configuring Fiscal Year & accounting defaults",
-  "Preparing POS & restaurant workspace",
-  "Finalizing setup",
+  "Inicializando empresa e configurações do restaurante",
+  "Configurando moeda e fuso horário",
+  "Configurando plano de contas",
+  "Configurando ano fiscal e padrões contábeis",
+  "Preparando POS e ambiente do restaurante",
+  "Finalizando configuração",
 ];
 
 export const CONFIGURE_PROGRESS_STEPS = [
-  "Preparing setup",
-  "Creating restaurant configuration",
-  "Configuring menu and operational data",
-  "Finalizing setup",
+  "Preparando configuração",
+  "Criando configuração do restaurante",
+  "Configurando cardápio e dados operacionais",
+  "Finalizando configuração",
 ];

@@ -44,7 +44,7 @@ export function ProgressModal({
   error,
   steps = PROGRESS_STEPS,
   eventName = 'setup_task',
-  description = 'Setting things up, this usually takes less than a minute.',
+  description = 'Preparando tudo, isso geralmente leva menos de um minuto.',
   onStepChange,
   onReady,
   onComplete,
@@ -68,7 +68,7 @@ export function ProgressModal({
       const payload = unwrapPayload(data);
 
       if (payload.fail_msg || payload.status === 'fail') {
-        onFailRef.current?.(payload.fail_msg || 'Setup failed');
+        onFailRef.current?.(payload.fail_msg || 'Falha na configuração');
         return;
       }
 
@@ -117,7 +117,7 @@ export function ProgressModal({
         </div>
 
         <div className="px-10 pb-8">
-          <h2 className="text-2xl font-semibold text-foreground mb-1">Setting up your restaurant</h2>
+          <h2 className="text-2xl font-semibold text-foreground mb-1">Configurando seu restaurante</h2>
           <p className="text-sm text-muted-foreground mb-6">
             {description}
           </p>

@@ -32,9 +32,9 @@ interface CustomerDataResult {
 }
 
 const columns: DataTableColumn<InvoiceRow>[] = [
-  { key: 'date', header: 'Date' },
-  { key: 'invoice', header: 'Invoice' },
-  { key: 'amount', header: 'Amount', render: (r) => formatCurrency(r.amount), align: 'right' },
+  { key: 'date', header: 'Data' },
+  { key: 'invoice', header: 'Pedido' },
+  { key: 'amount', header: 'Valor', render: (r) => formatCurrency(r.amount), align: 'right' },
 ];
 
 export function CustomerData() {
@@ -82,7 +82,7 @@ export function CustomerData() {
       });
       setData(res.message ?? (res as unknown as CustomerDataResult));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -96,8 +96,8 @@ export function CustomerData() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Customer Data</h1>
-          <p className="text-sm text-muted-foreground">Per-customer purchase history</p>
+          <h1 className="text-xl font-semibold">Dados do Cliente</h1>
+          <p className="text-sm text-muted-foreground">Histórico de compras por cliente</p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
       </div>
@@ -107,7 +107,7 @@ export function CustomerData() {
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             type="text"
-            placeholder="Search customer by name..."
+            placeholder="Buscar cliente por nome..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -144,22 +144,22 @@ export function CustomerData() {
       )}
 
       {!selectedCustomer && !error && (
-        <div className="text-sm text-muted-foreground">Search and select a customer to view their history.</div>
+        <div className="text-sm text-muted-foreground">Busque e selecione um cliente para ver seu histórico.</div>
       )}
 
-      {isLoading && <div className="text-sm text-muted-foreground">Loading...</div>}
+      {isLoading && <div className="text-sm text-muted-foreground">Carregando...</div>}
 
       {data && !isLoading && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard label="Visits" value={data.summary.visit_count} icon={<Receipt className="w-4 h-4" />} />
+            <StatCard label="Visitas" value={data.summary.visit_count} icon={<Receipt className="w-4 h-4" />} />
             <StatCard
-              label="Total Spend"
+              label="Total Gasto"
               value={formatCurrency(data.summary.total_spend)}
               icon={<IndianRupee className="w-4 h-4" />}
             />
             <StatCard
-              label="Avg Spend / Visit"
+              label="Gasto Médio / Visita"
               value={formatCurrency(data.summary.avg_spend)}
               icon={<TrendingUp className="w-4 h-4" />}
             />

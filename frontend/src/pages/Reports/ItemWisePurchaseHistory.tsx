@@ -24,11 +24,11 @@ interface ItemWisePurchaseHistoryData {
 
 const columns: DataTableColumn<PurchaseItemRow>[] = [
   { key: 'item_name', header: 'Item' },
-  { key: 'qty', header: 'Qty Purchased', align: 'right' },
-  { key: 'avg_rate', header: 'Avg Rate', render: (r) => formatCurrency(r.avg_rate), align: 'right' },
-  { key: 'amount', header: 'Total Spend', render: (r) => formatCurrency(r.amount), align: 'right' },
-  { key: 'purchase_count', header: '# Purchases', align: 'right' },
-  { key: 'supplier_count', header: '# Suppliers', align: 'right' },
+  { key: 'qty', header: 'Qtd. Comprada', align: 'right' },
+  { key: 'avg_rate', header: 'Preço Médio', render: (r) => formatCurrency(r.avg_rate), align: 'right' },
+  { key: 'amount', header: 'Total Gasto', render: (r) => formatCurrency(r.amount), align: 'right' },
+  { key: 'purchase_count', header: 'Nº de Compras', align: 'right' },
+  { key: 'supplier_count', header: 'Nº de Fornecedores', align: 'right' },
 ];
 
 export function ItemWisePurchaseHistory() {
@@ -52,7 +52,7 @@ export function ItemWisePurchaseHistory() {
       );
       setData(res.message ?? (res as unknown as ItemWisePurchaseHistoryData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -66,9 +66,9 @@ export function ItemWisePurchaseHistory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Item-wise Purchase History</h1>
+          <h1 className="text-xl font-semibold">Histórico de Compras por Item</h1>
           <p className="text-sm text-muted-foreground">
-            Procurement by item {activeBranchId === 'all' ? '· All Branches' : ''}
+            Aquisições por item {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
@@ -82,9 +82,9 @@ export function ItemWisePurchaseHistory() {
 
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard label="Total Qty Purchased" value={data.summary.total_qty} icon={<Package className="w-4 h-4" />} />
+          <StatCard label="Qtd. Total Comprada" value={data.summary.total_qty} icon={<Package className="w-4 h-4" />} />
           <StatCard
-            label="Total Spend"
+            label="Total Gasto"
             value={formatCurrency(data.summary.total_amount)}
             icon={<IndianRupee className="w-4 h-4" />}
           />
@@ -95,7 +95,7 @@ export function ItemWisePurchaseHistory() {
         columns={columns}
         rows={data?.items ?? []}
         isLoading={isLoading}
-        emptyMessage="No purchase records in this range — Purchase Invoices are created via standard ERPNext Desk, not a URY-specific workflow, so this may legitimately be sparse."
+        emptyMessage="Nenhum registro de compra neste período — as Faturas de Compra são criadas pelo Desk padrão do ERPNext, não por um fluxo específico do URY, então isso pode ser normal."
       />
     </div>
   );

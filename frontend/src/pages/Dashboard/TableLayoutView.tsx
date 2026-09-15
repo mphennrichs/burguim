@@ -38,14 +38,6 @@ type POSInvoice = any;
 const getTableOrder = async (_name: string): Promise<any> => null;
 const getCombinedOrderTotals = (_order: any) => ({ roundedTotal: 0 });
 
-const t = (key: string) => {
-  const parts = key.split('.');
-  const last = parts[parts.length - 1];
-  return last.charAt(0).toUpperCase() + last.slice(1).replace(/_/g, ' ');
-};
-
-
-
 interface Props {
   selectedRoom: string;
   tables: Table[];
@@ -468,7 +460,7 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
             )}
           >
             {isEditMode ? <Save className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-            {isEditMode ? t('tables.finish_editing') : t('tables.edit_layout')}
+            {isEditMode ? 'Finalizar edição' : 'Editar layout'}
           </button>
         </div>
         {/* Zoom Controls */}
@@ -476,21 +468,21 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
           <button
             onClick={handleZoomIn}
             className="p-2 bg-white hover:bg-gray-50 rounded-lg shadow-lg border border-gray-200 transition-colors"
-            title="Zoom In"
+            title="Aumentar Zoom"
           >
             <ZoomIn className="w-5 h-5 text-gray-700" />
           </button>
           <button
             onClick={handleZoomOut}
             className="p-2 bg-white hover:bg-gray-50 rounded-lg shadow-lg border border-gray-200 transition-colors"
-            title="Zoom Out"
+            title="Diminuir Zoom"
           >
             <ZoomOut className="w-5 h-5 text-gray-700" />
           </button>
           <button
             onClick={handleResetZoom}
             className="p-2 bg-white hover:bg-gray-50 rounded-lg shadow-lg border border-gray-200 transition-colors"
-            title="Reset Zoom & Pan"
+            title="Redefinir Zoom e Posição"
           >
             <RotateCcw className="w-5 h-5 text-gray-700" />
           </button>
@@ -503,13 +495,13 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
         <div className="absolute bottom-4 right-4 z-30 pointer-events-none">
           {isEditMode ? (
             <div className="bg-blue-50/90 backdrop-blur border border-blue-200 rounded-lg p-3 text-sm text-blue-800 shadow-lg">
-              <div className="font-medium mb-1">{t('tables.editing_layout_hint_title')}</div>
-              <div>{t('tables.drag_tables_hint')}</div>
-              <div>{t('tables.autosave_hint')}</div>
+              <div className="font-medium mb-1">Editando layout</div>
+              <div>Arraste as mesas para reposicioná-las</div>
+              <div>As alterações são salvas automaticamente</div>
             </div>
           ) : (
             <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-lg p-2 text-xs text-gray-500 shadow-sm">
-              {t('tables.zoom_pan_hint')}
+              Use a roda do mouse para zoom, arraste para mover
             </div>
           )}
         </div>
@@ -549,7 +541,7 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
         <div className={cn("absolute bottom-0 top-36 bg-white rounded-t-lg shadow-xl border-t border-l border-gray-200 p-4 w-full max-w-xs z-40 max-h-[72vh] overflow-y-auto", isRTL ? "left-0 border-r" : "right-0")}>
           <div className="flex justify-between items-center mb-3">
             <h4 className="font-semibold text-gray-900">
-              {isEditMode ? t('tables.edit_settings') : t('tables.table_info')}
+              {isEditMode ? 'Editar configurações' : 'Informações da mesa'}
             </h4>
             <button
               onClick={() => setSelectedTable(null)}
@@ -561,18 +553,18 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
 
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium mb-1">{t('tables.table_name')}</label>
+              <label className="block text-sm font-medium mb-1">Nome da Mesa</label>
               <input
                 type="text"
                 value={selectedTableData.name}
                 disabled={true}
                 className="w-full px-3 py-2 border rounded-md text-sm border-gray-200 bg-gray-50 cursor-not-allowed"
-                title={t('tables.table_name_title')}
+                title="Nome da mesa"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">{t('tables.capacity')}</label>
+              <label className="block text-sm font-medium mb-1">Capacidade</label>
               <input
                 type="number"
                 min="0"
@@ -586,38 +578,38 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
                     ? "border-gray-300 bg-white"
                     : "border-gray-200 bg-gray-50 cursor-not-allowed"
                 )}
-                placeholder={t('tables.capacity_placeholder')}
+                placeholder="Capacidade"
               />
-              <p className="text-xs text-gray-500 mt-1">{t('tables.capacity_range_hint')}</p>
+              <p className="text-xs text-gray-500 mt-1">Entre 1 e 20 lugares</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">{t('tables.shape')}</label>
+              <label className="block text-sm font-medium mb-1">Formato</label>
               <div className={!isEditMode ? "opacity-70 pointer-events-none" : ""}>
                 <SearchableSelect
                   id="table-shape"
                   value={selectedTableData.table_shape || 'Rectangle'}
                   onChange={(id, val) => handleDropdownShapeChange(val)}
                   options={[
-                    { value: 'Circle', label: t('tables.circle') || 'Circle' },
-                    { value: 'Square', label: t('tables.square') || 'Square' },
-                    { value: 'Rectangle', label: t('tables.rectangle') || 'Rectangle' },
+                    { value: 'Circle', label: 'Círculo' },
+                    { value: 'Square', label: 'Quadrado' },
+                    { value: 'Rectangle', label: 'Retângulo' },
                   ]}
-                  placeholder={t('tables.shape') || 'Shape'}
+                  placeholder="Formato"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">{t('tables.status')}</label>
+              <label className="block text-sm font-medium mb-1">Status</label>
               <div className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-md text-sm cursor-not-allowed capitalize">
-                {selectedTableData.occupied ? t('tables.occupied') : t('tables.available')}
+                {selectedTableData.occupied ? 'Ocupada' : 'Disponível'}
               </div>
             </div>
 
             {/* Position Information */}
             <div className="pt-3 border-t border-gray-200">
-              <label className="block text-sm font-medium mb-2">{t('tables.position')}</label>
+              <label className="block text-sm font-medium mb-2">Posição</label>
               <div className={cn("grid grid-cols-2 gap-2 text-sm", isRTL && "flex-row-reverse")}>
                 <div>
                   <span className="text-gray-500">X:</span>
@@ -632,7 +624,7 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
 
             {/* Size Information */}
             <div>
-              <label className="block text-sm font-medium mb-2">{t('tables.size')}</label>
+              <label className="block text-sm font-medium mb-2">Tamanho</label>
               <div className={cn("grid grid-cols-2 gap-2 text-sm", isRTL && "flex-row-reverse")}>
                 <div>
                   <span className="text-gray-500">W:</span>
@@ -648,15 +640,15 @@ const LayoutView: React.FC<Props> = ({ selectedRoom, tables, onBackToGrid, onRef
             {/* Show current bill info if table is occupied */}
             {selectedTableData.latest_invoice_time && (
               <div className="pt-3 border-t border-gray-200">
-                <label className="block text-sm font-medium mb-2">{t('tables.current_bill')}</label>
+                <label className="block text-sm font-medium mb-2">Conta Atual</label>
                 <div className="bg-blue-50 p-3 rounded-md text-sm">
                   <div className="flex justify-between mb-1">
-                    <span>{t('tables.started_at')}</span>
+                    <span>Iniciada às</span>
                     <span>{formatInvoiceTime(selectedTableData.latest_invoice_time)}</span>
                   </div>
                   {selectedTableOrder && (
                     <div className="flex justify-between items-center pt-2 mt-2 border-t border-blue-200">
-                      <span>{t('tables.total_amount')}</span>
+                      <span>Valor Total</span>
                       <span className="font-bold text-lg text-blue-800">
                         {getCombinedOrderTotals(selectedTableOrder).roundedTotal.toFixed(2)}
                       </span>

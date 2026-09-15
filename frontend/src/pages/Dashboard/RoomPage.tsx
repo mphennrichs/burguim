@@ -124,7 +124,7 @@ export const RoomPage: React.FC = () => {
           block_takeaway: newRoom.block_takeaway ? 1 : 0,
         };
         if (JSON.stringify(original) === JSON.stringify(current)) {
-          showToast.warning('No changes in document');
+          showToast.warning('Nenhuma alteração no documento');
           setSaving(false);
           return;
         }
@@ -164,11 +164,11 @@ export const RoomPage: React.FC = () => {
           },
         });
       }
-      showToast.success('Room saved');
+      showToast.success('Sala salva');
       fetchRooms();
       setIsDrawerOpen(false);
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to save room');
+      showToast.error(err.message || 'Falha ao salvar sala');
       console.error('Failed to save URY Room', err);
     } finally {
       setSaving(false);
@@ -184,7 +184,7 @@ export const RoomPage: React.FC = () => {
           className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Room</span>
+          <span>Adicionar Sala</span>
         </Button>
       </div>
 
@@ -197,16 +197,16 @@ export const RoomPage: React.FC = () => {
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Layers className="w-6 h-6 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No Rooms Configured</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Nenhuma Sala Configurada</h3>
           <p className="text-gray-500 mb-6 max-w-sm">
-            Add dining rooms or zones to organize your tables.
+            Adicione salas ou ambientes para organizar suas mesas.
           </p>
           <Button
             onClick={openAddDrawer}
             className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center space-x-1.5 shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Room</span>
+            <span>Adicionar Sala</span>
           </Button>
         </Card>
       ) : (
@@ -214,10 +214,10 @@ export const RoomPage: React.FC = () => {
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold">
               <tr>
-                <th className="px-6 py-4">Room Name</th>
-                <th className="px-6 py-4">Room Type</th>
-                <th className="px-6 py-4">Branch</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">Nome da Sala</th>
+                <th className="px-6 py-4">Tipo de Sala</th>
+                <th className="px-6 py-4">Filial</th>
+                <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -227,10 +227,10 @@ export const RoomPage: React.FC = () => {
                   <td className="px-6 py-4">
                     <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary text-[10px]">
                       <Layers className="w-3 h-3 mr-1" />
-                      {room.room_type === 'NON-AC' ? 'Non-AC' : (room.room_type || 'General')}
+                      {room.room_type === 'NON-AC' ? 'Não Climatizado' : (room.room_type || 'Geral')}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">{room.branch || 'Main'}</td>
+                  <td className="px-6 py-4">{room.branch || 'Principal'}</td>
                   <td className="px-6 py-4 text-right">
                     <Button variant="ghost" size="sm" onClick={() => openEditDrawer(room)} className="text-gray-500 hover:text-primary">
                       <Edit2 className="w-4 h-4" />
@@ -247,11 +247,11 @@ export const RoomPage: React.FC = () => {
       <SideDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title={editingRoom ? 'Edit Room' : 'Add Room'}
+        title={editingRoom ? 'Editar Sala' : 'Adicionar Sala'}
       >
         <form onSubmit={handleSaveRoom} className="space-y-4 text-sm">
           <div>
-            <label className="block font-semibold text-gray-700 mb-1">Room Name</label>
+            <label className="block font-semibold text-gray-700 mb-1">Nome da Sala</label>
             <Input
               value={newRoom.room_name}
               onChange={(e) => setNewRoom({ ...newRoom, room_name: e.target.value })}
@@ -260,34 +260,34 @@ export const RoomPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-gray-700 mb-1">Room Type</label>
+            <label className="block font-semibold text-gray-700 mb-1">Tipo de Sala</label>
             <SearchableSelect
               id="room_type"
               value={newRoom.room_type}
               onChange={(_, value) => setNewRoom({ ...newRoom, room_type: value })}
               options={[
-                { value: 'AC', label: 'AC' },
-                { value: 'NON-AC', label: 'Non-AC' },
+                { value: 'AC', label: 'Climatizado' },
+                { value: 'NON-AC', label: 'Não Climatizado' },
               ]}
             />
           </div>
 
           {/* Branch field */}
           <div>
-            <label className="block font-semibold text-gray-700 mb-1">Branch</label>
+            <label className="block font-semibold text-gray-700 mb-1">Filial</label>
             <SearchableSelect
               id="branch"
               value={newRoom.branch}
               onChange={(_, value) => setNewRoom({ ...newRoom, branch: value })}
               options={[
-                { value: '', label: 'Select Branch' },
+                { value: '', label: 'Selecione a Filial' },
                 ...branches.map(b => ({ value: b.name, label: b.name }))
               ]}
             />
           </div>
 
           <div className="pt-4 border-t border-gray-100">
-            <h3 className="font-semibold text-gray-900 mb-3">Printer Configuration</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">Configuração de Impressora</h3>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Switch
@@ -295,12 +295,12 @@ export const RoomPage: React.FC = () => {
                   checked={newRoom.kot_printing}
                   onCheckedChange={(checked) => setNewRoom({ ...newRoom, kot_printing: checked })}
                 />
-                <label htmlFor="kot_printing" className="text-gray-700 cursor-pointer">Enable KOT Printing for this room</label>
+                <label htmlFor="kot_printing" className="text-gray-700 cursor-pointer">Habilitar Impressão de KOT para esta sala</label>
               </div>
 
               {newRoom.kot_printing && (
                 <div>
-                  <label className="block font-medium text-gray-700 mb-1">Print Format</label>
+                  <label className="block font-medium text-gray-700 mb-1">Formato de Impressão</label>
                   <Input
                     value={newRoom.print_format}
                     onChange={(e) => setNewRoom({ ...newRoom, print_format: e.target.value })}
@@ -314,17 +314,17 @@ export const RoomPage: React.FC = () => {
                   checked={newRoom.block_takeaway}
                   onCheckedChange={(checked) => setNewRoom({ ...newRoom, block_takeaway: checked })}
                 />
-                <label htmlFor="block_takeaway" className="text-gray-700 cursor-pointer">Block Takeaway / Delivery Printing</label>
+                <label htmlFor="block_takeaway" className="text-gray-700 cursor-pointer">Bloquear Impressão para Retirada / Entrega</label>
               </div>
             </div>
           </div>
 
           <div className="pt-6 flex justify-end gap-2 border-t mt-4 border-gray-100">
             <Button type="button" variant="outline" onClick={() => setIsDrawerOpen(false)} disabled={saving}>
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 text-white">
-              {editingRoom ? 'Save Changes' : 'Save Room'}
+              {editingRoom ? 'Salvar Alterações' : 'Salvar Sala'}
             </Button>
           </div>
         </form>

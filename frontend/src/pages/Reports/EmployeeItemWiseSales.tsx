@@ -28,9 +28,9 @@ interface EmployeeItemWiseSalesData {
 
 const columns: DataTableColumn<ItemRow>[] = [
   { key: 'item_name', header: 'Item' },
-  { key: 'item_group', header: 'Group', render: (r) => r.item_group || '—' },
-  { key: 'qty', header: 'Qty', align: 'right' },
-  { key: 'amount', header: 'Amount', render: (r) => formatCurrency(r.amount), align: 'right' },
+  { key: 'item_group', header: 'Grupo', render: (r) => r.item_group || '—' },
+  { key: 'qty', header: 'Qtd.', align: 'right' },
+  { key: 'amount', header: 'Valor', render: (r) => formatCurrency(r.amount), align: 'right' },
 ];
 
 export function EmployeeItemWiseSales() {
@@ -76,7 +76,7 @@ export function EmployeeItemWiseSales() {
       );
       setData(res.message ?? (res as unknown as EmployeeItemWiseSalesData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -90,8 +90,8 @@ export function EmployeeItemWiseSales() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Employee Item Wise Sales</h1>
-          <p className="text-sm text-muted-foreground">Item breakdown per employee</p>
+          <h1 className="text-xl font-semibold">Vendas por Item e Funcionário</h1>
+          <p className="text-sm text-muted-foreground">Detalhamento de itens por funcionário</p>
         </div>
         <DateRangeFilter value={range} onChange={setRange} />
       </div>
@@ -101,7 +101,7 @@ export function EmployeeItemWiseSales() {
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             type="text"
-            placeholder="Search employee by name..."
+            placeholder="Buscar funcionário por nome..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -137,17 +137,17 @@ export function EmployeeItemWiseSales() {
       )}
 
       {!selectedEmployee && !error && (
-        <div className="text-sm text-muted-foreground">Search and select an employee to view their item breakdown.</div>
+        <div className="text-sm text-muted-foreground">Busque e selecione um funcionário para ver o detalhamento de itens.</div>
       )}
 
-      {isLoading && <div className="text-sm text-muted-foreground">Loading...</div>}
+      {isLoading && <div className="text-sm text-muted-foreground">Carregando...</div>}
 
       {data && !isLoading && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard label="Total Qty" value={data.summary.total_qty} icon={<Package className="w-4 h-4" />} />
+            <StatCard label="Qtd. Total" value={data.summary.total_qty} icon={<Package className="w-4 h-4" />} />
             <StatCard
-              label="Total Amount"
+              label="Valor Total"
               value={formatCurrency(data.summary.total_amount)}
               icon={<IndianRupee className="w-4 h-4" />}
             />

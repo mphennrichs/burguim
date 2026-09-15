@@ -4,7 +4,7 @@ import { LayoutDashboard } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: LayoutDashboard, label: 'Painel', path: '/dashboard' },
   ];
 
   return (

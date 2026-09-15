@@ -22,11 +22,11 @@ interface DaywiseCustomerDetailsData {
 }
 
 const columns: DataTableColumn<CustomerRow>[] = [
-  { key: 'customer_name', header: 'Name' },
-  { key: 'mobile_number', header: 'Mobile', render: (r) => r.mobile_number || '—' },
-  { key: 'visit_count', header: 'Visits', align: 'right' },
-  { key: 'first_visit', header: 'First Visit' },
-  { key: 'last_visit', header: 'Last Visit' },
+  { key: 'customer_name', header: 'Nome' },
+  { key: 'mobile_number', header: 'Celular', render: (r) => r.mobile_number || '—' },
+  { key: 'visit_count', header: 'Visitas', align: 'right' },
+  { key: 'first_visit', header: 'Primeira Visita' },
+  { key: 'last_visit', header: 'Última Visita' },
 ];
 
 export function DaywiseCustomerDetails() {
@@ -50,7 +50,7 @@ export function DaywiseCustomerDetails() {
       );
       setData(res.message ?? (res as unknown as DaywiseCustomerDetailsData));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load report data.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar os dados do relatório.');
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +62,7 @@ export function DaywiseCustomerDetails() {
 
   const exportCsv = () => {
     if (!data) return;
-    const header = 'Customer Name,Mobile,Visits,First Visit,Last Visit\n';
+    const header = 'Nome do Cliente,Celular,Visitas,Primeira Visita,Última Visita\n';
     const body = data.customers
       .map((c) => `"${c.customer_name}",${c.mobile_number ?? ''},${c.visit_count},${c.first_visit},${c.last_visit}`)
       .join('\n');
@@ -79,9 +79,9 @@ export function DaywiseCustomerDetails() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Daywise Customer Details</h1>
+          <h1 className="text-xl font-semibold">Detalhes de Clientes por Dia</h1>
           <p className="text-sm text-muted-foreground">
-            Customer contact list {activeBranchId === 'all' ? '· All Branches' : ''}
+            Lista de contatos de clientes {activeBranchId === 'all' ? '· Todas as Filiais' : ''}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -90,7 +90,7 @@ export function DaywiseCustomerDetails() {
             disabled={!data || data.customers.length === 0}
             className="text-sm px-3 py-1.5 border border-input rounded-md hover:bg-accent disabled:opacity-50"
           >
-            Export CSV
+            Exportar CSV
           </button>
           <DateRangeFilter value={range} onChange={setRange} />
         </div>
@@ -102,7 +102,7 @@ export function DaywiseCustomerDetails() {
         </div>
       )}
 
-      {data && <StatCard label="Unique Customers" value={data.total_count} icon={<Users className="w-4 h-4" />} />}
+      {data && <StatCard label="Clientes Únicos" value={data.total_count} icon={<Users className="w-4 h-4" />} />}
 
       <DataTable columns={columns} rows={data?.customers ?? []} isLoading={isLoading} />
     </div>
