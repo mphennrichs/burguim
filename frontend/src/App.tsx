@@ -6,6 +6,7 @@ import ConfigurePage from './pages/Setup/ConfigurePage';
 import DashboardLayout from './components/layout/DashboardLayout';
 import { DashboardPage } from './pages/Dashboard/DashboardPage';
 import { DeliveryOrdersPage } from './pages/DeliveryOrders/DeliveryOrdersPage';
+import { StockOverviewPage } from './pages/Stock/StockOverviewPage';
 import { MenuPage } from './pages/Dashboard/MenuPage';
 import { TablePage } from './pages/Dashboard/TablePage';
 import { RoomPage } from './pages/Dashboard/RoomPage';
@@ -124,6 +125,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="delivery-orders" element={<DeliveryOrdersPage />} />
+          <Route path="stock" element={<StockOverviewPage />} />
           <Route path="menu" element={<MenuPage />} />
           <Route path="table" element={<TablePage />} />
           <Route path="room" element={<RoomPage />} />
