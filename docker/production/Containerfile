@@ -35,8 +35,13 @@ COPY mosaic ./mosaic
 # ../ury/www/<app>.html (see each app's vite.config.ts / copy-html-entry
 # script) - same layout `bench get-app` produces for the `ury` app, so these
 # directories only need to exist, not be pre-populated.
+#
+# --ignore-scripts: root's postinstall hook also installs `urypos` (legacy,
+# untouched, not one of the 4 apps this image ships) - it isn't in this build
+# context, so the hook would fail with "can't cd to urypos". mosaic's own
+# install is run explicitly below instead.
 RUN mkdir -p ury/public ury/www && \
-    yarn install --check-files && \
+    yarn install --check-files --ignore-scripts && \
     yarn ury-mosaic-install && \
     yarn ury-mosaic-build && \
     yarn ury-posv2-build && \
