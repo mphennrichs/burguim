@@ -46,9 +46,9 @@
                 <line x1="8" x2="16" y1="21" y2="21"/>
                 <line x1="12" x2="12" y1="17" y2="21"/>
               </svg>
-              Switch to Dashboard
+              Ir para o Painel
             </button>
-            
+
             <button
               @click="logout"
               class="flex justify-start items-center w-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
@@ -58,7 +58,7 @@
                 <polyline points="16 17 21 12 16 7"/>
                 <line x1="21" x2="9" y1="12" y2="12"/>
               </svg>
-              Logout
+              Sair
             </button>
           </div>
         </div>
@@ -76,7 +76,7 @@ export default {
     return {
       imagePath: urimosaicImage,
       showUserMenu: false,
-      userName: "User",
+      userName: "Usuário",
       userId: "user@example.com"
     };
   },
