@@ -60,11 +60,45 @@ def get_recent_transactions(branch=None, limit=10):
             return []
     return []
 
+# get_module_records used to take `doctype` straight from the client and
+# hand it to frappe.get_all(..., fields=["*"]) — frappe.get_all skips
+# permission checks entirely (unlike get_list), so this bypassed every
+# doctype permission and every branch-isolation hook in ury/permission.py
+# in one shot, for ANY doctype in the system, to ANY authenticated user
+# regardless of role. Confirmed exploitable end-to-end during a security
+# review: a Cashier account could dump the full User table (every field,
+# no allowlist) and URY Self Ordering Profile's qr_signing_secret in
+# plaintext — then use that secret to forge a valid QR/delivery token and
+# open a real guest ordering session that was never actually issued.
+#
+# Fixed by restricting `doctype` to exactly what the admin frontend's
+# generic list screens actually ask for (grep frontend/src for every
+# getModuleRecords call site), and by never returning fields=["*"] for a
+# doctype that can hold anything sensitive — today just User, restricted
+# to a safe display-only field list matching what UserPage.tsx actually
+# reads.
+ALLOWED_MODULE_DOCTYPES = {
+    "Branch",
+    "Item",
+    "Item Group",
+    "URY Menu",
+    "URY Menu Course",
+    "URY Production Unit",
+    "URY Room",
+    "URY Table",
+    "User",
+}
+
+SAFE_FIELDS_BY_DOCTYPE = {
+    "User": ["name", "email", "first_name", "last_name", "full_name", "user_type", "enabled"],
+}
+
+
 @frappe.whitelist()
 def get_module_records(doctype, branch=None):
-    if not frappe.db.exists("DocType", doctype):
+    if doctype not in ALLOWED_MODULE_DOCTYPES or not frappe.db.exists("DocType", doctype):
         return []
-    
+
     filters = {}
     if branch and branch != 'all':
         meta = frappe.get_meta(doctype)
@@ -72,9 +106,11 @@ def get_module_records(doctype, branch=None):
             filters["branch"] = branch
         elif meta.has_field("custom_branch"):
             filters["custom_branch"] = branch
-            
+
+    fields = SAFE_FIELDS_BY_DOCTYPE.get(doctype, ["*"])
+
     try:
-        records = frappe.get_all(doctype, filters=filters, fields=["*"])
+        records = frappe.get_all(doctype, filters=filters, fields=fields)
         if doctype == "User":
             for r in records:
                 r["roles"] = frappe.get_all("Has Role", filters={"parent": r.name}, fields=["role"])

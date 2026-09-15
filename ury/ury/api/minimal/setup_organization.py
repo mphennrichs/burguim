@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.desk.page.setup_wizard.setup_wizard import load_languages, load_country, setup_complete
 from frappe.geo.country_info import get_country_info, get_all
 from erpnext.accounts.doctype.account.chart_of_accounts.chart_of_accounts import get_charts_for_country
@@ -158,7 +159,7 @@ def get_setup_progress_status():
     return frappe.cache.get_value(_progress_cache_key()) or {}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def submit_setup(payload=None, **kwargs):
     from frappe.utils import cint
     if frappe.session.user == "Guest":
@@ -166,6 +167,17 @@ def submit_setup(payload=None, **kwargs):
 
     if cint(frappe.db.get_single_value("System Settings", "setup_complete")):
         frappe.throw("Setup already completed")
+
+    # The setup_complete flag is the primary gate, but a security review
+    # confirmed a sibling module (business_setup.py) got the same "any
+    # authenticated user can (re-)run setup" treatment wrong once already,
+    # relying only on a state flag with no role check backing it up. Add
+    # the same second layer here: once a real Branch exists, only an
+    # existing Administrator/System Manager may still call this — matches
+    # business_setup.py's _ensure_setup_allowed().
+    if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
+        if frappe.db.exists("Branch", {}):
+            frappe.throw(_("Setup has already been completed"), frappe.PermissionError)
 
     payload = _normalize_setup_payload(payload, **kwargs)
 
@@ -186,7 +198,7 @@ def submit_setup(payload=None, **kwargs):
         frappe.publish_realtime = original
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def complete_wizard_setup(payload=None, **kwargs):
     if payload is None:
         payload = kwargs.copy()

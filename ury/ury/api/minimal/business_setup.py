@@ -1,10 +1,32 @@
 import frappe
 from frappe import _
 
+
+def _ensure_setup_allowed():
+    """Every function in this module was built assuming it's only ever
+    reached during the one-time initial setup wizard, before any real
+    branch/user exists — the frontend's SetupGuard (frontend/src/App.tsx)
+    hides the wizard UI once a Branch exists, but nothing enforced that
+    same rule on the API itself. Confirmed exploitable during a security
+    review: any authenticated user, any role, could call
+    create_setup_user(role="System Manager") or submit_configure_data's
+    equivalent users[] array at any time after setup, escalating straight
+    to full admin. Once a Branch exists, only an existing
+    Administrator/System Manager may still call these — matches what a
+    legitimate re-run (e.g. adding a second branch later) needs, while
+    closing the open-to-anyone gap the rest of the time.
+    """
+    if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
+        return
+    if frappe.db.exists("Branch", {}):
+        frappe.throw(_("Setup has already been completed"), frappe.PermissionError)
+
+
 @frappe.whitelist()
 def get_business_setup():
     if frappe.session.user == "Guest":
         frappe.throw("Not permitted")
+    _ensure_setup_allowed()
 
     company = frappe.get_all("Company", limit=1)
     if not company:
@@ -29,6 +51,7 @@ def get_business_setup():
 def get_branches():
     if frappe.session.user == "Guest":
         frappe.throw("Not permitted")
+    _ensure_setup_allowed()
 
     comp = frappe.defaults.get_user_default("Company") or frappe.db.get_value("Company", {}, "name")
     tax_id = frappe.db.get_value("Company", comp, "tax_id") if comp else None
@@ -36,10 +59,11 @@ def get_branches():
     branches = frappe.get_all("Branch", fields=["name", "branch"])
     return [{"id": b.name, "name": b.branch, "tax_id": tax_id} for b in branches]
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def update_business_setup(branch=None, restaurant=None):
     if frappe.session.user == "Guest":
         frappe.throw("Not permitted")
+    _ensure_setup_allowed()
 
     if branch:
         if isinstance(branch, str):
@@ -91,8 +115,12 @@ def update_business_setup(branch=None, restaurant=None):
             
     return {"status": "success"}
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_setup_user(email, name, password=None, role="URY Cashier"):
+    if frappe.session.user == "Guest":
+        frappe.throw("Not permitted")
+    _ensure_setup_allowed()
+
     if frappe.db.exists("User", email):
         return {"status": "exists", "email": email}
     
@@ -111,8 +139,12 @@ def create_setup_user(email, name, password=None, role="URY Cashier"):
         update_password(user=email, pwd=password)
     return {"status": "created", "email": email}
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def submit_configure_data(data):
+    if frappe.session.user == "Guest":
+        frappe.throw("Not permitted")
+    _ensure_setup_allowed()
+
     if isinstance(data, str):
         data = frappe.parse_json(data)
         

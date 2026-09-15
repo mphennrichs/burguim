@@ -1,21 +1,46 @@
 import frappe
 
+# `date_expr=`/`prefix=` (and similar) below are f-string'd directly into
+# SQL to build the query's *structure* — safe today only because every call
+# site passes fixed literals from this codebase, never a value that
+# originated from a request parameter. If a future report ever needs a
+# request-supplied value in one of these, parameterize it (%(name)s + a
+# params dict) — never pass it into `date_expr`/`prefix` directly.
+
 
 def require_manager():
 	"""Raise frappe.PermissionError unless the current user is a URY Manager,
 	System Manager, or Administrator. Every report_api endpoint must call this
 	first — the frontend's AuthGuard hides the nav item but is not a security
 	boundary on its own.
+
+	Returns the caller's own branch (via ury.ury_pos.api.getBranch(), the
+	same URY User -> Branch resolution every other part of this app relies
+	on) when the caller is a plain URY Manager — callers MUST use this to
+	override whatever `branch` the client passed in, e.g.:
+
+		own_branch = require_manager()
+		if own_branch:
+		    branch = own_branch
+
+	Without this, a manager could request another branch's financial data
+	just by passing a different `branch=` value, or see every branch
+	combined by omitting it — this role check alone only confirmed *a*
+	manager was asking, never *which* branch they manage. Returns None for
+	Administrator/System Manager, who may legitimately query any branch or
+	omit it for an All-Branches aggregate.
 	"""
 	allowed_roles = {"URY Manager", "System Manager"}
 	user_roles = set(frappe.get_roles())
-	if frappe.session.user == "Administrator":
-		return
+	if frappe.session.user == "Administrator" or "System Manager" in user_roles:
+		return None
 	if not allowed_roles & user_roles:
 		frappe.throw(
 			"You do not have permission to access this report.",
 			frappe.PermissionError,
 		)
+	from ury.ury_pos.api import getBranch
+	return getBranch()
 
 
 def get_business_day_condition(date_expr="curdate()", prefix="b"):

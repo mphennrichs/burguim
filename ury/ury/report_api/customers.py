@@ -45,7 +45,9 @@ def get_customer_data(customer, start_date, end_date, branch=None, page=1, page_
 	today; `customer` is expected to be a customer_name string (as returned
 	by search_customers above).
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	if not customer:
@@ -165,7 +167,9 @@ def get_daywise_customer_details(start_date, end_date, branch=None):
 	its date-range/business-day condition shape with get_repeated_customers
 	below, since both derive from the same underlying customer-visit data.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	if branch:
@@ -229,7 +233,9 @@ def get_repeated_customers(start_date, end_date, branch=None):
 	boundaries, since mixing N different branches' hour offsets into one
 	"was this customer here before" check has no single correct answer.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	date_list = date_list_cte()

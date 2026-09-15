@@ -24,7 +24,9 @@ def get_today_sales(branch=None, date=None):
 	  per-branch hour offsets in one aggregate query is not worth the
 	  complexity when the user hasn't chosen to look at one specific branch.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 
 	target_date = frappe.utils.getdate(date) if date else frappe.utils.today()
 
@@ -90,7 +92,9 @@ def get_daywise_sales(start_date, end_date, branch=None):
 	omitted means "All Branches" (plain calendar-day boundaries, same
 	simplification as get_today_sales's all-branches mode).
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	date_list = date_list_cte()
@@ -164,7 +168,9 @@ def get_daywise_invoices(start_date, end_date, branch=None, page=1, page_size=50
 	is unbounded across a range, unlike Wave 1's other per-day/per-bucket
 	reports.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	page = max(1, int(page))
@@ -272,7 +278,9 @@ def get_month_wise_sales(branch=None, months_back=6):
 	— the single biggest improvement flagged by research: a fixed window
 	forced re-running the old report or editing SQL to see more history.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	months_back = min(int(months_back), 24)
 
 	start_date = frappe.utils.add_months(frappe.utils.get_first_day(frappe.utils.today()), -months_back)
@@ -361,7 +369,9 @@ def get_time_wise_sales(branch=None, date=None, bucket_size_hours=2):
 	Wave 1 reports, `branch` can genuinely be omitted for an All-Branches
 	aggregate without any simplifying compromise.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 
 	bucket_size_hours = int(bucket_size_hours)
 	if bucket_size_hours not in (1, 2, 4):
@@ -450,7 +460,9 @@ def get_service_wise_sales(start_date, end_date, branch=None):
 	though the original report didn't expose it, since "revenue only" makes
 	avg-order-value and % breakdowns impossible to sanity-check.)
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	date_list = date_list_cte()
@@ -516,7 +528,9 @@ def get_cancelled_invoices(start_date, end_date, branch=None, page=1, page_size=
 	computes high-value highlighting client-side against the returned
 	average, rather than a hardcoded server-side threshold.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	page = max(1, int(page))
@@ -626,7 +640,9 @@ def get_average_bill_value(start_date, end_date, branch=None):
 	period ABV (the classic Simpson's-paradox pitfall for this kind of
 	ratio metric).
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	date_list = date_list_cte()

@@ -71,7 +71,9 @@ def get_daily_pnl(date, branch):
 	document exists for the branch/date — that's an expected, common state
 	(the doc must be manually created and submitted each day), not a bug.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 
 	name = frappe.db.get_value(
 		"URY Daily P and L",
@@ -139,7 +141,9 @@ def get_daily_pnl_dates(branch, limit=90):
 	"""Dates with a submitted Daily P&L for the given branch, most recent
 	first — backs a "jump to a date that actually has data" picker, since
 	most calendar dates won't have one (the doc is created manually)."""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	limit = min(int(limit), 366)
 
 	rows = frappe.get_all(

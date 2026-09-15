@@ -40,7 +40,9 @@ def get_employee_sales(start_date, end_date, branch=None, sort_by="sales_amount"
 	`waiter` is the field on POS Invoice identifying staff (joined to
 	tabUser for full_name), matching the original report exactly.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 	if sort_by not in ("sales_amount", "total_invoices"):
 		sort_by = "sales_amount"
@@ -108,7 +110,9 @@ def get_employee_item_wise_sales(employee, start_date, end_date, branch=None):
 	returned employee_id is what a leaderboard row in get_employee_sales
 	would link out to).
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	if not employee:

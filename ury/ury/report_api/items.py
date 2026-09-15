@@ -21,7 +21,9 @@ def get_item_wise_sales(start_date, end_date, branch=None, item_group=None, sear
 	alphabetical-by-group ordering, since this is fundamentally a ranking
 	report per the research brief.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	page = max(1, int(page))
@@ -133,7 +135,9 @@ def get_item_wise_purchase_history(start_date, end_date, branch=None, page=1, pa
 	boundary logic applies here — that's specific to URY's POS Invoice
 	business-day handling, not standard ERPNext purchasing.
 	"""
-	require_manager()
+	own_branch = require_manager()
+	if own_branch:
+		branch = own_branch
 	validate_date_range(start_date, end_date)
 
 	page = max(1, int(page))
