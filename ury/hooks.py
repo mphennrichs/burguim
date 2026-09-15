@@ -149,13 +149,29 @@ before_uninstall = "ury.uninstall.uninstall"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"POS Invoice": "ury.permission.pos_invoice_query_conditions",
+	"URY Ordering Session": "ury.permission.ordering_session_query_conditions",
+	"Customer": "ury.permission.customer_query_conditions",
+	"URY Table": "ury.permission.ury_table_query_conditions",
+	"URY KOT": "ury.permission.ury_kot_query_conditions",
+	"POS Opening Entry": "ury.permission.pos_opening_entry_query_conditions",
+	"POS Closing Entry": "ury.permission.pos_closing_entry_query_conditions",
+	"Sales Invoice": "ury.permission.sales_invoice_query_conditions",
+	"URY Daily P and L": "ury.permission.daily_pnl_query_conditions",
+}
+
+has_permission = {
+	"POS Invoice": "ury.permission.pos_invoice_has_permission",
+	"URY Ordering Session": "ury.permission.ordering_session_has_permission",
+	"Customer": "ury.permission.customer_has_permission",
+	"URY Table": "ury.permission.ury_table_has_permission",
+	"URY KOT": "ury.permission.ury_kot_has_permission",
+	"POS Opening Entry": "ury.permission.pos_opening_entry_has_permission",
+	"POS Closing Entry": "ury.permission.pos_closing_entry_has_permission",
+	"Sales Invoice": "ury.permission.sales_invoice_has_permission",
+	"URY Daily P and L": "ury.permission.daily_pnl_has_permission",
+}
 
 # DocType Class
 # ---------------
