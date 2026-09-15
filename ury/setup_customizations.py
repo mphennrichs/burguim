@@ -153,14 +153,21 @@ def get_custom_fields():
 					"insert_after": "restaurant_table",
 				},
 				{
+					# Must match the live column type (varchar/Data — see
+					# ury/fixtures/custom_field.json, which is what
+					# bench migrate actually applies on every run). This
+					# used to say "Time", which never matched what was
+					# really on disk and made create_custom_fields() choke
+					# on this field whenever it ran across the whole
+					# get_custom_fields() dict at once.
 					"fieldname": "arrived_time",
-					"fieldtype": "Time",
+					"fieldtype": "Data",
 					"insert_after": "column_break_gd1mq",
 					"label": "Arrived Time"
 				},
 				{
 					"fieldname": "total_spend_time",
-					"fieldtype": "Time",
+					"fieldtype": "Data",
 					"insert_after": "arrived_time",
 					"label": "Total Spend Time"
 				},
@@ -244,8 +251,15 @@ def get_custom_fields():
 					"insert_after": "waiter"
 				},
 				{
+					# Sales Invoice's no_of_pax is genuinely Int on this
+					# (and every) site — unlike POS Invoice's own
+					# no_of_pax, which really is Data. This used to say
+					# "Data" here too, which never matched the live column
+					# and made create_custom_fields() choke on this field
+					# whenever it ran across the whole get_custom_fields()
+					# dict at once.
 					"fieldname": "no_of_pax",
-					"fieldtype": "Data",
+					"fieldtype": "Int",
 					"label": "Pax",
 					"insert_after": "column_break_rwbwf",
 					"read_only": 0,
@@ -296,13 +310,13 @@ def get_custom_fields():
 				},
 				{
 					"fieldname": "arrived_time",
-					"fieldtype": "Time",
+					"fieldtype": "Data",
 					"insert_after": "column_break_gd1mq",
 					"label": "Arrived Time"
 				},
 				{
 					"fieldname": "total_spend_time",
-					"fieldtype": "Time",
+					"fieldtype": "Data",
 					"insert_after": "arrived_time",
 					"label": "Total Spend Time"
 				}
