@@ -32,6 +32,11 @@ export interface MenuItem {
   rate: number
   special_dish: number
   disabled: number
+  // Temporarily out of stock — unlike `disabled` (archived, filtered out
+  // server-side before this ever reaches the client), a sold-out item IS
+  // still sent to the client: render it greyed out and unorderable rather
+  // than hiding it, so the customer can still see it's a real menu item.
+  sold_out: number
   item_image: string | null
   course: string | null
   course_label: string | null

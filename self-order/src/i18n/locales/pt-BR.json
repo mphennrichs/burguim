@@ -20,6 +20,7 @@
     "request_bill": "Pedir Conta",
     "new_order": "Novo Pedido",
     "start_over": "Recomeçar",
+    "sold_out": "Esgotado",
     "order_notes_placeholder": "Observações do pedido (ex: sem cebola, código do portão)"
   },
   "order_summary": {

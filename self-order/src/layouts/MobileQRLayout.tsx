@@ -245,15 +245,20 @@ function MobileQRLayout({ initialContext }: LayoutProps) {
         {menu.map((item) => (
           <button
             key={item.item}
-            onClick={() => addToCart(item)}
-            className="flex flex-col overflow-hidden rounded-lg border text-left transition active:scale-[0.98]"
+            onClick={() => !item.sold_out && addToCart(item)}
+            disabled={Boolean(item.sold_out)}
+            className="flex flex-col overflow-hidden rounded-lg border text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {context?.capabilities.show_item_images && item.item_image && (
               <img src={item.item_image} alt={item.item_name} className="h-24 w-full object-cover" />
             )}
             <div className="p-2">
               <div className="text-sm font-medium">{item.item_name}</div>
-              <div className="text-sm text-muted-foreground tabular-nums">{formatCurrency(item.rate)}</div>
+              {item.sold_out ? (
+                <div className="text-sm font-medium text-destructive">{t('common.sold_out')}</div>
+              ) : (
+                <div className="text-sm text-muted-foreground tabular-nums">{formatCurrency(item.rate)}</div>
+              )}
               {cart[item.item] && (
                 <div className="mt-1 text-xs font-semibold text-primary">
                   {t('common.in_cart', { qty: cart[item.item].qty })}

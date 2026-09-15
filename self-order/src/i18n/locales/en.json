@@ -20,6 +20,7 @@
     "request_bill": "Request Bill",
     "new_order": "New Order",
     "start_over": "Start Over",
+    "sold_out": "Sold Out",
     "order_notes_placeholder": "Notes for this order (e.g. no onion, gate code)"
   },
   "order_summary": {

@@ -77,10 +77,16 @@ def resolve_restaurant_menu(branch, room=None, order_type=None, cashier=False):
 
 
     # Get menu items (your existing code)
+    # disabled=0 only — that's "off the current menu" (archived), which
+    # stays filtered out here same as always. sold_out is NOT filtered:
+    # a sold-out item is still on the current menu, just temporarily
+    # unavailable, so callers get it back (with sold_out=1) and decide how
+    # to render/enforce that themselves (self-order greys it out and
+    # add_customer_items rejects ordering it; see self_ordering.py).
     menu_items = frappe.get_all(
         "URY Menu Item",
         filters={"parent": menu, "disabled": 0},
-        fields=["item", "item_name", "rate", "special_dish", "disabled", "course"],
+        fields=["item", "item_name", "rate", "special_dish", "disabled", "sold_out", "course"],
         order_by="item_name asc"
     )
 
@@ -91,6 +97,7 @@ def resolve_restaurant_menu(branch, room=None, order_type=None, cashier=False):
             "rate": item.rate,
             "special_dish": item.special_dish,
             "disabled": item.disabled,
+            "sold_out": item.sold_out,
             "item_image": frappe.db.get_value("Item", item.item, "image"),
             "course": item.course,
             "course_label": _(item.course) if item.course else item.course,

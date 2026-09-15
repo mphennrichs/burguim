@@ -25,7 +25,12 @@ function MenuGrid({ menu, cart, capabilities, onAdd, gridClassName, cardClassNam
   return (
     <div className={gridClassName}>
       {menu.map((item) => (
-        <button key={item.item} onClick={() => onAdd(item)} className={cardClassName}>
+        <button
+          key={item.item}
+          onClick={() => !item.sold_out && onAdd(item)}
+          disabled={Boolean(item.sold_out)}
+          className={`${cardClassName} disabled:cursor-not-allowed disabled:opacity-50`}
+        >
           {capabilities?.show_item_images && item.item_image && (
             <img
               src={item.item_image}
@@ -35,7 +40,11 @@ function MenuGrid({ menu, cart, capabilities, onAdd, gridClassName, cardClassNam
           )}
           <div className="flex flex-1 flex-col gap-1 p-3">
             <div className="font-medium">{item.item_name}</div>
-            <div className="text-muted-foreground tabular-nums">{formatCurrency(item.rate)}</div>
+            {item.sold_out ? (
+              <div className="font-medium text-destructive">{t('common.sold_out')}</div>
+            ) : (
+              <div className="text-muted-foreground tabular-nums">{formatCurrency(item.rate)}</div>
+            )}
             {cart[item.item] && (
               <div className="mt-1 text-sm font-semibold text-primary">
                 {t('common.in_cart', { qty: cart[item.item].qty })}

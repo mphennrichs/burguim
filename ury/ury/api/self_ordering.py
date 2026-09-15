@@ -701,8 +701,14 @@ def add_customer_items(session, items, notes=None):
     order_type = _resolve_order_type(session)
 
     with _elevated():
-        menu_names = {
-            m.get("item")
+        # Keyed by item code -> sold_out flag, not just a bare set of names:
+        # resolve_restaurant_menu() already excludes disabled (archived)
+        # items entirely, but a sold-out item is still deliberately returned
+        # (so it can render greyed-out) — ordering it must still be
+        # rejected here, server-side, same as any other menu-membership
+        # check in this function.
+        menu_items = {
+            m.get("item"): bool(m.get("sold_out"))
             for m in resolve_restaurant_menu(
                 branch=profile.branch,
                 room=None,
@@ -717,8 +723,10 @@ def add_customer_items(session, items, notes=None):
         qty = raw.get("qty")
         comment = (raw.get("comment") or "")[:MAX_COMMENT_LEN]
 
-        if not item_code or item_code not in menu_names:
+        if not item_code or item_code not in menu_items:
             frappe.throw(_("Item {0} is not available on this menu").format(item_code), frappe.ValidationError)
+        if menu_items[item_code]:
+            frappe.throw(_("Item {0} is sold out").format(item_code), frappe.ValidationError)
         try:
             qty = float(qty)
         except (TypeError, ValueError):

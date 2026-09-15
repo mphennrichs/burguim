@@ -301,15 +301,20 @@ function MenuCard({
 }) {
   return (
     <button
-      onClick={onAdd}
-      className="flex flex-col overflow-hidden rounded-xl border text-left transition active:scale-[0.98]"
+      onClick={() => !item.sold_out && onAdd()}
+      disabled={Boolean(item.sold_out)}
+      className="flex flex-col overflow-hidden rounded-xl border text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
     >
       {showImage && item.item_image && (
         <img src={item.item_image} alt={item.item_name} className="h-48 w-full object-cover" />
       )}
       <div className="p-4">
         <div className="text-lg font-medium">{item.item_name}</div>
-        <div className="mt-1 text-base text-muted-foreground tabular-nums">{formatCurrency(item.rate)}</div>
+        {item.sold_out ? (
+          <div className="mt-1 text-base font-medium text-destructive">{t('common.sold_out')}</div>
+        ) : (
+          <div className="mt-1 text-base text-muted-foreground tabular-nums">{formatCurrency(item.rate)}</div>
+        )}
         {qtyInCart > 0 && (
           <div className="mt-2 text-sm font-semibold text-primary">{t('common.in_cart', { qty: qtyInCart })}</div>
         )}

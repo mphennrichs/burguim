@@ -23,6 +23,7 @@ interface MenuItemRecord {
   image?: string;
   special_dish?: number;
   disabled?: number;
+  sold_out?: number;
 }
 
 interface MenuItemRow {
@@ -71,6 +72,7 @@ export const MenuPage: React.FC = () => {
     target_menu: '',
     special_dish: false,
     disabled: false,
+    sold_out: false,
   });
 
   // Add new menu form state
@@ -202,6 +204,7 @@ export const MenuPage: React.FC = () => {
       target_menu: selectedMenu === 'all' ? (menus[0]?.name || '') : selectedMenu,
       special_dish: false,
       disabled: false,
+      sold_out: false,
     });
     setDrawerMode('add-item');
   };
@@ -230,8 +233,38 @@ export const MenuPage: React.FC = () => {
       target_menu: selectedMenu === 'all' ? (menus[0]?.name || '') : selectedMenu,
       special_dish: !!item.special_dish,
       disabled: !!item.disabled,
+      sold_out: !!item.sold_out,
     });
     setDrawerMode('edit-item');
+  };
+
+  const [togglingSoldOut, setTogglingSoldOut] = useState<string | null>(null);
+
+  // One-click sold-out toggle right from the list — the whole point is
+  // "easily" (per the original request): no drawer, no form, just flip it
+  // the moment you run out. Same fetch-whole-doc/mutate-row/save pattern
+  // openEditItemDrawer's own save path uses (URY Menu Item is a child
+  // table row; going through the parent URY Menu keeps its validate()
+  // hooks in the loop instead of writing around them).
+  const toggleSoldOut = async (item: MenuItemRecord) => {
+    const menuName = selectedMenu === 'all' ? (menus[0]?.name || '') : selectedMenu;
+    if (!menuName || !item.name) return;
+    setTogglingSoldOut(item.name);
+    const nextValue = item.sold_out ? 0 : 1;
+    try {
+      const res = await call<any>('frappe.client.get', { doctype: 'URY Menu', name: menuName });
+      const menuDoc = res.message || res;
+      const rowIndex = menuDoc.items.findIndex((row: any) => row.name === item.name);
+      if (rowIndex === -1) return;
+      menuDoc.items[rowIndex].sold_out = nextValue;
+      await call('frappe.client.save', { doc: menuDoc });
+      setItems((prev) => prev.map((row) => (row.name === item.name ? { ...row, sold_out: nextValue } : row)));
+      showToast.success(nextValue ? 'Item marcado como esgotado' : 'Item disponível novamente');
+    } catch {
+      showToast.error('Não foi possível atualizar o item. Tente novamente.');
+    } finally {
+      setTogglingSoldOut(null);
+    }
   };
 
   const getItemImage = (item: MenuItemRecord): string | undefined => {
@@ -421,6 +454,7 @@ export const MenuPage: React.FC = () => {
         menuDoc.items[rowIndex].image = sanitizedImage || undefined;
         menuDoc.items[rowIndex].special_dish = newItem.special_dish ? 1 : 0;
         menuDoc.items[rowIndex].disabled = newItem.disabled ? 1 : 0;
+        menuDoc.items[rowIndex].sold_out = newItem.sold_out ? 1 : 0;
         await call('frappe.client.save', { doc: menuDoc });
 
         if (editingItem.item) {
@@ -481,6 +515,7 @@ export const MenuPage: React.FC = () => {
             image: sanitizedImage || undefined,
             special_dish: newItem.special_dish ? 1 : 0,
             disabled: newItem.disabled ? 1 : 0,
+            sold_out: newItem.sold_out ? 1 : 0,
           });
           await call('frappe.client.save', { doc: menuDoc });
         }
@@ -812,8 +847,11 @@ export const MenuPage: React.FC = () => {
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {filteredItems.map((item, idx) => (
-            <div key={item.name || idx} className="bg-white rounded-lg shadow-sm overflow-hidden transition-shadow relative h-56 flex flex-col group">
-              <div className="h-24 w-full shrink-0">
+            <div
+              key={item.name || idx}
+              className={`bg-white rounded-lg shadow-sm overflow-hidden transition-shadow relative h-56 flex flex-col group ${item.sold_out ? 'opacity-60' : ''}`}
+            >
+              <div className="h-24 w-full shrink-0 relative">
                 {getItemImage(item) ? (
                   <img
                     src={getItemImage(item)}
@@ -827,6 +865,16 @@ export const MenuPage: React.FC = () => {
                     {(item.item_name || 'IT').slice(0, 2).toUpperCase()}
                   </div>
                 )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleSoldOut(item); }}
+                  disabled={togglingSoldOut === item.name}
+                  className="absolute top-1.5 right-1.5"
+                  title={item.sold_out ? 'Marcar como disponível' : 'Marcar como esgotado'}
+                >
+                  <Badge variant={item.sold_out ? 'danger' : 'outline'} className="cursor-pointer select-none bg-white/90">
+                    {item.sold_out ? 'Esgotado' : 'Disponível'}
+                  </Badge>
+                </button>
               </div>
               <div className="flex-1 p-3 flex flex-col">
                 <h3 className="font-medium text-gray-900 text-sm leading-5 line-clamp-2" title={item.item_name}>
@@ -861,6 +909,7 @@ export const MenuPage: React.FC = () => {
                 <th className="px-6 py-4">Standard Rate</th>
                 <th className="px-6 py-4 text-center">Special</th>
                 <th className="px-6 py-4 text-center">Disabled</th>
+                <th className="px-6 py-4 text-center">Sold Out</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -899,6 +948,19 @@ export const MenuPage: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex justify-center">
                       {item.disabled ? <Check className="w-4 h-4 text-red-500" /> : <X className="w-4 h-4 text-gray-300" />}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => toggleSoldOut(item)}
+                        disabled={togglingSoldOut === item.name}
+                        title={item.sold_out ? 'Marcar como disponível' : 'Marcar como esgotado'}
+                      >
+                        <Badge variant={item.sold_out ? 'danger' : 'outline'} className="cursor-pointer select-none">
+                          {item.sold_out ? 'Esgotado' : 'Disponível'}
+                        </Badge>
+                      </button>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -1060,6 +1122,19 @@ export const MenuPage: React.FC = () => {
               </div>
               <span className="text-sm font-medium text-gray-700">Disabled</span>
             </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={newItem.sold_out}
+                  onChange={(e) => setNewItem({ ...newItem, sold_out: e.target.checked })}
+                />
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </div>
+              <span className="text-sm font-medium text-gray-700">Sold Out</span>
+            </label>
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t mt-8 border-gray-100">
@@ -1146,6 +1221,7 @@ export const MenuPage: React.FC = () => {
                               target_menu: '',
                               special_dish: false,
                               disabled: false,
+                              sold_out: false,
                             });
                             setDrawerMode('add-item');
                           } else {

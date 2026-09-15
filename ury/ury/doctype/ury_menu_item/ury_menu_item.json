@@ -12,6 +12,7 @@
   "rate",
   "special_dish",
   "disabled",
+  "sold_out",
   "course_icon",
   "course"
  ],
@@ -49,6 +50,14 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Disabled"
+  },
+  {
+   "default": "0",
+   "description": "Temporarily out of stock — stays visible on the menu (greyed out, not orderable) instead of disappearing. Distinct from Disabled/archived: this item is still part of the current menu, just unavailable right now. Toggle back off once restocked.",
+   "fieldname": "sold_out",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Sold Out"
   },
   {
    "fieldname": "course",
