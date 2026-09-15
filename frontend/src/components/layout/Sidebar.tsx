@@ -19,7 +19,8 @@ import {
   ArrowLeft,
   Grid,
   Bike,
-  Package
+  Package,
+  Image
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const SETTINGS_ITEMS: NavItem[] = [
+  { label: 'Identidade Visual', path: '/branding', icon: Image },
   { label: 'Perfil POS', path: '/pos-profile', icon: SlidersHorizontal },
   { label: 'Usuário', path: '/user', icon: Users },
   { label: 'Agregadores', path: '/aggregator', icon: Store },

@@ -37,6 +37,7 @@ from ury.ury.doctype.ury_order.ury_order import (
     price_items_for_invoice,
 )
 from ury.ury.api.ury_kot_generate import kot_execute
+from ury.ury.api.branding import get_logo_url
 
 SESSION_TOKEN_BYTES_HASH_LEN = 64  # frappe.generate_hash(length=..)
 MAX_ITEMS_PER_REQUEST = 50
@@ -308,6 +309,7 @@ def _ordering_context_response(raw_session_token, source, profile, table, layout
         "restaurant": profile.restaurant,
         "table": table,
         "currency_symbol": _resolve_currency_symbol(profile),
+        "logo_url": get_logo_url(),
         # "Mobile" for QR sessions (no device involved); otherwise the
         # provisioned URY Ordering Device's configured layout (Tablet /
         # Landscape Kiosk / Portrait Kiosk) — the frontend layout shell

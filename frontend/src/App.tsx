@@ -15,6 +15,7 @@ import { UserPage } from './pages/Dashboard/UserPage';
 import { BranchPage } from './pages/Dashboard/BranchPage';
 import { ReportSettingsPage } from './pages/Dashboard/ReportSettingsPage';
 import ProductionUnitPage from './pages/Dashboard/ProductionUnitPage';
+import BrandingPage from './pages/Dashboard/BrandingPage';
 import AggregatorPage from './pages/Dashboard/AggregatorPage';
 import { RoleGuard } from './components/RoleGuard';
 import { AuthGuard } from './components/AuthGuard';
@@ -134,6 +135,7 @@ function App() {
           <Route path="branch" element={<BranchPage />} />
           <Route path="report-settings" element={<ReportSettingsPage />} />
           <Route path="production-unit" element={<ProductionUnitPage />} />
+          <Route path="branding" element={<BrandingPage />} />
           <Route path="aggregator" element={<AggregatorPage />} />
 
           <Route

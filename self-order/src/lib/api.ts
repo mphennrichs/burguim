@@ -22,6 +22,7 @@ export interface OrderingContext {
   restaurant: string
   table: string | null
   currency_symbol: string | null
+  logo_url: string | null
   layout: OrderingLayout
   capabilities: OrderingCapabilities
 }

@@ -122,11 +122,25 @@ export default {
       } catch (err) {
         console.error("Failed to fetch user", err);
       }
+    },
+    async fetchLogo() {
+      // Falls back to the bundled placeholder (imagePath's initial value)
+      // until the owner uploads their own logo in the admin panel.
+      try {
+        const res = await fetch('/api/method/ury.ury.api.branding.get_logo');
+        const data = await res.json();
+        if (data.message && data.message.logo_url) {
+          this.imagePath = data.message.logo_url;
+        }
+      } catch (err) {
+        console.error("Failed to fetch logo", err);
+      }
     }
   },
   mounted() {
     document.addEventListener('mousedown', this.handleClickOutside);
     this.fetchUser();
+    this.fetchLogo();
   },
   unmounted() {
     document.removeEventListener('mousedown', this.handleClickOutside);

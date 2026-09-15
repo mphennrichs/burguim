@@ -106,15 +106,20 @@ function MobileQRLayout({ initialContext }: LayoutProps) {
   return (
     <div className="min-h-screen pb-28">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
-        <h1 className="text-lg font-semibold">
-          {isPickup
-            ? t('common.order_for_pickup')
-            : isDelivery
-              ? t('common.order_for_delivery')
-              : context?.table
-                ? t('common.table_label', { table: context.table })
-                : t('common.order_fallback_title')}
-        </h1>
+        <div className="flex items-center gap-2 min-w-0">
+          {context?.logo_url && (
+            <img src={context.logo_url} alt="Logo" className="h-8 w-8 shrink-0 rounded object-contain" />
+          )}
+          <h1 className="truncate text-lg font-semibold">
+            {isPickup
+              ? t('common.order_for_pickup')
+              : isDelivery
+                ? t('common.order_for_delivery')
+                : context?.table
+                  ? t('common.table_label', { table: context.table })
+                  : t('common.order_fallback_title')}
+          </h1>
+        </div>
         <button
           onClick={handleStartOver}
           className="rounded-md border px-2 py-1 text-xs font-medium text-muted-foreground"

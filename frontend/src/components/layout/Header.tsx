@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useBranchContext } from '../../context/BranchContext';
 import { logout, call, getLoggedUser, getUserRoles } from '@ury/core';
-import uryLogo from '../../../Public/photo_2026-08-19_13-24-09.jpg';
+import defaultLogo from '../../../Public/photo_2026-08-19_13-24-09.jpg';
+import { brandingService } from '../../services/branding';
 import {
   Bell,
   User,
@@ -40,6 +41,20 @@ export const Header: React.FC = () => {
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [userInfo, setUserInfo] = useState({ fullName: 'Usuário Admin', email: 'admin@urypos.com' });
+  // Falls back to the URY placeholder mark until the owner uploads their
+  // own logo in Configurações → Identidade Visual.
+  const [logoUrl, setLogoUrl] = useState<string>(defaultLogo);
+
+  useEffect(() => {
+    brandingService
+      .getLogo()
+      .then((url) => {
+        if (url) setLogoUrl(url);
+      })
+      .catch(() => {
+        // Keep the placeholder — a failed fetch shouldn't block the header.
+      });
+  }, []);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const branchMenuRef = useRef<HTMLDivElement>(null);
@@ -133,7 +148,7 @@ export const Header: React.FC = () => {
         {/* Left Section: Logo & Brand */}
         <div className="flex items-center space-x-3">
           <Link to="/dashboard" className="flex items-center space-x-3 group">
-            <img src={uryLogo} alt="URY Logo" className="h-7 w-auto" />
+            <img src={logoUrl} alt="Logo" className="h-7 w-auto" />
           </Link>
         </div>
 
