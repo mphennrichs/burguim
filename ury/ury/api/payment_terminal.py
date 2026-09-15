@@ -149,12 +149,18 @@ class _SimulatedPaymentTerminalProvider(PaymentTerminalProvider):
 _payment_terminal_provider = _NoOpPaymentTerminalProvider()
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def register_simulated_terminal_provider():
 	"""Opt-in helper for testing/demo: installs _SimulatedPaymentTerminalProvider
 	as the active provider. Never called automatically -- the default stays
 	_NoOpPaymentTerminalProvider so production kiosks fail honestly until a
 	real vendor adapter is registered."""
+	# Nothing in this app calls this today, but it flips a process-wide
+	# global that auto-approves payments -- worth gating by role now,
+	# before anything actually wires the payment flow through it, rather
+	# than relying on it staying unreferenced forever.
+	if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
 	register_payment_terminal_provider(_SimulatedPaymentTerminalProvider())
 
 

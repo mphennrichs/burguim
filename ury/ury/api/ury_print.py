@@ -17,7 +17,7 @@ standard_format = "templates/print_formats/standard.html"
 from frappe.www.printview import validate_print_permission
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def network_printing(
     doctype,
     name,
@@ -62,15 +62,23 @@ def network_printing(
                     output.write(f)
                 conn.printFile(print_settings.printer_name, file_path, name, {})
 
-                restaurant_table, invoice_printed, name = frappe.db.get_value(
-                    "POS Invoice", name, ["restaurant_table", "invoice_printed", "name"]
-                )
+                # This bookkeeping only makes sense for POS Invoice (marking
+                # it printed, releasing its table) — it used to run
+                # unconditionally regardless of the caller's `doctype`,
+                # unpacking `name` as if it were always a POS Invoice. With
+                # any other doctype that happened to share a `name` with a
+                # real POS Invoice, that unrelated invoice would silently
+                # get marked as printed. Scoped explicitly now.
+                if doctype == "POS Invoice":
+                    restaurant_table, invoice_printed, invoice_name = frappe.db.get_value(
+                        "POS Invoice", name, ["restaurant_table", "invoice_printed", "name"]
+                    )
 
-                if restaurant_table and invoice_printed == 0:
-                    frappe.db.set_value("POS Invoice", name, "invoice_printed", 1)
-                    release_merge_cluster_tables(restaurant_table)
-                else:
-                    frappe.db.set_value("POS Invoice", name, "invoice_printed", 1)
+                    if restaurant_table and invoice_printed == 0:
+                        frappe.db.set_value("POS Invoice", invoice_name, "invoice_printed", 1)
+                        release_merge_cluster_tables(restaurant_table)
+                    else:
+                        frappe.db.set_value("POS Invoice", invoice_name, "invoice_printed", 1)
 
                 return "Success"
             finally:
@@ -85,7 +93,7 @@ def network_printing(
         return f"An error occurred: {str(e)}"
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def select_network_printer(pos_profile, invoice_id):
     invoice_doc = frappe.get_doc("POS Invoice", invoice_id)
     if not frappe.has_permission("POS Invoice", "write", doc=invoice_doc):
@@ -124,7 +132,7 @@ def select_network_printer(pos_profile, invoice_id):
             return print
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def qz_print_update(invoice):
     try:
         invoice_doc = frappe.get_doc("POS Invoice", invoice)
@@ -168,7 +176,7 @@ def qz_print_update(invoice):
         return {"status": "Failure"}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def print_pos_page(doctype, name, print_format):
     doc_to_check = frappe.get_doc(doctype, name)
     if not frappe.has_permission(doctype, "write", doc=doc_to_check):
@@ -176,19 +184,22 @@ def print_pos_page(doctype, name, print_format):
 
     data = {"name": name, "doctype": doctype, "print_format": print_format}
 
-    restaurant_table, branch, name = frappe.db.get_value(
-        "POS Invoice", name, ["restaurant_table", "branch", "name"]
-    )
-    print_channel = "{}_{}".format("print", branch)
-    frappe.publish_realtime(print_channel, {"data": data})
+    # Same POS-Invoice-specific bookkeeping issue as network_printing() —
+    # only run it when the caller actually asked to print a POS Invoice.
+    if doctype == "POS Invoice":
+        restaurant_table, branch, invoice_name = frappe.db.get_value(
+            "POS Invoice", name, ["restaurant_table", "branch", "name"]
+        )
+        print_channel = "{}_{}".format("print", branch)
+        frappe.publish_realtime(print_channel, {"data": data})
 
-    invoice_printed = frappe.db.get_value("POS Invoice", name, "invoice_printed")
+        invoice_printed = frappe.db.get_value("POS Invoice", invoice_name, "invoice_printed")
 
-    if invoice_printed == 0:
-        frappe.db.set_value("POS Invoice", name, "invoice_printed", 1)
+        if invoice_printed == 0:
+            frappe.db.set_value("POS Invoice", invoice_name, "invoice_printed", 1)
 
-        if restaurant_table:
-            release_merge_cluster_tables(restaurant_table)
+            if restaurant_table:
+                release_merge_cluster_tables(restaurant_table)
 
 
 @frappe.whitelist()
@@ -234,7 +245,7 @@ def _get_qz_private_key():
         return key_file.read()
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def signature_promise(toSign=None):
     """Server-side QZ Tray signing endpoint (sign-only)."""
     if frappe.session.user == "Guest":

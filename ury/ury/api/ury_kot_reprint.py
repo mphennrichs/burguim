@@ -7,7 +7,7 @@ from ury.ury_pos.api import getBranch
 from ury.ury.doctype.ury_order.ury_order import _order_ownership_flags
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def reprint_kot(invoice_number):
 
     # Authorization checks run outside the existing try/except below so a

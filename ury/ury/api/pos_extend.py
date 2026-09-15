@@ -50,17 +50,29 @@ def overrided_past_order_list(search_term, status, limit=20):
     updated_list = []
 
     if search_term and status:
+        customer_filters = {
+            "customer": ["like", "%{}%".format(frappe.db.escape(search_term))],
+            "status": status,
+        }
+        name_filters = {"name": ["like", "%{}%".format(frappe.db.escape(search_term))], "status": status}
+        # Same branch/room scope as the no-search path below — without this,
+        # a search term let any non-Administrator user read every branch's
+        # orders, bypassing the scope enforced everywhere else in this
+        # function.
+        if user != "Administrator":
+            customer_filters["branch"] = branch_name
+            customer_filters["custom_restaurant_room"] = room_name
+            name_filters["branch"] = branch_name
+            name_filters["custom_restaurant_room"] = room_name
+
         invoices_by_customer = frappe.db.get_all(
             "POS Invoice",
-            filters={
-                "customer": ["like", "%{}%".format(frappe.db.escape(search_term))],
-                "status": status,
-            },
+            filters=customer_filters,
             fields=fields,
         )
         invoices_by_name = frappe.db.get_all(
             "POS Invoice",
-            filters={"name": ["like", "%{}%".format(frappe.db.escape(search_term))], "status": status},
+            filters=name_filters,
             fields=fields,
         )
         print("invoices by customer",invoices_by_customer)

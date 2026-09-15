@@ -17,7 +17,7 @@ def get_users_with_role(role_name):
     return user_details
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def order_delay_notification(id):
     kot_doc = frappe.get_doc("URY KOT", id)
     if not frappe.has_permission("URY KOT", "write", doc=kot_doc):

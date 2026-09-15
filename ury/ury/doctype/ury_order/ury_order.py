@@ -17,14 +17,22 @@ from frappe import cache
 class URYOrder(Document):
     pass
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def merge_free_tables(table1, table2):
     """Merges two tables in the same room; allows one occupied and one free."""
     return merge_tables_batch(table1, [table2])
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def merge_tables_batch(anchor_table, tables):
+    # Unlike split_bill just above, this had no permission/branch check at
+    # all — any authenticated user could merge/unmerge any table system-
+    # wide. URY Table already carries the branch-scoped has_permission
+    # hook (ury/permission.py), so this reuses that same check rather than
+    # re-deriving branch logic here.
+    anchor_doc = frappe.get_doc("URY Table", anchor_table)
+    if not frappe.has_permission("URY Table", "write", doc=anchor_doc):
+        frappe.throw(_("Not permitted to merge this table."), frappe.PermissionError)
 
     if isinstance(tables, str):
         tables = json.loads(tables)
@@ -382,7 +390,7 @@ def release_merge_cluster_tables(table_or_tables):
 
     frappe.db.commit()
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def release_tables_after_print(invoice):
 
     invoice_doc = frappe.get_doc(
@@ -458,8 +466,11 @@ def _has_open_pos_invoices_for_cluster(tables):
     return False
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def unmerge_tables(table):
+    table_doc = frappe.get_doc("URY Table", table)
+    if not frappe.has_permission("URY Table", "write", doc=table_doc):
+        frappe.throw(_("Not permitted to unmerge this table."), frappe.PermissionError)
 
     cluster = _get_cluster_table_names(
         table
@@ -541,7 +552,7 @@ def _copy_invoice_item_fields(item_row, qty):
     )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def split_bill(source_invoice, items_to_move, customer=None):
     """Move selected line items from a printed draft bill to a new sibling POS Invoice."""
     if isinstance(items_to_move, str):
@@ -1283,7 +1294,7 @@ def get_captain_context():
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def sync_order(
     items,
     cashier,
@@ -1719,7 +1730,7 @@ def pos_opening_check():
     return result
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def table_transfer(table, newTable, invoice):
     current_table = frappe.get_doc("URY Table", table)
     pos_invoice = frappe.get_doc("POS Invoice", invoice)
@@ -1777,7 +1788,7 @@ def table_transfer(table, newTable, invoice):
         pass
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def captain_transfer(currentCaptain, newCaptain, invoice):
     pos_invoice_doc = frappe.get_doc("POS Invoice", invoice)
 
@@ -1887,7 +1898,7 @@ def customer_favourite_item(customer_name):
     return result
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def cancel_order(invoice_id, reason):
     pos_invoice = frappe.get_doc("POS Invoice", invoice_id)
 
@@ -1996,7 +2007,7 @@ def _validate_additional_discount(additional_discount, pos_profile):
 
 
 # Method for URY POS
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def make_invoice(customer, payments, cashier, pos_profile,owner, additionalDiscount=None, table=None, invoice=None):
     additionalDiscount = _validate_additional_discount(additionalDiscount, pos_profile)
 

@@ -38,9 +38,11 @@ from ury.ury.doctype.ury_order.ury_order import (
 )
 from ury.ury.api.ury_kot_generate import kot_execute
 from ury.ury.api.branding import get_logo_url
+from frappe.rate_limiter import rate_limit
 
 SESSION_TOKEN_BYTES_HASH_LEN = 64  # frappe.generate_hash(length=..)
 MAX_ITEMS_PER_REQUEST = 50
+MAX_QTY_PER_ITEM = 50
 MAX_COMMENT_LEN = 200
 MAX_ADDRESS_LEN = 500
 MAX_NOTES_LEN = 140  # invoice.custom_comments is a Data field (varchar(140))
@@ -134,9 +136,20 @@ def _verify_qr_token(token):
     except Exception:
         frappe.throw(_("Invalid ordering link"), frappe.PermissionError)
 
-    secret = _get_profile_secret(profile)
-    expected = _sign(f"{profile}|{table}", secret)
-    if not hmac.compare_digest(expected, signature):
+    # Deliberately a plain lookup here, not _get_profile_secret (which
+    # throws its own distinct "not configured" error) — a nonexistent
+    # profile and a wrong signature now fail through this exact same
+    # frappe.throw() call, same traceback shape either way. An earlier
+    # version wrapped _get_profile_secret in its own try/except that threw
+    # a *second*, chained exception on failure; even with the client-
+    # visible message unified, that left a structurally different
+    # traceback ("During handling of the above exception...") behind a
+    # forged token for a missing profile vs. one for an existing profile —
+    # enough for a raw API caller (not just a browser rendering the UI) to
+    # tell the two apart on a dev bench with developer_mode on.
+    secret = frappe.db.get_value("URY Self Ordering Profile", profile, "qr_signing_secret")
+    expected = _sign(f"{profile}|{table}", secret) if secret else None
+    if not expected or not hmac.compare_digest(expected, signature):
         frappe.throw(_("Invalid ordering link"), frappe.PermissionError)
 
     profile_doc = frappe.get_doc("URY Self Ordering Profile", profile)
@@ -168,7 +181,7 @@ def _hash_credential(raw_credential):
     return hashlib.sha256(raw_credential.encode()).hexdigest()
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def enroll_device(device):
     """Staff-only: (re)issue a device credential for a provisioned
     URY Ordering Device. The raw credential is shown once and must be
@@ -330,6 +343,13 @@ def _ordering_context_response(raw_session_token, source, profile, table, layout
 
 
 @frappe.whitelist(allow_guest=True)
+# lookup_delivery_customer's own rate limit is keyed on the session this
+# function mints — a security re-test found that just meant an attacker
+# could reset that quota for free by calling here again for a fresh
+# session each time. A generous per-IP cap here (real customers opening
+# the delivery link never come close to it) bounds how fast new sessions
+# — and so fresh lookup_delivery_customer quotas — can be minted at all.
+@rate_limit(limit=30, seconds=60)
 def get_ordering_context(token=None, device_id=None, device_credential=None):
     """Entry point for every customer-facing surface. Resolves a QR token
     or a device credential into a fresh ordering session and returns only
@@ -350,7 +370,7 @@ def get_ordering_context(token=None, device_id=None, device_credential=None):
     return _ordering_context_response(raw_session_token, source, profile, table, layout)
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def assign_device_table(device_id, device_credential, staff_pin, table):
     """Bind a shared/portable tablet (`table_mode = "Selectable"`) to a
     table for the duration of a session. Used by `PortableTabletAssignment`
@@ -427,8 +447,26 @@ def get_customer_menu(session):
 def get_customer_product(session, item_code):
     session = _resolve_session(session)
     profile = frappe.get_doc("URY Self Ordering Profile", session.ordering_profile)
+    order_type = _resolve_order_type(session)
 
     with _elevated():
+        # Without this, any Item in the system — raw materials, BOM
+        # ingredients, anything not on the public menu at all — could be
+        # read by item_code alone. Same menu-membership check
+        # add_customer_items already enforces before letting a customer
+        # touch an item.
+        menu_item_codes = {
+            m.get("item")
+            for m in resolve_restaurant_menu(
+                branch=profile.branch,
+                room=None,
+                order_type=order_type,
+                cashier=False,
+            )["items"]
+        }
+        if item_code not in menu_item_codes:
+            frappe.throw(_("Item not found"), frappe.DoesNotExistError)
+
         item = frappe.db.get_value(
             "Item", item_code,
             ["item_code", "item_name", "description", "image"],
@@ -643,7 +681,7 @@ def get_customer_order(session):
     return _sanitize_invoice_for_customer(invoice)
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def add_customer_items(session, items, notes=None):
     """Append-only customer order mutation. `items` is a list of
     {"item": <item_code>, "qty": <number>, "comment": <optional str>} —
@@ -733,7 +771,7 @@ def add_customer_items(session, items, notes=None):
             qty = float(qty)
         except (TypeError, ValueError):
             qty = 0
-        if qty <= 0:
+        if qty <= 0 or qty > MAX_QTY_PER_ITEM:
             frappe.throw(_("Invalid quantity for item {0}").format(item_code), frappe.ValidationError)
 
         clean_items.append({"item": item_code, "item_name": item_code, "qty": qty, "comment": comment})
@@ -898,6 +936,17 @@ def _find_or_create_delivery_customer(phone, address, name):
 
 
 @frappe.whitelist(allow_guest=True)
+# Keyed on `session` (a 256-bit signed token, not attacker-chosen) as well
+# keyed on `session` (a 256-bit signed token, not attacker-chosen) with
+# ip_based=False — deliberately NOT keyed on IP at all. A first attempt
+# combined session with IP, but rate_limit() concatenates the two into one
+# identity whenever both are given (`f"{ip}:{session}"`), so changing just
+# the IP still produced a fresh identity every call — confirmed live, still
+# bypassable by spoofing X-Forwarded-For (which frappe.local.request_ip
+# trusts as-is on this deployment) even with a key set. Dropping IP
+# entirely closes that: the only way to reset the limit now is a brand
+# new ordering session per 10 attempts, not just a header change.
+@rate_limit(key="session", limit=10, seconds=60, ip_based=False)
 def lookup_delivery_customer(session, phone):
     """Guest-safe lookup for the self-order Delivery form: does a saved
     name/address already exist for this phone number? Lets the frontend
@@ -933,7 +982,7 @@ def lookup_delivery_customer(session, phone):
     }
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def set_delivery_details(session, address, phone, name):
     """Delivery-only equivalent of picking a table: capture who to deliver
     to (name + phone) and where, and save it against the customer's phone
@@ -1016,7 +1065,7 @@ def set_delivery_details(session, address, phone, name):
 # Request bill
 # ---------------------------------------------------------------------------
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def request_bill(session):
     session = _resolve_session(session)
     profile = frappe.get_doc("URY Self Ordering Profile", session.ordering_profile)
@@ -1095,7 +1144,7 @@ def get_order_status(session):
 # without live gateway credentials.
 # ---------------------------------------------------------------------------
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def create_payment_request(session):
     session = _resolve_session(session)
     profile = frappe.get_doc("URY Self Ordering Profile", session.ordering_profile)
@@ -1219,7 +1268,7 @@ def register_communication_provider(fn):
     _communication_provider = fn
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def share_payment_link(session, recipient):
     """Send the current Payment Request's link to `recipient` (whatever
     format the active communication provider expects — a phone number for

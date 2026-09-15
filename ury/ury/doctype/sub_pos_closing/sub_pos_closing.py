@@ -87,9 +87,53 @@ def get_pos_profile():
     return pos_profile
 
 
+def _extract_parent_filter(filters):
+    """Best-effort read of a `parent` condition out of `filters`, which
+    (being a standard Frappe search-field argument) could legitimately be
+    either a plain dict or a list of [field, operator, value] conditions —
+    only used to figure out which POS Profile is being asked about for the
+    branch check below; never mutates or replaces the value actually
+    passed on to frappe.get_all."""
+    if isinstance(filters, str):
+        try:
+            filters = frappe.parse_json(filters)
+        except Exception:
+            return None
+    if isinstance(filters, dict):
+        return filters.get("parent")
+    if isinstance(filters, (list, tuple)):
+        for cond in filters:
+            if isinstance(cond, (list, tuple)) and len(cond) >= 1 and cond[0] == "parent":
+                return cond[-1]
+    return None
+
+
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_cashiers(doctype, txt, searchfield, start, page_len, filters):
+    # `filters` comes straight from the client (it's a standard Frappe
+    # search-field callback) and was passed unchecked into frappe.get_all,
+    # which ignores permissions — a caller could ask for cashiers on a POS
+    # Profile belonging to any branch, not just their own. Reusing
+    # get_pos_invoices' own branch-scoping pattern just below.
+    profile = _extract_parent_filter(filters)
+    if profile:
+        session_user = frappe.session.user
+        is_supervisor = session_user == "Administrator" or bool(
+            set(frappe.get_roles(session_user)) & SUPERVISOR_ROLES
+        )
+        if not is_supervisor:
+            try:
+                session_branch = getBranch()
+            except Exception:
+                session_branch = None
+            profile_branch = frappe.db.get_value("POS Profile", profile, "branch")
+            if not session_branch or profile_branch != session_branch:
+                frappe.throw(
+                    _("You do not have permission to access cashiers for POS Profile {0}.").format(profile),
+                    frappe.PermissionError,
+                )
+
     cashiers_list = frappe.get_all(
         "POS Profile User", filters=filters, fields=["user"], as_list=1
     )

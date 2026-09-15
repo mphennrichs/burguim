@@ -1,10 +1,24 @@
 import frappe
 
 from frappe.utils import get_datetime, datetime, add_to_date, today
+from ury.ury_pos.api import getBranch
+
+
+def _resolve_scoped_branch(branch):
+	"""Administrator/System Manager may request any branch or the global
+	aggregate (branch=None); everyone else is confined to their own branch
+	(getBranch()), regardless of what they pass — these endpoints had no
+	authorization check at all before, so any authenticated user could read
+	another branch's sales/ops data via ?branch=X (or every branch's via
+	omitting it)."""
+	if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
+		return branch
+	return getBranch()
 
 
 @frappe.whitelist(methods=["GET"])
 def get_dashboard_stats(branch=None):
+	branch = _resolve_scoped_branch(branch)
 	cache_key = f"ury_dashboard_stats:{branch}"
 	cached = frappe.cache().get_value(cache_key)
 	if cached:
@@ -77,6 +91,7 @@ def get_dashboard_stats(branch=None):
 
 @frappe.whitelist(methods=["GET"])
 def get_needs_attention(branch=None):
+	branch = _resolve_scoped_branch(branch)
 	cache_key = f"ury_dashboard_needs_attention:{branch}"
 	cached = frappe.cache().get_value(cache_key)
 	if cached:
@@ -163,6 +178,7 @@ def _business_day_bounds(branch):
 
 @frappe.whitelist(methods=["GET"])
 def get_shift_metrics(branch=None):
+	branch = _resolve_scoped_branch(branch)
 	cache_key = f"ury_dashboard_shift_metrics:{branch}"
 	cached = frappe.cache().get_value(cache_key)
 	if cached:
@@ -222,6 +238,7 @@ def get_shift_metrics(branch=None):
 
 @frappe.whitelist(methods=["GET"])
 def get_baseline(branch=None, weeks=6):
+	branch = _resolve_scoped_branch(branch)
 	weekday = get_datetime().weekday()
 	hour = get_datetime().hour
 	cache_key = f"ury_dashboard_baseline:{branch}:{weekday}:{hour}"
@@ -283,6 +300,7 @@ def get_baseline(branch=None, weeks=6):
 
 @frappe.whitelist(methods=["GET"])
 def get_floor_load(branch=None):
+	branch = _resolve_scoped_branch(branch)
 	cache_key = f"ury_dashboard_floor_load:{branch}"
 	cached = frappe.cache().get_value(cache_key)
 	if cached:

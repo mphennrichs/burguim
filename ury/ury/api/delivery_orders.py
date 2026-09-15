@@ -110,7 +110,7 @@ def list_delivery_order_history(limit=50):
     return {"orders": orders, "currency_symbol": currency_symbol}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def mark_delivery_order_complete(invoice):
     """Submit the invoice once it's been prepared and handed off.
 

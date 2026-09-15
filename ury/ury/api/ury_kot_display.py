@@ -30,7 +30,7 @@ def serve_kot(name, time=None):
 # Function to mark it as verified in a cancel type KOT.
 # The verifying user is derived from the session and must hold a manager-level
 # role, so confirmation cannot be self-attributed or forged by the caller.
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def confirm_cancel_kot(name):
     manager_roles = {"URY Manager", "URY Admin", "System Manager"}
     if not manager_roles.intersection(frappe.get_roles()) and frappe.session.user != "Administrator":

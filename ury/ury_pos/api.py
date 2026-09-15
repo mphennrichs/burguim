@@ -158,7 +158,14 @@ def getBranchRoom():
         WHERE a.user = %s
     """
     branch_array = frappe.db.sql(sql_query, user, as_dict=True)
-    
+
+    # getRoom() just below already guards this same query shape before
+    # indexing -- this one didn't, so a user with no URY User/Branch row
+    # at all got an unhandled IndexError (raw traceback under
+    # developer_mode) instead of the clean message below.
+    if not branch_array:
+        frappe.throw("Branch information is missing for the user. Please contact your administrator.")
+
     branch_name = branch_array[0].get("branch")
     room_name = branch_array[0].get("room")
 
@@ -930,7 +937,7 @@ def getAggregatorMOP(aggregator):
             {"mode_of_payment": modeOfPayment, "opening_amount": float(0)}
     )
     return modeOfPaymentsList
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_customer(customer_name, mobile_number=None, customer_group="Individual", territory="India"):
     if not frappe.has_permission("Customer", "create"):
         frappe.throw("Not permitted to create customers", frappe.PermissionError)
@@ -991,6 +998,17 @@ def get_open_pos_opening_entries(pos_profile):
     if not frappe.has_permission("POS Opening Entry", "read"):
         frappe.throw(_("Not permitted to view POS Opening Entries."), frappe.PermissionError)
 
+    # frappe.get_all() always ignores permissions/branch-scoping hooks
+    # (unlike get_list) regardless of the has_permission check above (that
+    # one only confirms the caller's role can read the doctype at all, not
+    # this specific pos_profile) -- a security sweep found `pos_profile`
+    # came straight from the client with nothing stopping a caller from
+    # passing another branch's profile and seeing who has an open shift
+    # there. The real frontend caller (POSClosingDialog.tsx) only ever
+    # passes the user's own resolved POS Profile, so this can't break
+    # legitimate use.
+    _validate_checklist_branch(pos_profile)
+
     return frappe.get_all(
         "POS Opening Entry",
         filters={
@@ -1004,6 +1022,14 @@ def get_open_pos_opening_entries(pos_profile):
 
 @frappe.whitelist()
 def validate_pos_close(pos_profile):
+    # No permission/branch check at all previously -- pos_profile came
+    # straight from the client, so any authenticated user could probe
+    # whether another branch's daily close was done. Low-sensitivity
+    # payload (just "Failed"/"Success"), but the same gap class found
+    # elsewhere in this sweep. The real frontend caller
+    # (POSOpeningProvider.tsx) always passes the user's own profile.
+    _validate_checklist_branch(pos_profile)
+
     enable_unclosed_pos_check = frappe.db.get_value("POS Profile",pos_profile,"custom_daily_pos_close")
     
     if enable_unclosed_pos_check:
@@ -1125,7 +1151,7 @@ def _get_main_cashier_status(pos_profile_name: str) -> dict:
         return {"enabled": False, "main_cashier_configured": False, "main_cashier_open": False}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_pos_opening_entry(pos_profile: str, company: str, balance_details) -> dict:
     """Create and submit a POS Opening Entry for the ORI native screen.
 
@@ -1314,8 +1340,6 @@ def get_pos_opening_screen_data() -> dict:
     }
 
 
-@frappe.whitelist()
-
 def _validate_checklist_branch(pos_profile):
     """Ensure the session user's branch matches the given POS Profile's branch."""
     session_branch = getBranch()
@@ -1381,7 +1405,7 @@ def get_checklist(pos_profile, checklist_type):
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def submit_checklist(pos_profile, checklist_type, items, pos_opening_entry=None):
     _validate_checklist_branch(pos_profile)
 
@@ -1462,7 +1486,7 @@ def submit_checklist(pos_profile, checklist_type, items, pos_opening_entry=None)
     }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 
 def merge_bills(primary_invoice, secondary_invoice):
 

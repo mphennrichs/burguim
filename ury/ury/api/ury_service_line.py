@@ -1,10 +1,21 @@
 import frappe
 
 from frappe.utils import get_datetime, add_to_date, today
+from ury.ury_pos.api import getBranch
+
+
+def _resolve_scoped_branch(branch):
+	"""Administrator/System Manager may request any branch or the global
+	aggregate (branch=None); everyone else is confined to their own branch
+	(getBranch()), regardless of what they pass."""
+	if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
+		return branch
+	return getBranch()
 
 
 @frappe.whitelist(methods=["GET"])
 def get_service_line(branch=None):
+	branch = _resolve_scoped_branch(branch)
 	cache_key = f"ury_dashboard_service_line:{branch}"
 	cached = frappe.cache().get_value(cache_key)
 	if cached:
@@ -67,6 +78,7 @@ def get_service_line(branch=None):
 
 @frappe.whitelist(methods=["GET"])
 def get_running_low(branch=None):
+	branch = _resolve_scoped_branch(branch)
 	cache_key = f"ury_dashboard_running_low:{branch}"
 	cached = frappe.cache().get_value(cache_key)
 	if cached:
