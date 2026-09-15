@@ -21,7 +21,8 @@
     "cancelling": "Cancelling...",
     "confirm_cancel": "Confirm Cancel",
     "loading_ury_pos": "Loading URY POS...",
-    "please_wait_setup": "Please wait while we set things up"
+    "please_wait_setup": "Please wait while we set things up",
+    "search_menu_items_placeholder": "Search menu items..."
   },
   "header": {
     "search_placeholder_default": "Search orders, menu items, or customers...",
