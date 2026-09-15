@@ -7,11 +7,13 @@ import {
   getMenu,
   getStoredContext,
   requestBill,
+  setDeliveryDetails,
   type CustomerOrder,
   type MenuItem,
   type OrderingContext,
   type PaymentRequestResult,
 } from '../lib/api'
+import { t } from '../i18n'
 
 // Same keys api.ts uses internally for sessionStorage persistence. api.ts
 // doesn't expose a clear function (only get/store), so resetSession clears
@@ -50,6 +52,7 @@ export function useOrderingSession(initialContext?: OrderingContext) {
   const [billRequested, setBillRequested] = useState(false)
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequestResult | null>(null)
   const [payingOnline, setPayingOnline] = useState(false)
+  const [savingDelivery, setSavingDelivery] = useState(false)
 
   const loadOrder = useCallback(async (session: string) => {
     const current = await getCurrentOrder(session)
@@ -74,7 +77,7 @@ export function useOrderingSession(initialContext?: OrderingContext) {
           // actually expires.
           ctx = storedContext
         } else {
-          setError('This link is missing an ordering code. Please rescan the QR code on your table.')
+          setError(t('errors.missing_token'))
           setLoading(false)
           return
         }
@@ -84,7 +87,7 @@ export function useOrderingSession(initialContext?: OrderingContext) {
       setMenu(menuResponse.items.filter((item) => !item.disabled))
       await loadOrder(ctx.session)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load the menu. Please rescan the QR code.')
+      setError(err instanceof Error ? err.message : t('errors.menu_load_failed'))
     } finally {
       setLoading(false)
     }
@@ -123,6 +126,7 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     setBillRequested(false)
     setPaymentRequest(null)
     setPayingOnline(false)
+    setSavingDelivery(false)
     setSubmitting(false)
     setError(null)
     setContext(null)
@@ -154,19 +158,33 @@ export function useOrderingSession(initialContext?: OrderingContext) {
   const cartCount = cartItems.reduce((sum, entry) => sum + entry.qty, 0)
   const cartTotal = cartItems.reduce((sum, entry) => sum + entry.qty * entry.item.rate, 0)
 
-  async function submitCart() {
+  async function submitCart(notes?: string) {
     if (!context || cartItems.length === 0) return
     setSubmitting(true)
     setError(null)
     try {
       const payload = cartItems.map((entry) => ({ item: entry.item.item, qty: entry.qty }))
-      const updated = await addItems(context.session, payload)
+      const updated = await addItems(context.session, payload, notes)
       setOrder(updated)
       setCart({})
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not place the order. Please try again.')
+      setError(err instanceof Error ? err.message : t('errors.order_failed'))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function submitDeliveryDetails(address: string, phone: string, name: string) {
+    if (!context) return
+    setSavingDelivery(true)
+    setError(null)
+    try {
+      const updated = await setDeliveryDetails(context.session, address, phone, name)
+      setOrder(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('errors.delivery_details_failed'))
+    } finally {
+      setSavingDelivery(false)
     }
   }
 
@@ -176,7 +194,7 @@ export function useOrderingSession(initialContext?: OrderingContext) {
       await requestBill(context.session)
       setBillRequested(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not request the bill. Please ask staff for help.')
+      setError(err instanceof Error ? err.message : t('errors.bill_request_failed'))
     }
   }
 
@@ -193,7 +211,7 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     } catch (err) {
       // Includes the graceful "online payment isn't set up yet" case from
       // the backend — surfaced as a normal error message, not a crash.
-      setError(err instanceof Error ? err.message : 'Could not start online payment. Please pay at the counter.')
+      setError(err instanceof Error ? err.message : t('errors.payment_start_failed'))
     } finally {
       setPayingOnline(false)
     }
@@ -210,11 +228,13 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     billRequested,
     paymentRequest,
     payingOnline,
+    savingDelivery,
     addToCart,
     decrementCart,
     submitCart,
     handleRequestBill,
     payOnline,
+    submitDeliveryDetails,
     resetSession,
     cartItems,
     cartCount,

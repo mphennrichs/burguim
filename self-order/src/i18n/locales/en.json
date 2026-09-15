@@ -1,0 +1,85 @@
+{
+  "common": {
+    "page_title": "Order",
+    "loading_menu": "Loading menu…",
+    "order_for_pickup": "Order for Pickup",
+    "order_for_delivery": "Delivery Order",
+    "table_label": "Table {{table}}",
+    "order_fallback_title": "Order",
+    "total": "Total",
+    "placing_order": "Placing order…",
+    "place_order": "Place Order",
+    "in_cart": "In cart: {{qty}}",
+    "remove_one": "Remove one {{item}}",
+    "add_one_more": "Add one more {{item}}",
+    "item_count_one": "{{count}} item",
+    "item_count_other": "{{count}} items",
+    "starting_payment": "Starting payment…",
+    "pay_online": "Pay Online",
+    "bill_requested": "Bill requested — staff notified",
+    "request_bill": "Request Bill",
+    "new_order": "New Order",
+    "start_over": "Start Over",
+    "order_notes_placeholder": "Notes for this order (e.g. no onion, gate code)"
+  },
+  "order_summary": {
+    "heading": "Your order so far",
+    "pickup_code": "Pickup code: {{code}}"
+  },
+  "confirm": {
+    "start_over": "Start over? Your current cart will be cleared.",
+    "new_order": "Start a new order? Current cart will be cleared."
+  },
+  "payment": {
+    "pending_notice": "Payment request created ({{amount}} {{currency}}) — a staff member will assist with payment."
+  },
+  "cart": {
+    "heading": "Cart",
+    "empty": "Tap a menu item to add it to your cart."
+  },
+  "kiosk": {
+    "still_there_title": "Still there?",
+    "still_here_button": "I'm still here",
+    "all_items": "All Items",
+    "other_category": "Other",
+    "menu_categories_label": "Menu categories"
+  },
+  "device": {
+    "starting_up": "Starting up…",
+    "start_error": "This device could not be started. Please contact staff.",
+    "bootstrap_error": "Unable to bootstrap this device."
+  },
+  "errors": {
+    "missing_token": "This link is missing an ordering code. Please rescan the QR code on your table.",
+    "menu_load_failed": "Unable to load the menu. Please rescan the QR code.",
+    "order_failed": "Could not place the order. Please try again.",
+    "bill_request_failed": "Could not request the bill. Please ask staff for help.",
+    "payment_start_failed": "Could not start online payment. Please pay at the counter.",
+    "delivery_details_failed": "Could not save your delivery details. Please try again."
+  },
+  "delivery": {
+    "heading": "Delivery details",
+    "name_label": "Name",
+    "name_placeholder": "Your name",
+    "address_label": "Delivery address",
+    "address_placeholder": "Street, number, neighborhood, complement...",
+    "phone_label": "Phone",
+    "phone_placeholder": "Your phone number",
+    "looking_up": "Looking up your saved details…",
+    "saved_address_found": "Found saved details for this phone number — edit below if anything changed.",
+    "save_button": "Save details",
+    "saving": "Saving…"
+  },
+  "tablet_assignment": {
+    "title": "Assign This Tablet",
+    "not_provisioned": "This tablet is not provisioned. Please contact staff.",
+    "assign_failed": "Could not assign this table. Please check the PIN and try again.",
+    "enter_pin": "Enter staff PIN",
+    "continue": "Continue",
+    "enter_table": "Enter table name or code",
+    "table_placeholder": "e.g. T12",
+    "assigning": "Assigning…",
+    "assign_table": "Assign Table",
+    "back": "Back"
+  }
+}

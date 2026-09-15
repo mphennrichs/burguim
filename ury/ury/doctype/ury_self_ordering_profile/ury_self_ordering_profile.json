@@ -19,6 +19,7 @@
   "ordering_modes_section",
   "enable_qr_table_ordering",
   "enable_qr_pickup_ordering",
+  "enable_delivery_ordering",
   "column_break_ordering_modes",
   "enable_kiosk_ordering",
   "allow_add_to_running_table",
@@ -106,6 +107,13 @@
    "fieldname": "enable_qr_pickup_ordering",
    "fieldtype": "Check",
    "label": "Enable QR Pickup Ordering"
+  },
+  {
+   "default": "1",
+   "description": "Allows a shareable ordering link (no table, no QR-at-location required) that captures a delivery address and phone number instead. Use generate_qr_token(profile, table='DELIVERY') to mint the link.",
+   "fieldname": "enable_delivery_ordering",
+   "fieldtype": "Check",
+   "label": "Enable Delivery Ordering"
   },
   {
    "fieldname": "column_break_ordering_modes",

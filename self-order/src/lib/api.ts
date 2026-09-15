@@ -1,4 +1,4 @@
-import { call } from '@ury/core'
+import { call, storage } from '@ury/core'
 
 const M = 'ury.ury.api.self_ordering'
 
@@ -21,6 +21,7 @@ export interface OrderingContext {
   source: string
   restaurant: string
   table: string | null
+  currency_symbol: string | null
   layout: OrderingLayout
   capabilities: OrderingCapabilities
 }
@@ -59,6 +60,14 @@ export interface CustomerOrder {
   // identifier a QR Pickup customer has, since there's no table to point
   // to. Present (possibly null before an order exists) on every response.
   pickup_code?: string | null
+  // Only meaningful for order_type "Delivery" — null until
+  // setDeliveryDetails() has run.
+  delivery_name?: string | null
+  delivery_address?: string | null
+  delivery_phone?: string | null
+  // Order-level free-text note (e.g. "sem cebola"), set via addItems()'s
+  // `notes` param — distinct from each OrderItem's own per-item `comment`.
+  notes?: string | null
   items: OrderItem[]
   grand_total: number
   billed: boolean
@@ -97,6 +106,15 @@ export function getStoredContext(): OrderingContext | null {
 function storeContext(context: OrderingContext) {
   sessionStorage.setItem(SESSION_KEY, context.session)
   sessionStorage.setItem(CONTEXT_KEY, JSON.stringify(context))
+  // `formatCurrency` (@ury/core) reads this same 'currencySymbol' key —
+  // `pos` populates it from its own authenticated bootstrap; self-order is
+  // a guest surface with no general doctype REST access, so the symbol
+  // comes from the server-resolved context instead (see
+  // _resolve_currency_symbol in self_ordering.py). Without this,
+  // formatCurrency silently falls back to its hardcoded '₹' default.
+  if (context.currency_symbol) {
+    storage.setItem('currencySymbol', context.currency_symbol)
+  }
 }
 
 // Every whitelisted Frappe method response is wrapped as {"message": <actual
@@ -157,10 +175,44 @@ export async function getCurrentOrder(session: string): Promise<CustomerOrder> {
 export async function addItems(
   session: string,
   items: { item: string; qty: number; comment?: string }[],
+  notes?: string,
 ): Promise<CustomerOrder> {
   const response = await call.post<FrappeResponse<CustomerOrder>>(`${M}.add_customer_items`, {
     session,
     items: JSON.stringify(items),
+    // Omit entirely (not empty string) when unset — the backend leaves an
+    // existing note untouched only when `notes` is literally absent/None,
+    // so an empty string here would wipe a note set on an earlier call.
+    ...(notes !== undefined ? { notes } : {}),
+  })
+  return response.message
+}
+
+export async function setDeliveryDetails(
+  session: string,
+  address: string,
+  phone: string,
+  name: string,
+): Promise<CustomerOrder> {
+  const response = await call.post<FrappeResponse<CustomerOrder>>(`${M}.set_delivery_details`, {
+    session,
+    address,
+    phone,
+    name,
+  })
+  return response.message
+}
+
+export interface DeliveryLookupResult {
+  found: boolean
+  name: string | null
+  address: string | null
+}
+
+export async function lookupDeliveryCustomer(session: string, phone: string): Promise<DeliveryLookupResult> {
+  const response = await call.get<FrappeResponse<DeliveryLookupResult>>(`${M}.lookup_delivery_customer`, {
+    session,
+    phone,
   })
   return response.message
 }

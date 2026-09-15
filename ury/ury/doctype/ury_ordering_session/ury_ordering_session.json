@@ -13,6 +13,10 @@
   "source",
   "device",
   "table",
+  "delivery_name",
+  "delivery_address",
+  "delivery_phone",
+  "delivery_customer",
   "token_hash",
   "status_section",
   "status",
@@ -38,7 +42,7 @@
    "fieldname": "source",
    "fieldtype": "Select",
    "label": "Source",
-   "options": "\nQR Table\nQR Pickup\nKiosk\nTable Tablet",
+   "options": "\nQR Table\nQR Pickup\nDelivery\nKiosk\nTable Tablet",
    "reqd": 1
   },
   {
@@ -52,6 +56,31 @@
    "fieldtype": "Link",
    "label": "Table",
    "options": "URY Table"
+  },
+  {
+   "description": "Delivery-only. Same timing reason as Delivery Address below. Used as the Customer's customer_name (see _find_or_create_delivery_customer) — a real name, not just the phone number, so staff can identify who an order is for.",
+   "fieldname": "delivery_name",
+   "fieldtype": "Data",
+   "label": "Delivery Name"
+  },
+  {
+   "description": "Delivery-only. Captured before an invoice necessarily exists (a fresh POS Invoice can't be saved with zero items — its total-calculation controller code assumes numeric totals), so it lives here first and is copied onto the invoice's core `shipping_address` field once items make the invoice saveable.",
+   "fieldname": "delivery_address",
+   "fieldtype": "Small Text",
+   "label": "Delivery Address"
+  },
+  {
+   "description": "Delivery-only — same timing reason as Delivery Address. Copied onto the invoice's `contact_mobile` field once the invoice exists.",
+   "fieldname": "delivery_phone",
+   "fieldtype": "Data",
+   "label": "Delivery Phone"
+  },
+  {
+   "description": "Delivery-only. The real Customer record matched (or created) by phone number in set_delivery_details() — used as the invoice's customer instead of the shared anonymous default_customer, so a returning phone number's saved address (Customer.delivery_address) can be looked up on their next order.",
+   "fieldname": "delivery_customer",
+   "fieldtype": "Link",
+   "label": "Delivery Customer",
+   "options": "Customer"
   },
   {
    "fieldname": "token_hash",

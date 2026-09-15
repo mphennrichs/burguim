@@ -5,6 +5,7 @@ import { useOrderingSession } from '../hooks/useOrderingSession'
 import type { OrderingContext } from '../lib/api'
 import CartPanel from './shared/CartPanel'
 import MenuGrid from './shared/MenuGrid'
+import { t } from '../i18n'
 
 const IDLE_WARN_MS = 60000
 const IDLE_RESET_GRACE_MS = 15000
@@ -47,7 +48,7 @@ function LandscapeKioskLayout({ initialContext }: LayoutProps) {
   const idleResetTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
   function handleReset() {
-    if (window.confirm('Start a new order? Current cart will be cleared.')) {
+    if (window.confirm(t('confirm.new_order'))) {
       resetSession()
     }
   }
@@ -75,7 +76,7 @@ function LandscapeKioskLayout({ initialContext }: LayoutProps) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-xl text-muted-foreground">
-        Loading menu…
+        {t('common.loading_menu')}
       </div>
     )
   }
@@ -92,13 +93,13 @@ function LandscapeKioskLayout({ initialContext }: LayoutProps) {
     <div className="flex h-screen flex-col overflow-hidden text-lg">
       <header className="flex items-center justify-between border-b bg-background/95 px-10 py-6">
         <h1 className="text-3xl font-semibold">
-          {context?.table ? `Table ${context.table}` : 'Order for Pickup'}
+          {context?.table ? t('common.table_label', { table: context.table }) : t('common.order_for_pickup')}
         </h1>
         <button
           onClick={handleReset}
           className="rounded-md border px-4 py-2 text-base font-medium text-muted-foreground"
         >
-          New Order
+          {t('common.new_order')}
         </button>
       </header>
 
@@ -140,14 +141,14 @@ function LandscapeKioskLayout({ initialContext }: LayoutProps) {
       <Dialog open={showIdleWarning} onOpenChange={(open) => !open && handleStillHere()}>
         <DialogContent onClose={handleStillHere}>
           <DialogHeader>
-            <DialogTitle>Still there?</DialogTitle>
+            <DialogTitle>{t('kiosk.still_there_title')}</DialogTitle>
           </DialogHeader>
           <DialogFooter>
             <button
               onClick={handleStillHere}
               className="w-full rounded-md bg-primary py-3 text-base font-medium text-primary-foreground"
             >
-              I'm still here
+              {t('kiosk.still_here_button')}
             </button>
           </DialogFooter>
         </DialogContent>

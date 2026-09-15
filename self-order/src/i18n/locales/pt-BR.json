@@ -1,0 +1,85 @@
+{
+  "common": {
+    "page_title": "Pedido",
+    "loading_menu": "Carregando cardápio…",
+    "order_for_pickup": "Pedido para Retirada",
+    "order_for_delivery": "Pedido para Entrega",
+    "table_label": "Mesa {{table}}",
+    "order_fallback_title": "Pedido",
+    "total": "Total",
+    "placing_order": "Enviando pedido…",
+    "place_order": "Fazer Pedido",
+    "in_cart": "No carrinho: {{qty}}",
+    "remove_one": "Remover um {{item}}",
+    "add_one_more": "Adicionar mais um {{item}}",
+    "item_count_one": "{{count}} item",
+    "item_count_other": "{{count}} itens",
+    "starting_payment": "Iniciando pagamento…",
+    "pay_online": "Pagar Online",
+    "bill_requested": "Conta solicitada — equipe avisada",
+    "request_bill": "Pedir Conta",
+    "new_order": "Novo Pedido",
+    "start_over": "Recomeçar",
+    "order_notes_placeholder": "Observações do pedido (ex: sem cebola, código do portão)"
+  },
+  "order_summary": {
+    "heading": "Seu pedido até agora",
+    "pickup_code": "Código de retirada: {{code}}"
+  },
+  "confirm": {
+    "start_over": "Recomeçar? Seu carrinho atual será esvaziado.",
+    "new_order": "Iniciar um novo pedido? O carrinho atual será esvaziado."
+  },
+  "payment": {
+    "pending_notice": "Solicitação de pagamento criada ({{amount}} {{currency}}) — um funcionário vai te ajudar com o pagamento."
+  },
+  "cart": {
+    "heading": "Carrinho",
+    "empty": "Toque em um item do cardápio para adicioná-lo ao carrinho."
+  },
+  "kiosk": {
+    "still_there_title": "Ainda está aí?",
+    "still_here_button": "Ainda estou aqui",
+    "all_items": "Todos os Itens",
+    "other_category": "Outros",
+    "menu_categories_label": "Categorias do cardápio"
+  },
+  "device": {
+    "starting_up": "Iniciando…",
+    "start_error": "Não foi possível iniciar este dispositivo. Fale com a equipe.",
+    "bootstrap_error": "Não foi possível iniciar este dispositivo."
+  },
+  "errors": {
+    "missing_token": "Este link está sem o código do pedido. Escaneie novamente o QR code na sua mesa.",
+    "menu_load_failed": "Não foi possível carregar o cardápio. Escaneie novamente o QR code.",
+    "order_failed": "Não foi possível enviar o pedido. Tente novamente.",
+    "bill_request_failed": "Não foi possível pedir a conta. Peça ajuda à equipe.",
+    "payment_start_failed": "Não foi possível iniciar o pagamento online. Pague no caixa.",
+    "delivery_details_failed": "Não foi possível salvar seus dados de entrega. Tente novamente."
+  },
+  "delivery": {
+    "heading": "Dados da entrega",
+    "name_label": "Nome",
+    "name_placeholder": "Seu nome",
+    "address_label": "Endereço de entrega",
+    "address_placeholder": "Rua, número, bairro, complemento...",
+    "phone_label": "Telefone",
+    "phone_placeholder": "Seu telefone com DDD",
+    "looking_up": "Buscando seus dados salvos…",
+    "saved_address_found": "Encontramos dados salvos pra esse telefone — edite abaixo se algo mudou.",
+    "save_button": "Salvar dados",
+    "saving": "Salvando…"
+  },
+  "tablet_assignment": {
+    "title": "Vincular Este Tablet",
+    "not_provisioned": "Este tablet não está configurado. Fale com a equipe.",
+    "assign_failed": "Não foi possível vincular esta mesa. Confira o PIN e tente novamente.",
+    "enter_pin": "Digite o PIN da equipe",
+    "continue": "Continuar",
+    "enter_table": "Digite o nome ou código da mesa",
+    "table_placeholder": "ex: M12",
+    "assigning": "Vinculando…",
+    "assign_table": "Vincular Mesa",
+    "back": "Voltar"
+  }
+}

@@ -29,7 +29,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import add_to_date, now_datetime, validate_phone_number
 
 from ury.ury_pos.api import resolve_restaurant_menu
 from ury.ury.doctype.ury_order.ury_order import (
@@ -41,6 +41,9 @@ from ury.ury.api.ury_kot_generate import kot_execute
 SESSION_TOKEN_BYTES_HASH_LEN = 64  # frappe.generate_hash(length=..)
 MAX_ITEMS_PER_REQUEST = 50
 MAX_COMMENT_LEN = 200
+MAX_ADDRESS_LEN = 500
+MAX_NOTES_LEN = 140  # invoice.custom_comments is a Data field (varchar(140))
+MAX_NAME_LEN = 140  # Customer.customer_name is a Data field (varchar(140))
 
 
 # ---------------------------------------------------------------------------
@@ -106,9 +109,11 @@ def _sign(payload, secret):
 
 @frappe.whitelist()
 def generate_qr_token(profile, table=None):
-    """Staff-only: mint an opaque QR token for a table (or a pickup token
-    when table is None) belonging to `profile`. Called from the desk / a
-    future QR-management UI — never called by customers."""
+    """Staff-only: mint an opaque QR token for a table, a pickup token
+    (table=None), or a shareable delivery-ordering link (table='DELIVERY',
+    no physical table/QR involved — meant to be posted as a plain link) —
+    all belonging to `profile`. Called from the desk / a future
+    QR-management UI — never called by customers."""
 
     if not frappe.has_permission("URY Self Ordering Profile", "write", frappe.get_doc("URY Self Ordering Profile", profile)):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -141,6 +146,11 @@ def _verify_qr_token(token):
         if not profile_doc.enable_qr_pickup_ordering:
             frappe.throw(_("Pickup ordering is not enabled"), frappe.ValidationError)
         return profile_doc, None, "QR Pickup"
+
+    if table == "DELIVERY":
+        if not profile_doc.enable_delivery_ordering:
+            frappe.throw(_("Delivery ordering is not enabled"), frappe.ValidationError)
+        return profile_doc, None, "Delivery"
 
     if not profile_doc.enable_qr_table_ordering:
         frappe.throw(_("Table ordering is not enabled"), frappe.ValidationError)
@@ -274,6 +284,20 @@ def _resolve_session(session_token):
 # Bootstrap
 # ---------------------------------------------------------------------------
 
+def _resolve_currency_symbol(profile):
+    """The self-order frontend is a guest surface with no general doctype
+    REST access (unlike `pos`, which reads the Currency doctype directly
+    over its own authenticated session) — so the symbol has to be resolved
+    server-side here and handed over as plain data, the same trust-boundary
+    pattern as everything else this module returns. Plain `frappe.db.get_value`
+    reads bypass doctype permissions entirely (unlike `frappe.get_doc`), so
+    no `_elevated()` is needed for this."""
+    currency = frappe.db.get_value("POS Profile", profile.pos_profile, "currency")
+    if not currency:
+        return None
+    return frappe.db.get_value("Currency", currency, "symbol") or currency
+
+
 def _ordering_context_response(raw_session_token, source, profile, table, layout):
     """Shared response shape for every bootstrap-style entry point
     (get_ordering_context, assign_device_table) — never raw branch/table
@@ -283,6 +307,7 @@ def _ordering_context_response(raw_session_token, source, profile, table, layout
         "source": source,
         "restaurant": profile.restaurant,
         "table": table,
+        "currency_symbol": _resolve_currency_symbol(profile),
         # "Mobile" for QR sessions (no device involved); otherwise the
         # provisioned URY Ordering Device's configured layout (Tablet /
         # Landscape Kiosk / Portrait Kiosk) — the frontend layout shell
@@ -365,10 +390,23 @@ def assign_device_table(device_id, device_credential, staff_pin, table):
 # Menu / product (customer-safe DTOs)
 # ---------------------------------------------------------------------------
 
+def _resolve_order_type(session):
+    """A table always means Dine In. Otherwise, a Delivery session (no
+    table, no physical presence — see the DELIVERY token sentinel above)
+    is distinguished from a QR Pickup / kiosk Take Away session by
+    `session.source`, which is set server-side at bootstrap and never
+    client-supplied."""
+    if session.table:
+        return "Dine In"
+    if session.source == "Delivery":
+        return "Delivery"
+    return "Take Away"
+
+
 @frappe.whitelist(allow_guest=True)
 def get_customer_menu(session):
     session = _resolve_session(session)
-    order_type = "Dine In" if session.table else "Take Away"
+    order_type = _resolve_order_type(session)
 
     with _elevated():
         menu = resolve_restaurant_menu(
@@ -448,6 +486,89 @@ def _linked_item_options(child_doctype, parent_item_code, invoice_price_list):
 # Current order / append-only mutation
 # ---------------------------------------------------------------------------
 
+def _bootstrap_invoice(session, profile, order_type):
+    """Resolve-or-create the session's running POS Invoice and stamp it with
+    customer/profile/source metadata. Shared by add_customer_items() and
+    set_delivery_details() so there is exactly one invoice-bootstrap code
+    path regardless of which endpoint touches the invoice first (a delivery
+    session may call set_delivery_details before or after its first
+    add_customer_items).
+
+    Caller must run this inside `_elevated()` and is responsible for
+    `invoice.save()` plus updating `session.invoice` afterwards — this only
+    prepares the in-memory doc.
+    """
+    _ensure_admin_branch_mapping(profile.branch)
+
+    invoice, invoice_name = _resolve_or_create_pos_invoice(
+        table=session.table, invoiceNo=session.invoice, order_type=order_type, is_payment=None,
+        check_permission=False, override_branch=profile.branch,
+    )
+
+    # _resolve_or_create_pos_invoice() never sets restaurant_table on a
+    # brand-new invoice — sync_order() does that itself after the call
+    # (its own caller-side responsibility, same pattern here). Missing
+    # this meant the SECOND add_customer_items() call for the same
+    # table couldn't find the first call's invoice by name at all:
+    # _resolve_or_create_pos_invoice's table-path query AND-combines an
+    # exact `name` match with an OR-group requiring restaurant_table (or
+    # custom_merged_tables) to equal the table — with restaurant_table
+    # still null, that OR-group is false and the whole query returns
+    # nothing, so a second invoice got created instead of the running
+    # order being updated. Confirmed live: two separate invoices for
+    # the same table/session instead of one.
+    if session.table and not invoice.restaurant_table:
+        invoice.restaurant_table = session.table
+
+    # Same gap for order_type on the non-table path (pickup or delivery):
+    # _resolve_or_create_pos_invoice() only derives order_type from the
+    # table's is_take_away flag in the table branch — every other branch
+    # leaves it untouched, expecting the caller to set it (sync_order()
+    # does `if order_type: invoice.order_type = order_type` itself).
+    # Confirmed live: a pickup order's invoice had an empty order_type
+    # instead of "Take Away" before this.
+    if not session.table:
+        invoice.order_type = order_type
+
+    if not invoice.customer:
+        if session.delivery_customer:
+            # A real, phone-identified Customer from set_delivery_details()
+            # — takes priority over the shared anonymous default_customer so
+            # this order (and its saved address) is attributable to them.
+            invoice.customer = session.delivery_customer
+        elif profile.default_customer:
+            invoice.customer = profile.default_customer
+        else:
+            frappe.throw(_("Self ordering profile has no default customer configured"), frappe.ValidationError)
+
+    invoice.pos_profile = profile.pos_profile
+    invoice.custom_order_source = session.source
+    invoice.custom_ordering_session = session.name
+    if session.device:
+        invoice.custom_ordering_device = session.device
+
+    # Carry over delivery details captured earlier via set_delivery_details()
+    # onto the invoice's core fields, now that the invoice actually has (or
+    # is about to get) items and can be saved. See URY Ordering Session's
+    # delivery_address/delivery_phone field descriptions for why these
+    # aren't written straight to the invoice at capture time.
+    if session.delivery_address:
+        invoice.shipping_address = session.delivery_address
+    if session.delivery_phone:
+        # Not `mobile_number` — that custom field is `fetch_from:
+        # customer.mobile_number` (see setup_customizations.py), so Frappe's
+        # server-side fetch-from resolution silently overwrites any manual
+        # assignment back to the linked Customer's number on every save.
+        # For self-order's shared anonymous "default_customer" that's blank,
+        # discarding whatever the guest actually typed. Confirmed live: the
+        # assignment appeared to work (no error) but the saved invoice had
+        # mobile_number NULL. `contact_mobile` is the core ERPNext field
+        # (Sales/POS Invoice) with no such binding, so it actually persists.
+        invoice.contact_mobile = session.delivery_phone
+
+    return invoice
+
+
 def _sanitize_invoice_for_customer(invoice):
     return {
         "invoice": invoice.name,
@@ -457,6 +578,22 @@ def _sanitize_invoice_for_customer(invoice):
         # name itself doubles as their pickup reference — reusing the
         # existing invoice identity rather than minting a new field/value.
         "pickup_code": invoice.name,
+        # Only meaningful for order_type "Delivery" — None until
+        # set_delivery_details() has run. Echoed back so a resumed session
+        # (page refresh) can show what was already captured instead of
+        # re-asking. delivery_name reads invoice.customer_name rather than
+        # a dedicated invoice field — customer_name is `fetch_from:
+        # customer.customer_name` (core ERPNext), and set_delivery_details()
+        # already writes the real name onto that linked Customer.
+        "delivery_name": invoice.customer_name or None,
+        "delivery_address": invoice.shipping_address or None,
+        "delivery_phone": invoice.contact_mobile or None,
+        # Order-level free-text note (e.g. "sem cebola", "apto 302") — the
+        # same `custom_comments` field the staff POS's sync_order() already
+        # writes to, not a new one. Distinct from delivery_name/address/
+        # phone: those persist on the Customer for next time (see
+        # _find_or_create_delivery_customer); this is per-order only.
+        "notes": invoice.custom_comments or None,
         "items": [
             {
                 "item_code": row.item_code,
@@ -473,11 +610,30 @@ def _sanitize_invoice_for_customer(invoice):
     }
 
 
+def _pending_order_response(session):
+    """Same DTO shape as _sanitize_invoice_for_customer(), for a session
+    that has no invoice yet — e.g. a Delivery session that has called
+    set_delivery_details() but not yet added any items."""
+    return {
+        "invoice": None,
+        "pickup_code": None,
+        "delivery_name": session.delivery_name or None,
+        "delivery_address": session.delivery_address or None,
+        "delivery_phone": session.delivery_phone or None,
+        # No per-order notes yet either — notes only exist once an invoice
+        # does (add_customer_items is the only place that writes them).
+        "notes": None,
+        "items": [],
+        "grand_total": 0,
+        "billed": False,
+    }
+
+
 @frappe.whitelist(allow_guest=True)
 def get_customer_order(session):
     session = _resolve_session(session)
     if not session.invoice:
-        return {"invoice": None, "pickup_code": None, "items": [], "grand_total": 0, "billed": False}
+        return _pending_order_response(session)
 
     with _elevated():
         invoice = frappe.get_doc("POS Invoice", session.invoice)
@@ -486,7 +642,7 @@ def get_customer_order(session):
 
 
 @frappe.whitelist(allow_guest=True)
-def add_customer_items(session, items):
+def add_customer_items(session, items, notes=None):
     """Append-only customer order mutation. `items` is a list of
     {"item": <item_code>, "qty": <number>, "comment": <optional str>} —
     same shape sync_order()/price_items_for_invoice() already expect.
@@ -494,6 +650,15 @@ def add_customer_items(session, items):
     Never trusts client-supplied price/tax/discount/warehouse/cost-center —
     price_items_for_invoice() re-derives price server-side from Item Price,
     exactly as it does for staff orders.
+
+    `notes` is an optional order-level free-text note (distinct from each
+    item's own per-item `comment`), written to the invoice's existing
+    `custom_comments` field — same field the staff POS's sync_order()
+    already writes to. Replaces whatever was there before rather than
+    appending, matching this endpoint's own "always reflects the caller's
+    current input" behavior elsewhere (e.g. set_delivery_details). Passing
+    None leaves any existing note untouched (so a later add-more-items call
+    that doesn't mention notes can't accidentally wipe one set earlier).
     """
     session = _resolve_session(session)
     profile = frappe.get_doc("URY Self Ordering Profile", session.ordering_profile)
@@ -533,13 +698,15 @@ def add_customer_items(session, items):
     if len(items) > MAX_ITEMS_PER_REQUEST:
         frappe.throw(_("Too many items in a single request"), frappe.ValidationError)
 
+    order_type = _resolve_order_type(session)
+
     with _elevated():
         menu_names = {
             m.get("item")
             for m in resolve_restaurant_menu(
                 branch=profile.branch,
                 room=None,
-                order_type="Dine In" if session.table else "Take Away",
+                order_type=order_type,
                 cashier=False,
             )["items"]
         }
@@ -561,51 +728,11 @@ def add_customer_items(session, items):
 
         clean_items.append({"item": item_code, "item_name": item_code, "qty": qty, "comment": comment})
 
-    order_type = "Dine In" if session.table else "Take Away"
-
     with _elevated():
-        _ensure_admin_branch_mapping(profile.branch)
+        invoice = _bootstrap_invoice(session, profile, order_type)
 
-        invoice, invoice_name = _resolve_or_create_pos_invoice(
-            table=session.table, invoiceNo=session.invoice, order_type=order_type, is_payment=None,
-            check_permission=False, override_branch=profile.branch,
-        )
-
-        # _resolve_or_create_pos_invoice() never sets restaurant_table on a
-        # brand-new invoice — sync_order() does that itself after the call
-        # (its own caller-side responsibility, same pattern here). Missing
-        # this meant the SECOND add_customer_items() call for the same
-        # table couldn't find the first call's invoice by name at all:
-        # _resolve_or_create_pos_invoice's table-path query AND-combines an
-        # exact `name` match with an OR-group requiring restaurant_table (or
-        # custom_merged_tables) to equal the table — with restaurant_table
-        # still null, that OR-group is false and the whole query returns
-        # nothing, so a second invoice got created instead of the running
-        # order being updated. Confirmed live: two separate invoices for
-        # the same table/session instead of one.
-        if session.table and not invoice.restaurant_table:
-            invoice.restaurant_table = session.table
-
-        # Same gap for order_type on the pickup (no-table) path:
-        # _resolve_or_create_pos_invoice() only derives order_type from the
-        # table's is_take_away flag in the table branch — the non-table
-        # branch leaves it untouched, expecting the caller to set it
-        # (sync_order() does `if order_type: invoice.order_type =
-        # order_type` itself). Confirmed live: a pickup order's invoice had
-        # an empty order_type instead of "Take Away" before this.
-        if not session.table:
-            invoice.order_type = order_type
-
-        if not invoice.customer:
-            if not profile.default_customer:
-                frappe.throw(_("Self ordering profile has no default customer configured"), frappe.ValidationError)
-            invoice.customer = profile.default_customer
-
-        invoice.pos_profile = profile.pos_profile
-        invoice.custom_order_source = session.source
-        invoice.custom_ordering_session = session.name
-        if session.device:
-            invoice.custom_ordering_device = session.device
+        if notes is not None:
+            invoice.custom_comments = (notes or "").strip()[:MAX_NOTES_LEN]
 
         # Aggregated by item_code, same as current_items_for_kot below (built
         # after the append). This symmetry matters: add_customer_items()
@@ -640,6 +767,21 @@ def add_customer_items(session, items):
         for item_dict in priced_items:
             invoice.append("items", item_dict)
 
+        # .append() only adds the in-memory row — it never recalculates
+        # totals (that normally only happens inside save()'s own validate()
+        # call, i.e. *after* this block runs). Reading invoice.grand_total
+        # below without forcing a recalc first would size the payment row
+        # off a stale total (0 on brand-new invoices, or the pre-these-items
+        # total on a running one) instead of the real one. This was never
+        # caught before because nothing in the self-order flow ever
+        # submitted an invoice — ERPNext only rejects a payments-total
+        # mismatch at submit time ("Partial Payment in POS Invoice is not
+        # allowed"), which URY Delivery Orders' "mark as delivered" (the
+        # first submit() anywhere in this flow) hit immediately. Confirmed
+        # live: submit failing on an invoice whose single payment row's
+        # amount didn't match its own grand_total.
+        invoice.calculate_taxes_and_totals()
+
         if invoice.invoice_created == 0:
             posprofile = frappe.get_doc("POS Profile", profile.pos_profile)
             default_mode = posprofile.payments[0].mode_of_payment if posprofile.payments else None
@@ -647,6 +789,12 @@ def add_customer_items(session, items):
                 frappe.throw(_("POS Profile has no mode of payment configured"), frappe.ValidationError)
             invoice.append("payments", dict(mode_of_payment=default_mode, amount=invoice.grand_total))
             invoice.invoice_created = 1
+        elif invoice.payments:
+            # Items can be added across multiple add_customer_items() calls
+            # (allow_add_to_running_table) — keep the one payment row this
+            # flow ever creates in sync with the running total each time,
+            # not just at creation, for the same submit-time reason above.
+            invoice.payments[0].amount = invoice.grand_total
 
         try:
             invoice.save(ignore_permissions=True)
@@ -685,6 +833,166 @@ def add_customer_items(session, items):
             kot_execute(invoice.name, invoice.customer, invoice.restaurant_table, current_items_for_kot, past_item, None)
         except Exception as e:
             frappe.log_error(f"Self-order KOT creation failed: {e}", "KOT Error")
+
+    return _sanitize_invoice_for_customer(invoice)
+
+
+def _find_or_create_delivery_customer(phone, address, name):
+    """Find the Customer previously registered for this phone number
+    (self-order Delivery only ever searches/creates by the `mobile_number`
+    custom field — same field & convention ury_pos.api.create_customer uses
+    for staff-created walk-in customers, just reimplemented here under
+    _elevated() rather than called directly, since that function is
+    @frappe.whitelist()-only and checks a real staff session).
+
+    Updates the saved name/address in place when either changed, so the
+    customer's *next* order looks them up fresh.
+
+    Must run inside `_elevated()` — same reason as _bootstrap_invoice.
+    """
+    existing_name = frappe.db.get_value("Customer", {"mobile_number": phone}, "name")
+    if existing_name:
+        customer = frappe.get_doc("Customer", existing_name)
+        dirty = False
+        if address and customer.delivery_address != address:
+            customer.delivery_address = address
+            dirty = True
+        if name and customer.customer_name != name:
+            customer.customer_name = name
+            dirty = True
+        if dirty:
+            customer.save(ignore_permissions=True)
+        return customer
+
+    customer_group = frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
+    territory = frappe.db.get_value("Territory", {"is_group": 0}, "name")
+    customer = frappe.get_doc({
+        "doctype": "Customer",
+        # Falls back to the phone number itself only if somehow called
+        # without a name — set_delivery_details() below always requires
+        # one, so this is just defensive, not the expected path.
+        "customer_name": name or phone,
+        "mobile_number": phone,
+        "delivery_address": address,
+        "customer_group": customer_group,
+        "territory": territory,
+        "customer_type": "Individual",
+    })
+    customer.insert(ignore_permissions=True)
+    return customer
+
+
+@frappe.whitelist(allow_guest=True)
+def lookup_delivery_customer(session, phone):
+    """Guest-safe lookup for the self-order Delivery form: does a saved
+    name/address already exist for this phone number? Lets the frontend
+    prefill the form for a returning customer instead of asking again.
+
+    Deliberately unauthenticated beyond the Delivery session token — same
+    trust level as the rest of this module (no OTP/password on the phone
+    number). A stranger who knows/guesses someone's phone number could see
+    their saved name/address this way; acceptable for this MVP (mirrors how
+    WhatsApp-style ordering already works), but worth revisiting with a
+    verification step if that risk matters for this deployment.
+    """
+    session = _resolve_session(session)
+    if session.source != "Delivery":
+        frappe.throw(_("This session is not a delivery order"), frappe.ValidationError)
+
+    phone = (phone or "").strip()
+    if not phone:
+        return {"found": False, "name": None, "address": None}
+
+    with _elevated():
+        customer = frappe.db.get_value(
+            "Customer", {"mobile_number": phone}, ["customer_name", "delivery_address"], as_dict=True,
+        )
+
+    if not customer:
+        return {"found": False, "name": None, "address": None}
+
+    return {
+        "found": bool(customer.delivery_address),
+        "name": customer.customer_name or None,
+        "address": customer.delivery_address or None,
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def set_delivery_details(session, address, phone, name):
+    """Delivery-only equivalent of picking a table: capture who to deliver
+    to (name + phone) and where, and save it against the customer's phone
+    number so their *next* order (see lookup_delivery_customer) doesn't ask
+    again.
+
+    address/phone are free-text MVP fields (same "don't over-engineer" bar
+    as the rest of this module — see e.g. PortableTabletAssignment's table
+    field on the frontend) — not a real Address doctype with validated
+    pincode/city lookup; that's a natural next iteration, out of scope here.
+
+    Always saved on the session first (URY Ordering Session.delivery_name
+    /delivery_address/delivery_phone/delivery_customer), never straight
+    onto a brand-new invoice: a POS Invoice with zero items can't be saved
+    — ERPNext's
+    total-calculation controller (set_total_in_words ->
+    abs(self.base_rounded_total)) assumes a numeric total that only gets
+    computed once there's at least one item row, and throws a raw TypeError
+    on an empty invoice otherwise. If items were already added
+    (session.invoice exists — created against the shared anonymous
+    default_customer, since this hadn't run yet), also re-point that
+    existing invoice at the real customer and copy the address/phone onto
+    its core `shipping_address`/`contact_mobile` fields right away — that
+    invoice already has items, so saving it is safe. `contact_mobile`, not
+    the URY `mobile_number` custom field: the latter is `fetch_from:
+    customer.mobile_number`, so Frappe silently overwrites it back to the
+    linked customer's own number on every save — confirmed live (see
+    _bootstrap_invoice's comment on the same assignment). Otherwise
+    _bootstrap_invoice() copies everything across the first time
+    add_customer_items() actually creates the invoice.
+    """
+    session = _resolve_session(session)
+    if session.source != "Delivery":
+        frappe.throw(_("This session is not a delivery order"), frappe.ValidationError)
+
+    profile = frappe.get_doc("URY Self Ordering Profile", session.ordering_profile)
+    if not profile.enabled or not profile.enable_delivery_ordering:
+        frappe.throw(_("Delivery ordering is currently unavailable"), frappe.ValidationError)
+
+    name = (name or "").strip()
+    address = (address or "").strip()
+    phone = (phone or "").strip()
+    if not name:
+        frappe.throw(_("Name is required"), frappe.ValidationError)
+    if len(name) > MAX_NAME_LEN:
+        frappe.throw(_("Name is too long"), frappe.ValidationError)
+    if not address:
+        frappe.throw(_("Delivery address is required"), frappe.ValidationError)
+    if len(address) > MAX_ADDRESS_LEN:
+        frappe.throw(_("Delivery address is too long"), frappe.ValidationError)
+    if not phone:
+        frappe.throw(_("Phone number is required"), frappe.ValidationError)
+    validate_phone_number(phone, throw=True)
+
+    with _elevated():
+        customer = _find_or_create_delivery_customer(phone, address, name)
+
+        session.delivery_name = name
+        session.delivery_address = address
+        session.delivery_phone = phone
+        session.delivery_customer = customer.name
+        session.save(ignore_permissions=True)
+
+        if not session.invoice:
+            return _pending_order_response(session)
+
+        invoice = frappe.get_doc("POS Invoice", session.invoice)
+        invoice.customer = customer.name
+        invoice.shipping_address = address
+        invoice.contact_mobile = phone
+        try:
+            invoice.save(ignore_permissions=True)
+        except Exception as e:
+            frappe.throw(_("Error while saving delivery details: {0}").format(e))
 
     return _sanitize_invoice_for_customer(invoice)
 

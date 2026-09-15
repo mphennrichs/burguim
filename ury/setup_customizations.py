@@ -172,7 +172,7 @@ def get_custom_fields():
 					"fieldname": "custom_order_source",
 					"fieldtype": "Select",
 					"default": "POS",
-					"options": "\nPOS\nCaptain\nQR Table\nQR Pickup\nKiosk\nTable Tablet",
+					"options": "\nPOS\nCaptain\nQR Table\nQR Pickup\nDelivery\nKiosk\nTable Tablet",
 					"label": "Order Source",
 					"insert_after": "self_ordering_info",
 					"read_only": 1,
@@ -421,6 +421,14 @@ def get_custom_fields():
 				"insert_after": "customer_name",
 				"translatable": 0,
 				"reqd": 1
+			},
+			{
+				"fieldname": "delivery_address",
+				"fieldtype": "Small Text",
+				"label": "Saved Delivery Address",
+				"insert_after": "mobile_number",
+				"translatable": 0,
+				"description": "Free-text MVP field, same as URY Ordering Session's delivery_address/POS Invoice's shipping_address — not a real Address doctype record yet. Populated by the self-order Delivery flow (set_delivery_details) so a returning customer's address can be looked up by phone number without retyping.",
 			},
 		],
 
