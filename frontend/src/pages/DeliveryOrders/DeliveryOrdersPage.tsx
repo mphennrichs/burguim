@@ -1,5 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Badge, Spinner } from '@ury/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+  Button,
+  Badge,
+  Spinner,
+  DataTable,
+  type DataTableColumn,
+} from '@ury/ui';
+import { LayoutGrid, List } from 'lucide-react';
 import { formatCurrency } from '@ury/core';
 import { deliveryOrdersService, type DeliveryOrder } from '../../services/deliveryOrders';
 
@@ -10,6 +22,7 @@ import { deliveryOrdersService, type DeliveryOrder } from '../../services/delive
 const POLL_INTERVAL_MS = 20000;
 
 type Tab = 'pending' | 'history';
+type ViewMode = 'grid' | 'list';
 
 function timeAgo(isoTimestamp: string): string {
   const then = new Date(isoTimestamp.replace(' ', 'T'));
@@ -21,8 +34,16 @@ function timeAgo(isoTimestamp: string): string {
   return hours === 1 ? 'há 1 hora' : `há ${hours} horas`;
 }
 
+function itemsSummary(order: DeliveryOrder): string {
+  return order.items.map((item) => `${item.item_name} ×${item.qty}`).join(', ');
+}
+
 export const DeliveryOrdersPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('pending');
+  // Same grid/list toggle pattern as the Cardápio (Menu) screen — list
+  // view fits more orders on screen at a glance, grid keeps the fuller
+  // per-order detail (address, notes) visible without an extra click.
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [orders, setOrders] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [completingInvoice, setCompletingInvoice] = useState<string | null>(null);
@@ -66,15 +87,75 @@ export const DeliveryOrdersPage: React.FC = () => {
     }
   }
 
+  const columns = useMemo<DataTableColumn<DeliveryOrder>[]>(
+    () => [
+      { key: 'customer_name', header: 'Cliente', render: (o) => <span className="font-medium">{o.customer_name}</span> },
+      { key: 'delivery_phone', header: 'Contato', render: (o) => o.delivery_phone || '—' },
+      { key: 'delivery_address', header: 'Endereço', render: (o) => o.delivery_address || '—' },
+      { key: 'items', header: 'Itens', render: (o) => <span className="text-muted-foreground">{itemsSummary(o)}</span> },
+      { key: 'notes', header: 'Obs.', render: (o) => (o.notes ? <span className="italic">{o.notes}</span> : '—') },
+      {
+        key: 'grand_total',
+        header: 'Total',
+        align: 'right',
+        render: (o) => <span className="tabular-nums">{formatCurrency(o.grand_total)}</span>,
+      },
+      {
+        key: 'time',
+        header: tab === 'pending' ? 'Aguardando' : 'Concluído',
+        render: (o) => {
+          const ts = tab === 'pending' ? o.created_at : o.completed_at;
+          return <span className="whitespace-nowrap text-xs text-muted-foreground">{ts ? timeAgo(ts) : ''}</span>;
+        },
+      },
+      {
+        key: 'action',
+        header: '',
+        align: 'right',
+        render: (o) =>
+          tab === 'pending' ? (
+            <Button size="sm" disabled={completingInvoice === o.invoice} onClick={() => handleComplete(o.invoice)}>
+              {completingInvoice === o.invoice ? 'Marcando...' : 'Marcar como entregue'}
+            </Button>
+          ) : (
+            <Badge variant="completed">Entregue</Badge>
+          ),
+      },
+    ],
+    [tab, completingInvoice],
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Pedidos de Delivery</h1>
-        {tab === 'pending' && (
-          <Badge variant={orders.length > 0 ? 'warning' : 'secondary'}>
-            {orders.length} {orders.length === 1 ? 'pendente' : 'pendentes'}
-          </Badge>
-        )}
+        <div className="flex items-center gap-3">
+          {tab === 'pending' && (
+            <Badge variant={orders.length > 0 ? 'warning' : 'secondary'}>
+              {orders.length} {orders.length === 1 ? 'pendente' : 'pendentes'}
+            </Badge>
+          )}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setViewMode('grid')}
+              className={`h-7 w-7 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-primary hover:bg-white' : 'text-gray-500'}`}
+              title="Visualização em grade"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setViewMode('list')}
+              className={`h-7 w-7 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-primary hover:bg-white' : 'text-gray-500'}`}
+              title="Visualização em lista"
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-2">
@@ -108,6 +189,8 @@ export const DeliveryOrdersPage: React.FC = () => {
             {tab === 'pending' ? 'Nenhum pedido de delivery pendente no momento.' : 'Nenhum pedido concluído ainda.'}
           </CardContent>
         </Card>
+      ) : viewMode === 'list' ? (
+        <DataTable columns={columns} rows={orders} />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {orders.map((order) => (
