@@ -1578,8 +1578,11 @@ def sync_order(
 
     except Exception as e:
         # If an exception occurs (e.g., "kot" app not found), it will be caught here without affect the code execution.
-        error_msg = f"KOT Creation Failes {str(e)}"            
-        frappe.log_error(error_msg, "KOT Error")
+        # frappe.log_error's real signature is (title, message) — the
+        # unbounded exception string must go in `message`, never `title`
+        # (Error Log's title field caps at 140 chars).
+        error_msg = f"KOT Creation Failes {str(e)}"
+        frappe.log_error(title="KOT Error", message=error_msg)
 
     # table status
     if invoice.invoice_printed == 0:

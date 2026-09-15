@@ -78,7 +78,11 @@ def reprint_kot(invoice_number):
 
     except Exception as e:
         error_message = f"KOT Reprint Error for Invoice {invoice_number}: {str(e)}"
-        frappe.log_error(error_message, "KOT Reprint Error")
+        # frappe.log_error's real signature is (title, message) — an
+        # unbounded exception string must go in `message`, never as
+        # `title` (Error Log's title field caps at 140 chars, and
+        # log_error itself throws CharacterLengthExceededError past that).
+        frappe.log_error(title="KOT Reprint Error", message=error_message)
         frappe.throw("An unexpected error occurred while reprinting KOT. Please check logs.")
 
 
@@ -86,4 +90,4 @@ def print_kot(printer,docname, kot_print_format):
     try:
         print_by_server("POS Invoice",docname, printer, kot_print_format)
     except Exception as e:
-        frappe.log_error(f"KOT Reprint Error: {e}")
+        frappe.log_error(title="KOT Reprint Error", message=f"KOT Reprint Error: {e}")

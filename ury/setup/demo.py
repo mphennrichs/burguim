@@ -562,7 +562,10 @@ def clear_demo_data():
                 clear_masters(company)
                 delete_company(company)
             except Exception as e:
-                frappe.log_error(f"Failed to erase demo data for company {company}")
+                # frappe.log_error's real signature is (title, message) — a
+                # dynamic string must go in `message`, never bare as
+                # `title` (Error Log's title field caps at 140 chars).
+                frappe.log_error(title="Erase Demo Data", message=f"Failed to erase demo data for company {company}: {e}")
                 
         default_company = frappe.db.get_single_value("Global Defaults", "default_company")
         if default_company in demo_companies:

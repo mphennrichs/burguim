@@ -16,7 +16,10 @@ def add_roles_to_administrator():
         user = frappe.get_doc("User", "Administrator")
         user.add_roles("URY Cashier", "URY Manager", "URY Captain","URY Admin")
     except Exception as e:
-        frappe.log_error(f"Failed to add URY roles to Administrator: {e}", "URY Setup Error")
+        # frappe.log_error's real signature is (title, message) — an
+        # unbounded exception string must go in `message`, never `title`
+        # (Error Log's title field caps at 140 chars).
+        frappe.log_error(title="URY Setup Error", message=f"Failed to add URY roles to Administrator: {e}")
         
 def before_uninstall():
 	delete_custom_fields(get_custom_fields())

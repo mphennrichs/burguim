@@ -128,25 +128,29 @@ def build_combined_kot_doc(kot_names):
 
 
 def _validate_waiter_print_format(waiter_print_format, room, printer):
+	# frappe.log_error's real signature is (title, message) — an unbounded
+	# dynamic string must go in `message`, never as `title` (Error Log's
+	# title field caps at 140 chars, and log_error itself throws
+	# CharacterLengthExceededError past that).
 	if not waiter_print_format:
 		frappe.log_error(
-			f"No waiter print format set for printer {printer} in room {room}.",
-			"URY Waiter Print",
+			title="URY Waiter Print",
+			message=f"No waiter print format set for printer {printer} in room {room}.",
 		)
 		return False
 
 	if not frappe.db.exists("Print Format", waiter_print_format):
 		frappe.log_error(
-			f"Waiter print format '{waiter_print_format}' not found.",
-			"URY Waiter Print",
+			title="URY Waiter Print",
+			message=f"Waiter print format '{waiter_print_format}' not found.",
 		)
 		return False
 
 	print_format_doctype = frappe.db.get_value("Print Format", waiter_print_format, "doc_type")
 	if print_format_doctype != "URY KOT":
 		frappe.log_error(
-			f"Waiter print format '{waiter_print_format}' must be for URY KOT, not {print_format_doctype}.",
-			"URY Waiter Print",
+			title="URY Waiter Print",
+			message=f"Waiter print format '{waiter_print_format}' must be for URY KOT, not {print_format_doctype}.",
 		)
 		return False
 
@@ -191,6 +195,6 @@ def print_combined_waiter_order_slip(invoice_id, kot_names, restaurant_table):
 			)
 		except Exception as e:
 			frappe.log_error(
-				f"Waiter print failed for invoice {invoice_id}: {e}",
-				"URY Waiter Print",
+				title="URY Waiter Print",
+				message=f"Waiter print failed for invoice {invoice_id}: {e}",
 			)

@@ -51,7 +51,12 @@ def get_recent_transactions(branch=None, limit=10):
                     inv["order_type"] = "Dine In"
             return invoices
         except Exception as e:
-            frappe.log_error(f"Error in get_recent_transactions: {str(e)}")
+            # frappe.log_error's real signature is (title, message) — an
+            # unbounded exception string must go in `message`, never bare
+            # as `title`, or log_error itself can throw
+            # CharacterLengthExceededError (Error Log's title field caps
+            # at 140 chars).
+            frappe.log_error(title="get_recent_transactions", message=f"Error in get_recent_transactions: {str(e)}")
             return []
     return []
 
