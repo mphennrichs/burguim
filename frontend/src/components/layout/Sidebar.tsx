@@ -17,7 +17,8 @@ import {
   Store,
   BarChart3,
   ArrowLeft,
-  Grid
+  Grid,
+  Bike
 } from 'lucide-react';
 
 interface NavItem {
@@ -28,6 +29,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+  { label: 'Pedidos de Delivery', path: '/delivery-orders', icon: Bike },
   { label: 'Menu', path: '/menu', icon: UtensilsCrossed },
   { label: 'Table', path: '/table', icon: Grid3X3 },
   { label: 'Room', path: '/room', icon: Map },
