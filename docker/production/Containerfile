@@ -1,0 +1,109 @@
+# syntax=docker/dockerfile:1.7
+
+# Build the Burguim production image: Frappe/ERPNext/HRMS + the custom `ury`
+# app (this repo), with its 4 Vite frontends (self-order, pos, frontend,
+# mosaic) baked in.
+#
+# Stage 2 mirrors frappe_docker's official `images/layered/Containerfile`
+# almost verbatim (same base images, same `bench init` invocation, same
+# entrypoint/start scripts pulled unmodified from a pinned frappe_docker
+# checkout via the `frappe_docker` build context). The one deliberate
+# deviation: `bench init --skip-assets`, so our pre-built frontend dist files
+# can be copied into apps/ury/ury/{public,www} BEFORE `bench build` runs —
+# otherwise the JS/CSS bundle baked into the image (frappe_docker moves
+# sites/assets out of the sites volume into an image layer) would be built
+# without them.
+
+ARG FRAPPE_BRANCH=version-15
+ARG FRAPPE_IMAGE_PREFIX=frappe
+ARG FRAPPE_PATH=https://github.com/frappe/frappe
+
+# ---------------------------------------------------------------------------
+# Stage 1: build the 4 Vite frontends from this repo.
+# ---------------------------------------------------------------------------
+FROM node:20-bookworm-slim AS frontend-builder
+WORKDIR /app
+
+COPY package.json ./
+COPY packages ./packages
+COPY self-order ./self-order
+COPY pos ./pos
+COPY frontend ./frontend
+COPY mosaic ./mosaic
+
+# Each app's `vite build` writes straight into ../ury/public/<app> and
+# ../ury/www/<app>.html (see each app's vite.config.ts / copy-html-entry
+# script) - same layout `bench get-app` produces for the `ury` app, so these
+# directories only need to exist, not be pre-populated.
+RUN mkdir -p ury/public ury/www && \
+    yarn install --check-files && \
+    yarn ury-mosaic-install && \
+    yarn ury-mosaic-build && \
+    yarn ury-posv2-build && \
+    yarn ury-frontend-build && \
+    yarn ury-self-order-build
+
+# ---------------------------------------------------------------------------
+# Stage 2: bench init (frappe/erpnext/hrms/ury), then bench build with our
+# frontends already in place.
+# ---------------------------------------------------------------------------
+FROM ${FRAPPE_IMAGE_PREFIX}/build:${FRAPPE_BRANCH} AS builder
+ARG FRAPPE_BRANCH
+ARG FRAPPE_PATH
+ARG CACHE_BUST=""
+
+USER frappe
+
+RUN --mount=type=secret,id=apps_json,target=/opt/frappe/apps.json,uid=1000,gid=1000 \
+  : "${CACHE_BUST}" && \
+  bench init --apps_path=/opt/frappe/apps.json \
+    --frappe-branch=${FRAPPE_BRANCH} \
+    --frappe-path=${FRAPPE_PATH} \
+    --no-procfile \
+    --no-backups \
+    --skip-redis-config-generation \
+    --skip-assets \
+    --verbose \
+    /home/frappe/frappe-bench && \
+  echo "{}" > /home/frappe/frappe-bench/sites/common_site_config.json
+
+COPY --from=frontend-builder --chown=frappe:frappe /app/ury/public /home/frappe/frappe-bench/apps/ury/ury/public
+COPY --from=frontend-builder --chown=frappe:frappe /app/ury/www /home/frappe/frappe-bench/apps/ury/ury/www
+
+WORKDIR /home/frappe/frappe-bench
+RUN bench build && \
+  find apps -mindepth 1 -path "*/.git" | xargs rm -fr
+
+# ---------------------------------------------------------------------------
+# Stage 3: production image - identical to frappe_docker's official `backend`
+# stage, entrypoint/start scripts copied unmodified from the pinned
+# frappe_docker checkout (see the `frappe_docker` build context in CI).
+# ---------------------------------------------------------------------------
+FROM ${FRAPPE_IMAGE_PREFIX}/base:${FRAPPE_BRANCH} AS backend
+
+USER frappe
+
+COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
+
+WORKDIR /home/frappe/frappe-bench
+
+RUN cp -r /home/frappe/frappe-bench/sites/assets /home/frappe/frappe-bench/assets && \
+  rm -rf /home/frappe/frappe-bench/sites/assets
+
+VOLUME [ \
+  "/home/frappe/frappe-bench/sites", \
+  "/home/frappe/frappe-bench/logs" \
+]
+
+USER root
+
+COPY --from=frappe_docker resources/core/main-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 755 /usr/local/bin/entrypoint.sh
+
+COPY --from=frappe_docker resources/core/start.sh /usr/local/bin/start.sh
+RUN chmod 755 /usr/local/bin/start.sh
+
+USER frappe
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+CMD ["start.sh"]

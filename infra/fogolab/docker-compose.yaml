@@ -1,0 +1,250 @@
+# yamllint disable
+# NOT WHAT RUNS. Reference copy — the file that actually deploys lives at
+# fogolab/burguim/docker-compose.yaml (see mphennrichs/fogolab). Copy this
+# there when first onboarding the stack, and keep both in sync by hand for
+# anything structural (frappe_docker version bumps, new services).
+#
+# Burguim — delivery-only burger shop ordering system (Frappe/ERPNext/HRMS +
+# the custom `ury` app + 4 Vite frontends), built by this repo's own CI into
+# a single image: ghcr.io/mphennrichs/burguim:<tag>. Mirrors frappe_docker's
+# official production compose (services + the mariadb/redis overrides), plus
+# one addition frappe_docker doesn't ship: `create-site`, a one-shot,
+# idempotent bootstrap that creates the site on first boot (frappe_docker's
+# `migrator` only migrates a site that already exists).
+#
+# Every service that isn't `frontend` shares the same custom image and just
+# overrides `command`/`entrypoint` — same pattern as the official compose.
+# Service names that get resolved by hostname (db, redis-*, backend,
+# websocket) get an explicit unique container_name: the shared `traefik`
+# network aliases containers by bare service name across EVERY stack on it,
+# and another stack using the same generic name (e.g. "db") silently
+# resolves to the wrong container — see the trupesound stack's DATABASE_URL
+# comment for the incident this avoids.
+
+x-image: &image
+  # Tag pinned by hand here, then kept current by on-image-updated.yml's sed
+  # bump on every push to burguim's develop branch — see that workflow.
+  image: ghcr.io/mphennrichs/burguim:latest
+  restart: unless-stopped
+
+x-backend-defaults: &backend_defaults
+  <<: *image
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+
+services:
+  db:
+    image: mariadb:11.8
+    container_name: burguim-db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_AUTO_UPGRADE: 1
+    networks:
+      - traefik
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis-cache:
+    image: redis:8.6-alpine
+    container_name: burguim-redis-cache
+    restart: unless-stopped
+    networks:
+      - traefik
+
+  redis-queue:
+    image: redis:8.6-alpine
+    container_name: burguim-redis-queue
+    restart: unless-stopped
+    networks:
+      - traefik
+    volumes:
+      - redis-queue-data:/data
+
+  configurator:
+    <<: *backend_defaults
+    container_name: burguim-configurator
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host $$DB_HOST;
+        bench set-config -gp db_port $$DB_PORT;
+        bench set-config -g redis_cache "redis://$$REDIS_CACHE";
+        bench set-config -g redis_queue "redis://$$REDIS_QUEUE";
+        bench set-config -g redis_socketio "redis://$$REDIS_QUEUE";
+        bench set-config -gp socketio_port $$SOCKETIO_PORT;
+    environment:
+      DB_HOST: burguim-db
+      DB_PORT: "3306"
+      REDIS_CACHE: burguim-redis-cache:6379
+      REDIS_QUEUE: burguim-redis-queue:6379
+      SOCKETIO_PORT: 9000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - traefik
+    restart: on-failure
+
+  # Idempotent first-boot bootstrap: creates the site only if it doesn't
+  # already exist. frappe_docker ships nothing for this (its `migrator`
+  # requires an existing site) — no host shell access to this deploy target,
+  # so `docker compose up` alone must be able to take a stack from nothing to
+  # a working site.
+  create-site:
+    <<: *backend_defaults
+    container_name: burguim-create-site
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        set -e;
+        if [ -f "sites/$$SITE_NAME/site_config.json" ]; then
+          echo "[create-site] $$SITE_NAME already exists, skipping";
+          exit 0;
+        fi;
+        echo "[create-site] creating $$SITE_NAME";
+        bench new-site "$$SITE_NAME" \
+          --db-root-password "$$DB_PASSWORD" \
+          --admin-password "$$ADMIN_PASSWORD" \
+          --install-app erpnext \
+          --install-app hrms \
+          --install-app ury \
+          --set-default;
+    environment:
+      SITE_NAME: ${SITE_NAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+    networks:
+      - traefik
+    restart: on-failure:5
+
+  migrator:
+    <<: *backend_defaults
+    container_name: burguim-migrator
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        if [ -z "$$(find sites -mindepth 2 -maxdepth 2 -name site_config.json 2>/dev/null)" ]; then
+          echo "[migrator] no sites found, skipping";
+          exit 0;
+        fi;
+        echo "[migrator] migrating all sites";
+        bench --site all migrate;
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+    networks:
+      - traefik
+    restart: on-failure:5
+
+  backend:
+    <<: *backend_defaults
+    container_name: burguim-backend
+    environment:
+      GUNICORN_THREADS: 4
+      GUNICORN_WORKERS: 2
+      GUNICORN_TIMEOUT: 120
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - traefik
+
+  websocket:
+    <<: *backend_defaults
+    container_name: burguim-websocket
+    command:
+      - node
+      - /home/frappe/frappe-bench/apps/frappe/socketio.js
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - traefik
+
+  queue-short:
+    <<: *backend_defaults
+    container_name: burguim-queue-short
+    command: bench worker --queue short,default
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - traefik
+
+  queue-long:
+    <<: *backend_defaults
+    container_name: burguim-queue-long
+    command: bench worker --queue long,default,short
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - traefik
+
+  scheduler:
+    <<: *backend_defaults
+    container_name: burguim-scheduler
+    command: bench schedule
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - traefik
+
+  frontend:
+    <<: *image
+    container_name: burguim-frontend
+    command:
+      - nginx-entrypoint.sh
+    environment:
+      BACKEND: burguim-backend:8000
+      SOCKETIO: burguim-websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME}
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    depends_on:
+      - backend
+      - websocket
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.burguim.rule=Host(`burguim.foguinhodogoias.com`)"
+      - "traefik.http.routers.burguim.entrypoints=web-secure"
+      - "traefik.http.routers.burguim.tls.certresolver=cloudflare"
+      - "traefik.http.services.burguim.loadbalancer.server.port=8080"
+
+networks:
+  traefik:
+    external: true
+
+volumes:
+  sites:
+  db-data:
+  redis-queue-data:
