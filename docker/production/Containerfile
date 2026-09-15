@@ -40,7 +40,16 @@ COPY mosaic ./mosaic
 # untouched, not one of the 4 apps this image ships) - it isn't in this build
 # context, so the hook would fail with "can't cd to urypos". mosaic's own
 # install is run explicitly below instead.
-RUN mkdir -p ury/public ury/www && \
+#
+# mosaic/proxyOptions.js (dev-server-only Vite proxy config, statically
+# imported by vite.config.js) does `require('../../../sites/common_site_config.json')`
+# - a path that only resolves inside a real frappe-bench checkout
+# (apps/ury/mosaic/../../../sites/...). It's never read at runtime during
+# `vite build`, but esbuild still has to resolve the import to load the
+# config, so a stub at the same relative location (/sites, three levels
+# above /app/mosaic) is enough.
+RUN mkdir -p ury/public ury/www /sites && \
+    echo '{}' > /sites/common_site_config.json && \
     yarn install --check-files --ignore-scripts && \
     yarn ury-mosaic-install && \
     yarn ury-mosaic-build && \
