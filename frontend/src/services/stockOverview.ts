@@ -26,6 +26,29 @@ export interface ItemWithoutBom {
   item_name: string;
 }
 
+export interface PurchasableItem {
+  name: string;
+  item_name: string;
+  stock_uom: string;
+  shelf_life_in_days: number | null;
+  last_buying_rate: number | null;
+}
+
+export interface RecordedPurchase {
+  stock_entry: string;
+  batch_no: string;
+  qty: number;
+  expiry_date: string | null;
+}
+
+export interface ProductionItem {
+  name: string;
+  item_name: string;
+  stock_uom: string;
+  shelf_life_in_days: number | null;
+  bom: string;
+}
+
 interface MenuCostOverviewResponse {
   items: MenuCostItem[];
   currency_symbol: string | null;
@@ -69,5 +92,38 @@ export const stockOverviewService = {
     const res = await call<ItemsWithoutBomResponse>('ury.ury.api.stock_overview.get_items_without_bom');
     const data = unwrap<ItemsWithoutBomResponse>(res, { items: [] });
     return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async purchasableItems(): Promise<PurchasableItem[]> {
+    const res = await call<{ items: PurchasableItem[] }>('ury.ury.api.stock_entry.get_purchasable_items');
+    const data = unwrap<{ items: PurchasableItem[] }>(res, { items: [] });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async recordPurchase(params: {
+    item_code: string;
+    qty: number;
+    rate: number;
+    purchase_date?: string;
+    expiry_date?: string;
+  }): Promise<RecordedPurchase> {
+    const res = await call<RecordedPurchase>('ury.ury.api.stock_entry.record_purchase', params);
+    return unwrap<RecordedPurchase>(res, { stock_entry: '', batch_no: '', qty: 0, expiry_date: null });
+  },
+
+  async productionItems(): Promise<ProductionItem[]> {
+    const res = await call<{ items: ProductionItem[] }>('ury.ury.api.stock_entry.get_production_items');
+    const data = unwrap<{ items: ProductionItem[] }>(res, { items: [] });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async recordProduction(params: {
+    item_code: string;
+    qty: number;
+    purchase_date?: string;
+    expiry_date?: string;
+  }): Promise<RecordedPurchase> {
+    const res = await call<RecordedPurchase>('ury.ury.api.stock_entry.record_production', params);
+    return unwrap<RecordedPurchase>(res, { stock_entry: '', batch_no: '', qty: 0, expiry_date: null });
   },
 };

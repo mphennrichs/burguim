@@ -115,12 +115,13 @@ def get_expiring_batches(days=14):
             i.item_name AS item_name,
             i.stock_uom AS uom,
             b.expiry_date AS expiry_date,
-            COALESCE(SUM(sle.actual_qty), 0) AS qty
+            COALESCE(SUM(sbe.qty), 0) AS qty
         FROM `tabBatch` b
         LEFT JOIN `tabItem` i ON i.name = b.item
-        LEFT JOIN `tabStock Ledger Entry` sle
-            ON sle.batch_no = b.name AND sle.is_cancelled = 0
+        LEFT JOIN `tabSerial and Batch Entry` sbe ON sbe.batch_no = b.name
+        LEFT JOIN `tabSerial and Batch Bundle` sbb ON sbb.name = sbe.parent
         WHERE b.expiry_date IS NOT NULL
+            AND (sbb.name IS NULL OR (sbb.docstatus = 1 AND sbb.is_cancelled = 0))
         GROUP BY b.name
         HAVING qty > 0
         ORDER BY b.expiry_date ASC

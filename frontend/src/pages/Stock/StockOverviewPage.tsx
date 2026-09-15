@@ -2,11 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
   Button,
   Badge,
+  Input,
+  Select,
   Spinner,
   StatCard,
   DataTable,
+  showToast,
   type DataTableColumn,
   type BadgeProps,
 } from '@ury/ui';
@@ -15,9 +20,21 @@ import {
   stockOverviewService,
   type MenuCostItem,
   type ExpiringBatch,
+  type PurchasableItem,
+  type ProductionItem,
 } from '../../services/stockOverview';
 
-type Tab = 'custos' | 'validade';
+type Tab = 'custos' | 'validade' | 'comprar' | 'produzir';
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addDaysIso(dateIso: string, days: number): string {
+  const d = new Date(`${dateIso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 const EXPIRY_BADGE: Record<ExpiringBatch['status'], { variant: BadgeProps['variant']; label: string }> = {
   expired: { variant: 'danger', label: 'Vencido' },
@@ -40,18 +57,173 @@ export const StockOverviewPage: React.FC = () => {
 
   const [menuItems, setMenuItems] = useState<MenuCostItem[]>([]);
   const [batches, setBatches] = useState<ExpiringBatch[]>([]);
+  const [purchasableItems, setPurchasableItems] = useState<PurchasableItem[]>([]);
+  const [productionItems, setProductionItems] = useState<ProductionItem[]>([]);
 
-  useEffect(() => {
+  const [form, setForm] = useState({
+    item_code: '',
+    qty: '',
+    rate: '',
+    purchase_date: todayIso(),
+    expiry_date: '',
+  });
+  const [expiryTouched, setExpiryTouched] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [prodForm, setProdForm] = useState({
+    item_code: '',
+    qty: '',
+    purchase_date: todayIso(),
+    expiry_date: '',
+  });
+  const [prodExpiryTouched, setProdExpiryTouched] = useState(false);
+  const [prodSubmitting, setProdSubmitting] = useState(false);
+
+  function reloadAll() {
     setLoading(true);
-    Promise.all([stockOverviewService.menuCosts(), stockOverviewService.expiringBatches(14)])
-      .then(([costResult, batchResult]) => {
+    return Promise.all([
+      stockOverviewService.menuCosts(),
+      stockOverviewService.expiringBatches(14),
+      stockOverviewService.purchasableItems(),
+      stockOverviewService.productionItems(),
+    ])
+      .then(([costResult, batchResult, purchasableResult, productionResult]) => {
         setMenuItems(costResult.items);
         setBatches(batchResult);
+        setPurchasableItems(purchasableResult);
+        setProductionItems(productionResult);
         setError(null);
       })
       .catch(() => setError('Não foi possível carregar os dados de estoque.'))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    reloadAll();
   }, []);
+
+  const selectedItem = purchasableItems.find((i) => i.name === form.item_code) ?? null;
+
+  function handleItemChange(itemCode: string) {
+    const item = purchasableItems.find((i) => i.name === itemCode) ?? null;
+    setExpiryTouched(false);
+    setForm((prev) => ({
+      ...prev,
+      item_code: itemCode,
+      rate: item?.last_buying_rate != null ? String(item.last_buying_rate) : prev.rate,
+      expiry_date:
+        item?.shelf_life_in_days != null
+          ? addDaysIso(prev.purchase_date, item.shelf_life_in_days)
+          : '',
+    }));
+  }
+
+  function handlePurchaseDateChange(dateIso: string) {
+    setForm((prev) => ({
+      ...prev,
+      purchase_date: dateIso,
+      expiry_date:
+        !expiryTouched && selectedItem?.shelf_life_in_days != null
+          ? addDaysIso(dateIso, selectedItem.shelf_life_in_days)
+          : prev.expiry_date,
+    }));
+  }
+
+  async function handleSubmitPurchase(e: React.FormEvent) {
+    e.preventDefault();
+    const qty = Number(form.qty);
+    const rate = Number(form.rate);
+    if (!form.item_code) {
+      showToast.error('Selecione um ingrediente.');
+      return;
+    }
+    if (!qty || qty <= 0) {
+      showToast.error('Informe uma quantidade válida.');
+      return;
+    }
+    if (!rate || rate <= 0) {
+      showToast.error('Informe um preço válido.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await stockOverviewService.recordPurchase({
+        item_code: form.item_code,
+        qty,
+        rate,
+        purchase_date: form.purchase_date || undefined,
+        expiry_date: form.expiry_date || undefined,
+      });
+      showToast.success(`Compra registrada — lote ${result.batch_no}`);
+      setForm({ item_code: '', qty: '', rate: '', purchase_date: todayIso(), expiry_date: '' });
+      setExpiryTouched(false);
+      await reloadAll();
+      setTab('validade');
+    } catch {
+      showToast.error('Não foi possível registrar a compra. Tente novamente.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const selectedProdItem = productionItems.find((i) => i.name === prodForm.item_code) ?? null;
+
+  function handleProdItemChange(itemCode: string) {
+    const item = productionItems.find((i) => i.name === itemCode) ?? null;
+    setProdExpiryTouched(false);
+    setProdForm((prev) => ({
+      ...prev,
+      item_code: itemCode,
+      expiry_date:
+        item?.shelf_life_in_days != null
+          ? addDaysIso(prev.purchase_date, item.shelf_life_in_days)
+          : '',
+    }));
+  }
+
+  function handleProdDateChange(dateIso: string) {
+    setProdForm((prev) => ({
+      ...prev,
+      purchase_date: dateIso,
+      expiry_date:
+        !prodExpiryTouched && selectedProdItem?.shelf_life_in_days != null
+          ? addDaysIso(dateIso, selectedProdItem.shelf_life_in_days)
+          : prev.expiry_date,
+    }));
+  }
+
+  async function handleSubmitProduction(e: React.FormEvent) {
+    e.preventDefault();
+    const qty = Number(prodForm.qty);
+    if (!prodForm.item_code) {
+      showToast.error('Selecione o que você preparou.');
+      return;
+    }
+    if (!qty || qty <= 0) {
+      showToast.error('Informe uma quantidade válida.');
+      return;
+    }
+
+    setProdSubmitting(true);
+    try {
+      const result = await stockOverviewService.recordProduction({
+        item_code: prodForm.item_code,
+        qty,
+        purchase_date: prodForm.purchase_date || undefined,
+        expiry_date: prodForm.expiry_date || undefined,
+      });
+      showToast.success(`Produção registrada — lote ${result.batch_no}`);
+      setProdForm({ item_code: '', qty: '', purchase_date: todayIso(), expiry_date: '' });
+      setProdExpiryTouched(false);
+      await reloadAll();
+      setTab('validade');
+    } catch {
+      showToast.error('Não foi possível registrar a produção. Confira se há ingrediente suficiente em estoque.');
+    } finally {
+      setProdSubmitting(false);
+    }
+  }
 
   const itemsMissingCost = useMemo(
     () => menuItems.filter((item) => item.cost === null),
@@ -190,6 +362,8 @@ export const StockOverviewPage: React.FC = () => {
               [
                 { id: 'custos' as const, label: 'Custo & Margem' },
                 { id: 'validade' as const, label: 'Validade' },
+                { id: 'comprar' as const, label: 'Registrar Compra' },
+                { id: 'produzir' as const, label: 'Registrar Produção' },
               ]
             ).map((item) => (
               <Button
@@ -204,7 +378,7 @@ export const StockOverviewPage: React.FC = () => {
             ))}
           </div>
 
-          {tab === 'custos' ? (
+          {tab === 'custos' && (
             <div className="space-y-4">
               {itemsMissingCost.length > 0 && (
                 <div className="rounded-md bg-orange-50 border border-orange-200 p-3 text-sm text-orange-800">
@@ -227,14 +401,197 @@ export const StockOverviewPage: React.FC = () => {
                 <DataTable columns={costColumns} rows={menuItems} />
               )}
             </div>
-          ) : batches.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
-                Nenhum lote com validade cadastrada em estoque no momento.
+          )}
+
+          {tab === 'validade' && (
+            batches.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  Nenhum lote com validade cadastrada em estoque no momento. Registre uma compra na aba ao lado.
+                </CardContent>
+              </Card>
+            ) : (
+              <DataTable columns={batchColumns} rows={batches} />
+            )
+          )}
+
+          {tab === 'comprar' && (
+            <Card className="max-w-xl">
+              <CardHeader>
+                <CardTitle>Registrar compra de ingrediente</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form className="space-y-4" onSubmit={handleSubmitPurchase}>
+                  <div className="space-y-1.5">
+                    <label htmlFor="purchase-item" className="text-sm font-medium">
+                      Ingrediente
+                    </label>
+                    <Select
+                      id="purchase-item"
+                      value={form.item_code}
+                      onChange={(e) => handleItemChange(e.target.value)}
+                    >
+                      <option value="">Selecione um ingrediente</option>
+                      {purchasableItems.map((item) => (
+                        <option key={item.name} value={item.name}>
+                          {item.item_name} ({item.stock_uom})
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label htmlFor="purchase-qty" className="text-sm font-medium">
+                        Quantidade {selectedItem ? `(${selectedItem.stock_uom})` : ''}
+                      </label>
+                      <Input
+                        id="purchase-qty"
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={form.qty}
+                        onChange={(e) => setForm((prev) => ({ ...prev, qty: e.target.value }))}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="purchase-rate" className="text-sm font-medium">
+                        Preço pago (por {selectedItem?.stock_uom ?? 'unidade'})
+                      </label>
+                      <Input
+                        id="purchase-rate"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.rate}
+                        onChange={(e) => setForm((prev) => ({ ...prev, rate: e.target.value }))}
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label htmlFor="purchase-date" className="text-sm font-medium">
+                        Data da compra
+                      </label>
+                      <Input
+                        id="purchase-date"
+                        type="date"
+                        value={form.purchase_date}
+                        onChange={(e) => handlePurchaseDateChange(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="purchase-expiry" className="text-sm font-medium">
+                        Validade
+                      </label>
+                      <Input
+                        id="purchase-expiry"
+                        type="date"
+                        value={form.expiry_date}
+                        onChange={(e) => {
+                          setExpiryTouched(true);
+                          setForm((prev) => ({ ...prev, expiry_date: e.target.value }));
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={submitting} className="w-full">
+                    {submitting ? 'Registrando...' : 'Registrar compra'}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
-          ) : (
-            <DataTable columns={batchColumns} rows={batches} />
+          )}
+
+          {tab === 'produzir' && (
+            <Card className="max-w-xl">
+              <CardHeader>
+                <CardTitle>Registrar produção</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Pra itens preparados na casa (com receita própria cadastrada). Os ingredientes são
+                  descontados do estoque automaticamente, na proporção da receita.
+                </p>
+                {productionItems.length === 0 ? (
+                  <div className="rounded-md bg-orange-50 border border-orange-200 p-3 text-sm text-orange-800">
+                    Nenhum item com receita própria cadastrada ainda. Cadastre uma BOM no Frappe Desk pra um
+                    item (ex: um molho ou preparo feito com antecedência) pra ele aparecer aqui.
+                  </div>
+                ) : (
+                  <form className="space-y-4" onSubmit={handleSubmitProduction}>
+                    <div className="space-y-1.5">
+                      <label htmlFor="prod-item" className="text-sm font-medium">
+                        O que você preparou
+                      </label>
+                      <Select
+                        id="prod-item"
+                        value={prodForm.item_code}
+                        onChange={(e) => handleProdItemChange(e.target.value)}
+                      >
+                        <option value="">Selecione</option>
+                        {productionItems.map((item) => (
+                          <option key={item.name} value={item.name}>
+                            {item.item_name} ({item.stock_uom})
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label htmlFor="prod-qty" className="text-sm font-medium">
+                          Quantidade produzida {selectedProdItem ? `(${selectedProdItem.stock_uom})` : ''}
+                        </label>
+                        <Input
+                          id="prod-qty"
+                          type="number"
+                          min="0"
+                          step="0.001"
+                          value={prodForm.qty}
+                          onChange={(e) => setProdForm((prev) => ({ ...prev, qty: e.target.value }))}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label htmlFor="prod-date" className="text-sm font-medium">
+                          Data do preparo
+                        </label>
+                        <Input
+                          id="prod-date"
+                          type="date"
+                          value={prodForm.purchase_date}
+                          onChange={(e) => handleProdDateChange(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="prod-expiry" className="text-sm font-medium">
+                        Validade
+                      </label>
+                      <Input
+                        id="prod-expiry"
+                        type="date"
+                        value={prodForm.expiry_date}
+                        onChange={(e) => {
+                          setProdExpiryTouched(true);
+                          setProdForm((prev) => ({ ...prev, expiry_date: e.target.value }));
+                        }}
+                      />
+                    </div>
+
+                    <Button type="submit" disabled={prodSubmitting} className="w-full">
+                      {prodSubmitting ? 'Registrando...' : 'Registrar produção'}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
           )}
         </>
       )}
