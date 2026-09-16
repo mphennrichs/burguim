@@ -7,7 +7,7 @@ interface SpinnerProps {
 }
 
 export function Spinner({ className, message, hideMessage = false}: SpinnerProps) {
-  const displayMessage = message ?? 'Loading...';
+  const displayMessage = message ?? 'Carregando...';
   return (
     <div className="flex items-center justify-center min-h-[inherit]" role="status" aria-live="polite">
       <div className="text-center">

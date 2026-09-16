@@ -509,7 +509,7 @@ export function UryDateRangePicker({ value, onChange, className }: UryDateRangeP
     }
   };
 
-  const labelText = `${format(value.from, 'MMM d, yyyy')} - ${format(value.to, 'MMM d, yyyy')}`;
+  const labelText = `${format(value.from, 'dd/MM/yyyy')} - ${format(value.to, 'dd/MM/yyyy')}`;
 
   return (
     <div ref={containerRef} className={`relative inline-block ${className ?? ''}`}>

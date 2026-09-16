@@ -11,7 +11,7 @@
  * This function extracts and surfaces ALL validation messages from Frappe so no error details
  * are hidden from the user.
  */
-export function parseFrappeError(err: unknown, fallback = 'An unexpected error occurred.'): string {
+export function parseFrappeError(err: unknown, fallback = 'Ocorreu um erro inesperado.'): string {
   if (!err) return fallback;
 
   // Direct string errors

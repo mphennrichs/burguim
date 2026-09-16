@@ -20,7 +20,7 @@ export function DataTable<T>({
   columns,
   rows,
   isLoading,
-  emptyMessage = "No results found.",
+  emptyMessage = "Nenhum resultado encontrado.",
   className,
 }: DataTableProps<T>) {
   return (
@@ -45,7 +45,7 @@ export function DataTable<T>({
           {isLoading ? (
             <tr>
               <td colSpan={columns.length} className="p-8 text-center text-muted-foreground">
-                Loading…
+                Carregando…
               </td>
             </tr>
           ) : rows.length === 0 ? (
