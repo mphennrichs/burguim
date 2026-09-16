@@ -16,7 +16,7 @@ import {
   UserCog,
   ClipboardList,
   Factory,
-  IndianRupee,
+  Banknote,
 } from 'lucide-react';
 
 export interface ReportEntry {
@@ -27,27 +27,29 @@ export interface ReportEntry {
   icon: LucideIcon;
 }
 
+// `label` matches each report page's own <h1> exactly - see the report's
+// own .tsx file. `group` is this sidebar section's heading.
 export const reportsRegistry: ReportEntry[] = [
-  { id: 'today-sales', label: "Today's Sales", group: 'Sales Summary', path: 'today-sales', icon: Sun },
-  { id: 'daywise-sales', label: 'Daywise Sales', group: 'Sales Summary', path: 'daywise-sales', icon: CalendarDays },
-  { id: 'daywise-invoices', label: 'Daywise Invoices', group: 'Sales Summary', path: 'daywise-invoices', icon: Receipt },
-  { id: 'month-wise-sales', label: 'Month Wise Sales', group: 'Sales Summary', path: 'month-wise-sales', icon: BarChart3 },
-  { id: 'time-wise-sales', label: 'Time Wise Sales', group: 'Sales Summary', path: 'time-wise-sales', icon: Clock },
-  { id: 'service-wise-sales', label: 'Service Wise Sales', group: 'Sales Summary', path: 'service-wise-sales', icon: PieChart },
-  { id: 'cancelled-invoices', label: 'Cancelled Invoices', group: 'Sales Summary', path: 'cancelled-invoices', icon: Ban },
-  { id: 'average-bill-value', label: 'Average Bill Value', group: 'Sales Summary', path: 'average-bill-value', icon: Gauge },
+  { id: 'today-sales', label: 'Vendas de Hoje', group: 'Resumo de Vendas', path: 'today-sales', icon: Sun },
+  { id: 'daywise-sales', label: 'Vendas por Dia', group: 'Resumo de Vendas', path: 'daywise-sales', icon: CalendarDays },
+  { id: 'daywise-invoices', label: 'Pedidos por Dia', group: 'Resumo de Vendas', path: 'daywise-invoices', icon: Receipt },
+  { id: 'month-wise-sales', label: 'Vendas por Mês', group: 'Resumo de Vendas', path: 'month-wise-sales', icon: BarChart3 },
+  { id: 'time-wise-sales', label: 'Vendas por Horário', group: 'Resumo de Vendas', path: 'time-wise-sales', icon: Clock },
+  { id: 'service-wise-sales', label: 'Vendas por Tipo de Serviço', group: 'Resumo de Vendas', path: 'service-wise-sales', icon: PieChart },
+  { id: 'cancelled-invoices', label: 'Pedidos Cancelados', group: 'Resumo de Vendas', path: 'cancelled-invoices', icon: Ban },
+  { id: 'average-bill-value', label: 'Ticket Médio', group: 'Resumo de Vendas', path: 'average-bill-value', icon: Gauge },
 
-  { id: 'item-wise-sales', label: 'Item Wise Sales', group: 'Customers & Items', path: 'item-wise-sales', icon: Package },
-  { id: 'item-wise-purchase-history', label: 'Item-wise Purchase History', group: 'Customers & Items', path: 'item-wise-purchase-history', icon: ShoppingCart },
-  { id: 'customer-data', label: 'Customer Data', group: 'Customers & Items', path: 'customer-data', icon: Users },
-  { id: 'daywise-customer-details', label: 'Daywise Customer Details', group: 'Customers & Items', path: 'daywise-customer-details', icon: UserPlus },
-  { id: 'repeated-customers', label: 'Repeated Customers', group: 'Customers & Items', path: 'repeated-customers', icon: Repeat },
+  { id: 'item-wise-sales', label: 'Vendas por Item', group: 'Clientes e Itens', path: 'item-wise-sales', icon: Package },
+  { id: 'item-wise-purchase-history', label: 'Histórico de Compras por Item', group: 'Clientes e Itens', path: 'item-wise-purchase-history', icon: ShoppingCart },
+  { id: 'customer-data', label: 'Dados do Cliente', group: 'Clientes e Itens', path: 'customer-data', icon: Users },
+  { id: 'daywise-customer-details', label: 'Detalhes de Clientes por Dia', group: 'Clientes e Itens', path: 'daywise-customer-details', icon: UserPlus },
+  { id: 'repeated-customers', label: 'Clientes Recorrentes', group: 'Clientes e Itens', path: 'repeated-customers', icon: Repeat },
 
-  { id: 'employee-sales', label: 'Employee Sales', group: 'Employees & Operations', path: 'employee-sales', icon: UserCog },
-  { id: 'employee-item-wise-sales', label: 'Employee Item Wise Sales', group: 'Employees & Operations', path: 'employee-item-wise-sales', icon: ClipboardList },
-  { id: 'completed-work-orders', label: 'Completed Work Orders', group: 'Employees & Operations', path: 'completed-work-orders', icon: Factory },
+  { id: 'employee-sales', label: 'Vendas por Funcionário', group: 'Funcionários e Operações', path: 'employee-sales', icon: UserCog },
+  { id: 'employee-item-wise-sales', label: 'Vendas por Item e Funcionário', group: 'Funcionários e Operações', path: 'employee-item-wise-sales', icon: ClipboardList },
+  { id: 'completed-work-orders', label: 'Ordens de Produção Concluídas', group: 'Funcionários e Operações', path: 'completed-work-orders', icon: Factory },
 
-  { id: 'daily-pnl', label: 'Daily P&L', group: 'Financial', path: 'daily-pnl', icon: IndianRupee },
+  { id: 'daily-pnl', label: 'DRE Diário', group: 'Financeiro', path: 'daily-pnl', icon: Banknote },
 ];
 
 export function groupReports(reports: ReportEntry[]): Record<string, ReportEntry[]> {

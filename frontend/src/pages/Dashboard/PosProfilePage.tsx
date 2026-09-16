@@ -446,7 +446,7 @@ export const PosProfilePage: React.FC = () => {
                         disabled={!isEditMode}
                         value={profileForm.selling_price_list || ''}
                         onChange={(e) => setProfileForm(p => ({ ...p, selling_price_list: e.target.value }))}
-                        placeholder="Standard Selling"
+                        placeholder="Venda Padrão"
                       />
                     </div>
                     <div>
@@ -844,7 +844,7 @@ export const PosProfilePage: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-gray-700 mb-1.5">Lista de Preços</label>
-              <Input value={addForm.selling_price_list} onChange={e => setAddForm({...addForm, selling_price_list: e.target.value})} placeholder="Standard Selling" />
+              <Input value={addForm.selling_price_list} onChange={e => setAddForm({...addForm, selling_price_list: e.target.value})} placeholder="Venda Padrão" />
             </div>
             <div>
               <label className="block font-semibold text-gray-700 mb-1.5">Formato de Impressão</label>

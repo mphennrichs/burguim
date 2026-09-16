@@ -531,7 +531,7 @@ export const ReportSettingsPage: React.FC = () => {
                       Lista de Preços de Compra
                     </label>
                     <Select value={buyingPriceList} onValueChange={(val: string) => setBuyingPriceList(val)}>
-                      <SelectItem value="Standard Buying">Standard Buying</SelectItem>
+                      <SelectItem value="Standard Buying">Compra Padrão</SelectItem>
                       <SelectItem value="Wholesale Price List">Lista de Preços por Atacado</SelectItem>
                       <SelectItem value="Vendor Cost Basis">Base de Custo do Fornecedor</SelectItem>
                     </Select>

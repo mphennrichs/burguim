@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { call, formatCurrency } from '@ury/core';
 import { StatCard, DataTable, type DataTableColumn } from '@ury/ui';
-import { Users, IndianRupee, Receipt } from 'lucide-react';
+import { Users, Banknote, Receipt } from 'lucide-react';
 import { useBranchContext } from '../../context/BranchContext';
 import { DateRangeFilter, type DateRangeValue } from '../../components/reports/DateRangeFilter';
 import { BarChartCard } from '../../components/reports/charts/BarChartCard';
@@ -94,7 +94,7 @@ export function EmployeeSales() {
             <StatCard
               label="Total de Vendas"
               value={formatCurrency(data.summary.period_total_sales)}
-              icon={<IndianRupee className="w-4 h-4" />}
+              icon={<Banknote className="w-4 h-4" />}
             />
           </div>
 

@@ -43,7 +43,7 @@ export function useAuth(): AuthState {
         setFullName(full_name);
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load user');
+        setError(err instanceof Error ? err.message : 'Não foi possível carregar o usuário.');
         setUser(null);
         setRoles([]);
         setFullName('');

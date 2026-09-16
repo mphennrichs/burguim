@@ -281,7 +281,7 @@ export const MenuPage: React.FC = () => {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      showToast.error('Image size must be under 5MB');
+      showToast.error('A imagem deve ter no máximo 5MB');
       return;
     }
 
@@ -293,10 +293,10 @@ export const MenuPage: React.FC = () => {
         image: fileUrl,
         image_name: file.name,
       }));
-      showToast.success('Image uploaded successfully');
+      showToast.success('Imagem enviada com sucesso');
     } catch (err: any) {
       console.error('Failed to upload image', err);
-      showToast.error(`Failed to upload image: ${err.message || 'Server error'}`);
+      showToast.error(`Falha ao enviar imagem: ${err.message || 'Erro no servidor'}`);
       e.target.value = '';
     } finally {
       setUploadingImage(false);
@@ -342,7 +342,7 @@ export const MenuPage: React.FC = () => {
     // Ensure image is a valid URL and not raw base64 data
     const sanitizedImage = newItem.image ? newItem.image.trim() : '';
     if (sanitizedImage.startsWith('data:') || sanitizedImage.startsWith('blob:')) {
-      showToast.error('Invalid image data. Please upload the image again.');
+      showToast.error('Dados de imagem inválidos. Envie a imagem novamente.');
       return;
     }
 
@@ -371,7 +371,7 @@ export const MenuPage: React.FC = () => {
         const menuDoc = res.message || res;
         const rowIndex = menuDoc.items.findIndex((row: any) => row.name === editingItem.name);
         if (rowIndex === -1) {
-          showToast.error('Could not find the item to update');
+          showToast.error('Não foi possível encontrar o item para atualizar');
           return;
         }
         menuDoc.items[rowIndex].item_name = newItem.item_name;
@@ -453,13 +453,13 @@ export const MenuPage: React.FC = () => {
         creatingItemForRowIndex === null ? fetchMenuItems(selectedMenu) : Promise.resolve(),
       ]);
 
-      showToast.success('Item saved');
+      showToast.success('Item salvo');
       if (creatingItemForRowIndex === null) {
         closeDrawer();
       }
     } catch (err) {
       console.error('Failed to save Item', err);
-      showToast.error('Failed to save item');
+      showToast.error('Falha ao salvar o item');
     } finally {
       setSavingItem(false);
     }
@@ -468,13 +468,13 @@ export const MenuPage: React.FC = () => {
   const handleSaveMenu = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMenu.menu_name || !newMenu.branch) {
-      showToast.error('Menu Name and Branch are required fields');
+      showToast.error('Nome do Menu e Filial são obrigatórios');
       return;
     }
 
     const validRows = newMenuRows.filter(r => r.item);
     if (validRows.length === 0) {
-      showToast.error('Please add at least one item to the menu');
+      showToast.error('Adicione pelo menos um item ao menu');
       return;
     }
 
@@ -502,18 +502,18 @@ export const MenuPage: React.FC = () => {
       });
       await fetchMenus();
       setSelectedMenu(createdMenuName);
-      showToast.success('Menu saved');
+      showToast.success('Menu salvo');
       closeDrawer();
     } catch (err) {
       console.error('Failed to create URY Menu', err);
-      showToast.error('Failed to save menu');
+      showToast.error('Falha ao salvar o menu');
     } finally {
       setSavingMenu(false);
     }
   };
 
   const handleBulkUploadParsed = async (parsedRows: { name: string; course: string; price: number }[]) => {
-    showToast.info('Processing uploaded items...');
+    showToast.info('Processando itens enviados...');
     const resolvedRows: MenuItemRow[] = [];
     let updatedAllItems = [...allItems];
     let createdCount = 0;
@@ -595,13 +595,13 @@ export const MenuPage: React.FC = () => {
       setNewMenuRows([...cleanedInitialRows, ...resolvedRows]);
       
       if (createdCount > 0) {
-        showToast.success(`Successfully processed ${parsedRows.length} items (${createdCount} new items created).`);
+        showToast.success(`${parsedRows.length} itens processados com sucesso (${createdCount} novos itens criados).`);
       } else {
-        showToast.success(`Successfully processed ${parsedRows.length} items.`);
+        showToast.success(`${parsedRows.length} itens processados com sucesso.`);
       }
     } catch (err) {
       console.error('Error processing bulk upload', err);
-      showToast.error('Failed to process some uploaded items');
+      showToast.error('Falha ao processar alguns itens enviados');
     }
   };
 
@@ -619,7 +619,7 @@ export const MenuPage: React.FC = () => {
         },
       });
       await fetchCourses();
-      showToast.success('Course saved');
+      showToast.success('Categoria salva');
       if (returnToAddItemFromCourse) {
         setNewItem(prev => ({ ...prev, course: createdCourse }));
         setReturnToAddItemFromCourse(false);
@@ -629,7 +629,7 @@ export const MenuPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to create Course', err);
-      showToast.error('Failed to save course');
+      showToast.error('Falha ao salvar a categoria');
     } finally {
       setSavingCourse(false);
     }
@@ -650,10 +650,10 @@ export const MenuPage: React.FC = () => {
 
 
   const drawerTitle =
-    drawerMode === 'add-item' ? 'Add Menu Item'
-    : drawerMode === 'edit-item' ? 'Edit Menu Item'
-    : drawerMode === 'add-menu' ? 'Add New Menu'
-    : drawerMode === 'add-course' ? 'Add New Course'
+    drawerMode === 'add-item' ? 'Adicionar Item ao Menu'
+    : drawerMode === 'edit-item' ? 'Editar Item do Menu'
+    : drawerMode === 'add-menu' ? 'Adicionar Novo Menu'
+    : drawerMode === 'add-course' ? 'Adicionar Nova Categoria'
     : '';
 
   return (
@@ -667,10 +667,10 @@ export const MenuPage: React.FC = () => {
               id="selected-menu"
               value={selectedMenu}
               options={[
-                { value: 'all', label: 'All Menu Items' },
+                { value: 'all', label: 'Todos os Itens do Menu' },
                 ...menus.map((m) => ({ value: m.name, label: m.menu_name || m.name }))
               ]}
-              placeholder="Select Menu..."
+              placeholder="Selecionar Menu..."
               onChange={(_, val) => setSelectedMenu(val)}
             />
           </div>
@@ -680,10 +680,10 @@ export const MenuPage: React.FC = () => {
               id="category-filter"
               value={categoryFilter}
               options={[
-                { value: 'all', label: 'All Courses' },
+                { value: 'all', label: 'Todas as Categorias' },
                 ...categories.map((c) => ({ value: c, label: c }))
               ]}
-              placeholder="Select Course..."
+              placeholder="Selecionar Categoria..."
               onChange={(_, val) => setCategoryFilter(val)}
             />
           </div>
@@ -709,7 +709,7 @@ export const MenuPage: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search items..."
+              placeholder="Buscar itens..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 bg-gray-50 border-gray-200 w-full"
@@ -722,7 +722,7 @@ export const MenuPage: React.FC = () => {
             className="border-gray-300 text-gray-700 font-semibold flex items-center gap-1.5 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Course</span>
+            <span>Adicionar Categoria</span>
           </Button>
 
           <Button
@@ -731,7 +731,7 @@ export const MenuPage: React.FC = () => {
             className="border-gray-300 text-gray-700 font-semibold flex items-center gap-1.5 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Menu</span>
+            <span>Adicionar Menu</span>
           </Button>
 
           <Button
@@ -740,7 +740,7 @@ export const MenuPage: React.FC = () => {
             className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center gap-1.5 shadow-xs whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Item</span>
+            <span>Adicionar Item</span>
           </Button>
         </div>
       </div>
@@ -755,11 +755,11 @@ export const MenuPage: React.FC = () => {
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-5">
             <Utensils className="w-8 h-8 text-primary" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No Items Found</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhum Item Encontrado</h3>
           <p className="text-gray-500 mb-8 max-w-sm">
             {search || categoryFilter !== 'all'
-              ? "We couldn't find any items matching your filters."
-              : 'Your menu is empty. Start adding delicious items for your customers!'}
+              ? 'Não encontramos itens que correspondam aos seus filtros.'
+              : 'Seu cardápio está vazio. Comece adicionando itens deliciosos para seus clientes!'}
           </p>
           <Button
             onClick={openAddItemDrawer}
@@ -767,7 +767,7 @@ export const MenuPage: React.FC = () => {
             className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center gap-1.5 shadow-xs px-6"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Menu Item</span>
+            <span>Adicionar Item ao Menu</span>
           </Button>
         </Card>
       ) : viewMode === 'grid' ? (
@@ -784,7 +784,7 @@ export const MenuPage: React.FC = () => {
                     alt={item.item_name}
                     className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => setPreviewImageUrl(getItemImage(item) || null)}
-                    title="Click to preview image"
+                    title="Clique para ver a imagem"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center text-2xl text-gray-400 font-medium select-none">
@@ -816,7 +816,7 @@ export const MenuPage: React.FC = () => {
                   <button
                     onClick={(e) => { e.stopPropagation(); openEditItemDrawer(item); }}
                     className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-md transition-colors -mr-1.5 -mb-1.5"
-                    title="Edit Item"
+                    title="Editar Item"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -830,13 +830,13 @@ export const MenuPage: React.FC = () => {
           <table className="w-full text-left text-sm text-gray-600 min-w-[600px]">
             <thead className="bg-gray-50/80 border-b border-gray-100 text-xs uppercase text-gray-500 font-bold tracking-wider">
               <tr>
-                <th className="px-6 py-4">Item Name</th>
-                <th className="px-6 py-4">Course</th>
-                <th className="px-6 py-4">Standard Rate</th>
-                <th className="px-6 py-4 text-center">Special</th>
-                <th className="px-6 py-4 text-center">Disabled</th>
-                <th className="px-6 py-4 text-center">Sold Out</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">Nome do Item</th>
+                <th className="px-6 py-4">Categoria</th>
+                <th className="px-6 py-4">Preço Padrão</th>
+                <th className="px-6 py-4 text-center">Especial</th>
+                <th className="px-6 py-4 text-center">Desativado</th>
+                <th className="px-6 py-4 text-center">Esgotado</th>
+                <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -851,7 +851,7 @@ export const MenuPage: React.FC = () => {
                             alt={item.item_name}
                             className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => setPreviewImageUrl(getItemImage(item) || null)}
-                            title="Click to preview image"
+                            title="Clique para ver a imagem"
                           />
                         ) : (
                           <Utensils className="w-4 h-4 text-gray-400" />
@@ -862,7 +862,7 @@ export const MenuPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant="outline" className="border-gray-200 bg-gray-50 text-gray-600 text-xs font-medium">
-                      {item.course || 'None'}
+                      {item.course || '—'}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 font-bold text-primary">{formatCurrency(item.rate || 0)}</td>
@@ -910,7 +910,7 @@ export const MenuPage: React.FC = () => {
         <form onSubmit={handleSaveItem} className="space-y-5 text-sm">
           {creatingItemForRowIndex === null && (
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Target Menu <span className="text-red-500">*</span></label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Menu de Destino <span className="text-red-500">*</span></label>
               <SearchableSelect
                 id="target_menu"
                 value={newItem.target_menu}
@@ -924,7 +924,7 @@ export const MenuPage: React.FC = () => {
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <label className="block font-semibold text-gray-700 mb-1.5">
-                Item Name <span className="text-red-500">*</span>
+                Nome do Item <span className="text-red-500">*</span>
               </label>
               <Input
                 value={newItem.item_name}
@@ -949,7 +949,7 @@ export const MenuPage: React.FC = () => {
                     type="button"
                     onClick={() => setNewItem(prev => ({ ...prev, image: '', image_name: '' }))}
                     className="p-0.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200/60 transition-colors shrink-0"
-                    title="Remove image"
+                    title="Remover imagem"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -957,9 +957,9 @@ export const MenuPage: React.FC = () => {
               ) : (
                 <label
                   className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-gray-600 hover:text-primary cursor-pointer transition-colors rounded-md hover:bg-primary/5 focus-within:ring-2 focus-within:ring-primary/20 shrink-0 group ${uploadingImage ? 'pointer-events-none opacity-60' : ''}`}
-                  title="Upload Image"
+                  title="Enviar Imagem"
                 >
-                  <span>{uploadingImage ? 'Uploading...' : 'Upload Image'}</span>
+                  <span>{uploadingImage ? 'Enviando...' : 'Enviar Imagem'}</span>
                   {uploadingImage ? (
                     <Spinner className="w-3.5 h-3.5 text-primary shrink-0" />
                   ) : (
@@ -992,7 +992,7 @@ export const MenuPage: React.FC = () => {
 
           {/* Course field */}
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Course</label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Categoria</label>
             <SearchableSelect
               id="course"
               value={newItem.course}
@@ -1004,15 +1004,15 @@ export const MenuPage: React.FC = () => {
                 }
               }}
               options={[
-                { value: '', label: 'None' },
+                { value: '', label: 'Nenhuma' },
                 ...availableCourses.map(c => ({ value: c.name, label: c.name })),
-                { value: 'CREATE_NEW_COURSE', label: '+ Create New Course' }
+                { value: 'CREATE_NEW_COURSE', label: '+ Criar Nova Categoria' }
               ]}
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Standard Rate (₹) <span className="text-red-500">*</span></label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Preço Padrão <span className="text-red-500">*</span></label>
             <Input
               type="number"
               value={newItem.rate}
@@ -1033,7 +1033,7 @@ export const MenuPage: React.FC = () => {
                 />
                 <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
               </div>
-              <span className="text-sm font-medium text-gray-700">Special Dish</span>
+              <span className="text-sm font-medium text-gray-700">Prato Especial</span>
             </label>
             
             <label className="flex items-center gap-3 cursor-pointer">
@@ -1046,7 +1046,7 @@ export const MenuPage: React.FC = () => {
                 />
                 <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
               </div>
-              <span className="text-sm font-medium text-gray-700">Disabled</span>
+              <span className="text-sm font-medium text-gray-700">Desativado</span>
             </label>
 
             <label className="flex items-center gap-3 cursor-pointer">
@@ -1059,14 +1059,14 @@ export const MenuPage: React.FC = () => {
                 />
                 <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
               </div>
-              <span className="text-sm font-medium text-gray-700">Sold Out</span>
+              <span className="text-sm font-medium text-gray-700">Esgotado</span>
             </label>
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t mt-8 border-gray-100">
-            <Button type="button" variant="outline" onClick={closeDrawer} className="font-semibold" disabled={savingItem}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={closeDrawer} className="font-semibold" disabled={savingItem}>Cancelar</Button>
             <Button type="submit" disabled={savingItem} className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs flex items-center gap-2">
-              {editingItem ? 'Save Changes' : 'Create Item'}
+              {editingItem ? 'Salvar Alterações' : 'Criar Item'}
             </Button>
           </div>
         </form>
@@ -1076,11 +1076,11 @@ export const MenuPage: React.FC = () => {
       <SideDrawer
         isOpen={drawerMode === 'add-menu'}
         onClose={closeDrawer}
-        title="Add New Menu"
+        title="Adicionar Novo Menu"
       >
         <form onSubmit={handleSaveMenu} className="space-y-5 text-sm">
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Menu Name <span className="text-red-500">*</span></label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Nome do Menu <span className="text-red-500">*</span></label>
             <Input
               value={newMenu.menu_name}
               onChange={(e) => setNewMenu({ ...newMenu, menu_name: e.target.value })}
@@ -1090,13 +1090,13 @@ export const MenuPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Branch <span className="text-red-500">*</span></label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Filial <span className="text-red-500">*</span></label>
             <SearchableSelect
               id="branch"
               value={newMenu.branch}
               onChange={(_, value) => setNewMenu({ ...newMenu, branch: value })}
               options={branchOptions.map(b => ({ value: b.name, label: b.title || b.name }))}
-              placeholder="Select Branch..."
+              placeholder="Selecionar Filial..."
             />
           </div>
 
@@ -1104,10 +1104,10 @@ export const MenuPage: React.FC = () => {
           <div className="space-y-4 pt-2">
             <div className="flex flex-col">
               <label className="block font-semibold text-gray-700 text-sm">
-                Menu Items <span className="text-red-500">*</span>
+                Itens do Menu <span className="text-red-500">*</span>
               </label>
               <span className="text-xs text-gray-500 mt-0.5">
-                Add items and set custom price for this menu
+                Adicione itens e defina um preço personalizado para este menu
               </span>
             </div>
 
@@ -1115,14 +1115,14 @@ export const MenuPage: React.FC = () => {
               {/* Header Row */}
               <div className="flex gap-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 <div className="flex-[3]">Item</div>
-                <div className="flex-[1.5]">Price (₹)</div>
+                <div className="flex-[1.5]">Preço</div>
                 {newMenuRows.length > 1 && <div className="w-9 shrink-0"></div>}
               </div>
 
               {newMenuRows.map((row, index) => {
                 const options = [
                   ...allItems.map(i => ({ value: i.name, label: i.item_name || i.name })),
-                  { value: 'CREATE_NEW_ITEM', label: '+ Create New Item' }
+                  { value: 'CREATE_NEW_ITEM', label: '+ Criar Novo Item' }
                 ];
 
                 return (
@@ -1132,7 +1132,7 @@ export const MenuPage: React.FC = () => {
                         id={`row-item-${index}`}
                         value={row.item}
                         options={options}
-                        placeholder="Select Item..."
+                        placeholder="Selecionar Item..."
                         onChange={(_, value) => {
                           if (value === 'CREATE_NEW_ITEM') {
                             setCreatingItemForRowIndex(index);
@@ -1153,7 +1153,7 @@ export const MenuPage: React.FC = () => {
                           } else {
                             const isDup = newMenuRows.some((r, rIdx) => r.item === value && rIdx !== index);
                             if (isDup) {
-                              showToast.error("This item is already added to this menu");
+                              showToast.error("Este item já foi adicionado a este menu");
                               return;
                             }
                             
@@ -1198,7 +1198,7 @@ export const MenuPage: React.FC = () => {
                           setNewMenuRows(newMenuRows.filter((_, idx) => idx !== index));
                         }}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 h-auto shrink-0"
-                        title="Delete Row"
+                        title="Remover Linha"
                       >
                         <Trash2 className="w-5 h-5" />
                       </Button>
@@ -1215,7 +1215,7 @@ export const MenuPage: React.FC = () => {
               className="w-full py-2 border-dashed border-primary text-primary hover:bg-primary/5 flex items-center justify-center gap-1.5 text-xs font-semibold"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Item</span>
+              <span>Adicionar Item</span>
             </Button>
           </div>
 
@@ -1223,15 +1223,13 @@ export const MenuPage: React.FC = () => {
           <div className="pt-4 border-t border-gray-100">
             <MenuBulkUpload
               onItemsParsed={handleBulkUploadParsed}
-              title="Bulk Upload (Optional)"
-              subtitle="Import items from a CSV file"
             />
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t mt-8 border-gray-100">
-            <Button type="button" variant="outline" onClick={closeDrawer} className="font-semibold" disabled={savingMenu}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={closeDrawer} className="font-semibold" disabled={savingMenu}>Cancelar</Button>
             <Button type="submit" disabled={savingMenu} className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs flex items-center gap-2">
-              Create Menu
+              Criar Menu
             </Button>
           </div>
         </form>
@@ -1241,11 +1239,11 @@ export const MenuPage: React.FC = () => {
       <SideDrawer
         isOpen={drawerMode === 'add-course'}
         onClose={closeDrawer}
-        title="Add New Course"
+        title="Adicionar Nova Categoria"
       >
         <form onSubmit={handleSaveCourse} className="space-y-5 text-sm">
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Course Name <span className="text-red-500">*</span></label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Nome da Categoria <span className="text-red-500">*</span></label>
             <Input
               value={newCourseName}
               onChange={(e) => setNewCourseName(e.target.value)}
@@ -1255,32 +1253,32 @@ export const MenuPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">Icon</label>
+            <label className="block font-semibold text-gray-700 mb-1.5">Ícone</label>
             <SearchableSelect
               id="course-icon"
               value={newCourseIcon}
               onChange={(_, value) => setNewCourseIcon(value)}
-              placeholder="Select Icon..."
+              placeholder="Selecionar Ícone..."
               options={[
-                { value: '', label: 'None' },
-                { value: 'Utensils', label: 'Utensils' },
-                { value: 'Coffee', label: 'Coffee' },
-                { value: 'IceCream', label: 'Ice Cream' },
-                { value: 'Salad', label: 'Salad' },
+                { value: '', label: 'Nenhum' },
+                { value: 'Utensils', label: 'Talheres' },
+                { value: 'Coffee', label: 'Café' },
+                { value: 'IceCream', label: 'Sorvete' },
+                { value: 'Salad', label: 'Salada' },
                 { value: 'Pizza', label: 'Pizza' },
-                { value: 'Beef', label: 'Beef' },
-                { value: 'Fish', label: 'Fish' },
-                { value: 'Wine', label: 'Wine' },
-                { value: 'Soup', label: 'Soup' },
-                { value: 'Sandwich', label: 'Sandwich' },
+                { value: 'Beef', label: 'Carne' },
+                { value: 'Fish', label: 'Peixe' },
+                { value: 'Wine', label: 'Vinho' },
+                { value: 'Soup', label: 'Sopa' },
+                { value: 'Sandwich', label: 'Sanduíche' },
               ]}
             />
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t mt-8 border-gray-100">
-            <Button type="button" variant="outline" onClick={closeDrawer} className="font-semibold" disabled={savingCourse}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={closeDrawer} className="font-semibold" disabled={savingCourse}>Cancelar</Button>
             <Button type="submit" disabled={savingCourse} className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs flex items-center gap-2">
-              Create Course
+              Criar Categoria
             </Button>
           </div>
         </form>
@@ -1300,13 +1298,13 @@ export const MenuPage: React.FC = () => {
               type="button"
               onClick={() => setPreviewImageUrl(null)}
               className="absolute top-3 right-3 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors shadow-md z-10 cursor-pointer"
-              title="Close preview"
+              title="Fechar visualização"
             >
               <X className="w-5 h-5" />
             </button>
             <img
               src={previewImageUrl}
-              alt="Image Preview"
+              alt="Visualização da Imagem"
               className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl select-none"
             />
           </div>

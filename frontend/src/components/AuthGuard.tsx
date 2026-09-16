@@ -23,7 +23,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
           <div className="text-red-600 text-xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Acesso Negado</h2>
           <p className="text-gray-600">
-            {error || 'Faça login para acessar esta seção.'}
+            {/* Never render `error` directly - it can hold a raw (often
+                English) network/Frappe error message, e.g. from
+                useAuth.ts's err.message fallback. */}
+            {error ? 'Não foi possível verificar seu acesso. Tente novamente.' : 'Faça login para acessar esta seção.'}
           </p>
         </div>
       </div>
