@@ -1,4 +1,24 @@
+import { call } from './frappe/client';
 import { storage } from './storage';
+
+/**
+ * The site's configured default currency code (e.g. "BRL"), read from
+ * Global Defaults. Used both to seed the `currencySymbol` storage key
+ * `formatCurrency` reads, and anywhere a new doc (e.g. a Price List) needs
+ * the real currency instead of a hardcoded one.
+ */
+export async function getDefaultCurrency(): Promise<string | null> {
+  try {
+    const res = await call<any>('frappe.client.get_value', {
+      doctype: 'Global Defaults',
+      fieldname: 'default_currency',
+    });
+    return (res?.message ?? res)?.default_currency || null;
+  } catch (e) {
+    console.error('Failed to fetch default currency', e);
+    return null;
+  }
+}
 
 export function formatCurrency(amount: number): string {
   const symbol = storage.getItem('currencySymbol') || '₹';

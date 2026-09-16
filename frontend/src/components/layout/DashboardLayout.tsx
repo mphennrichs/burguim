@@ -1,11 +1,41 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+import { call, storage, getDefaultCurrency } from '@ury/core';
 import { BranchProvider } from '../../context/BranchContext';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 // import { Footer } from './Footer';
 
+// `pos` seeds the shared `currencySymbol` localStorage key itself on login
+// (see pos-store.ts's fetchCurrencySymbol); `frontend` never did, so every
+// currency display here silently fell back to formatCurrency's hardcoded
+// '₹' default regardless of the site's actual currency (confirmed live -
+// same root cause self_ordering.py and delivery_orders.py already patched
+// per-page). This is the app-wide fix those two deferred: seed it once,
+// for the whole dashboard, from the site's actual default currency.
+async function seedCurrencySymbol() {
+  if (storage.getItem('currencySymbol')) return;
+  try {
+    const currency = await getDefaultCurrency();
+    if (!currency) return;
+
+    const currencyRes = await call<any>('frappe.client.get_value', {
+      doctype: 'Currency',
+      filters: currency,
+      fieldname: 'symbol',
+    });
+    const symbol = (currencyRes?.message ?? currencyRes)?.symbol;
+    storage.setItem('currencySymbol', symbol || currency);
+  } catch (e) {
+    console.error('Failed to seed currency symbol', e);
+  }
+}
+
 export const DashboardLayout: React.FC = () => {
+  useEffect(() => {
+    seedCurrencySymbol();
+  }, []);
+
   return (
     <BranchProvider>
       <div className="h-screen flex flex-col bg-background text-foreground font-inter text-sm overflow-hidden">

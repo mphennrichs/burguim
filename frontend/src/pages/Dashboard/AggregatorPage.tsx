@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useBranchContext } from '../../context/BranchContext';
 import { Plus, Store, Edit2 } from 'lucide-react';
 import { Card, Button, Input, Spinner, showToast, Dialog, DialogContent, DialogHeader, DialogTitle } from '@ury/ui';
-import { call } from '@ury/core';
+import { call, getDefaultCurrency } from '@ury/core';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 
 interface AggregatorSetting {
@@ -119,12 +119,13 @@ export const AggregatorPage: React.FC = () => {
       });
 
       // 2. Automatically create/ensure Price List document exists
+      const priceListCurrency = (await getDefaultCurrency()) || undefined;
       await call('frappe.client.insert', {
         doc: {
           doctype: 'Price List',
           price_list_name: newAggregatorName,
           selling: 1,
-          currency: 'INR'
+          ...(priceListCurrency ? { currency: priceListCurrency } : {})
         }
       }).catch((e: any) => {
         const errorMessage = e?.message || e?.responseJSON?.message || String(e);

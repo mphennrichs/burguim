@@ -59,7 +59,8 @@ All take the shared `User` and `PosProfileCombined` types from `types.ts` (struc
 `storage` object over `localStorage`: generic `setItem`/`getItem`/`removeItem` plus `savePosProfileFull`/`getPosProfileFull` (JSON round-trip under the `pos_profile` key).
 
 ### Formatting (`format.ts`)
-- `formatCurrency(amount)` — prefixes the symbol stored under the `currencySymbol` localStorage key (apps must seed it, e.g. after loading the POS profile).
+- `formatCurrency(amount)` / `formatCompactCurrency(amount)` — prefix the symbol stored under the `currencySymbol` localStorage key (apps must seed it, e.g. after loading the POS profile — see `getDefaultCurrency()` below).
+- `getDefaultCurrency()` — async, reads Global Defaults' `default_currency` code (e.g. `"BRL"`) over `call`. Use this instead of hardcoding a currency on a new doc, and to resolve the code before looking up its `Currency.symbol` to seed `currencySymbol`.
 - `formatInvoiceTime(timestamp)` — locale time for ISO datetimes, handles bare `HH:MM:SS` strings, returns `'No bill activity yet'` for null.
 
 ### QZ-Tray printing (`print/qz.ts`)

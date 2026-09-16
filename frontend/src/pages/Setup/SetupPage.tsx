@@ -74,6 +74,7 @@ export default function SetupPage() {
             if (val === 'English') return { value: 'English', label: 'English' };
             if (val === 'العربية' || val === 'Arabic') return { value: 'Arabic', label: 'عربي' };
             if (val === 'Français' || val === 'French') return { value: 'French', label: 'français' };
+            if (val === 'Português Brasileiro') return { value: 'Português Brasileiro', label: 'português' };
             return null;
           })
           .filter(Boolean) as { value: string; label: string }[];
