@@ -14,15 +14,25 @@
 # 2. Our pre-built frontend dist is copied in AFTER `bench build`, not
 #    before. `bench build` auto-detects `ury`'s root package.json "build"
 #    script and reruns `yarn build` itself, from its OWN separate
-#    `bench get-app` clone of the `ury` repo - a plain RUN command whose
-#    Docker layer cache key has no idea that clone's content can change
-#    between builds (the git fetch happens inside the RUN, invisible to
-#    BuildKit), so it can silently reuse a stale cached rebuild from an
-#    earlier commit. Copying our verified frontend-builder output in last
-#    means it always wins, regardless of what bench build did or didn't
-#    rebuild - confirmed live: the first attempt at this (dist copied
-#    before bench build) shipped a build missing a same-day source change
-#    because of exactly this stale-cache rebuild.
+#    `bench get-app` clone of the `ury` repo. Copying our verified
+#    frontend-builder output in last means it always wins, regardless of
+#    what bench build did or didn't rebuild.
+#
+# Both of those `bench get-app` clones (this one and the `bench init` one
+# right below) happen INSIDE a RUN command's shell, invisible to BuildKit's
+# cache key - so on its own, a plain RUN can silently reuse a stale cached
+# clone from a build made before the current commit existed. The frontend
+# case above is covered by (2)'s "always overwrite" trick, but that does
+# nothing for the rest of `ury` (doctypes, api/*.py, hooks.py, ...), which
+# only ever comes from that one clone with no second chance to overwrite it.
+# Confirmed live: a build that published and looked entirely successful was
+# silently missing a same-day new doctype and API module. The actual fix for
+# that is CACHE_BUST below, which CI sets to the current commit sha on every
+# build (see docker-publish.yml) - the `: "${CACHE_BUST}"` no-op forces the
+# `bench init` RUN's cache key to change whenever it does, so the whole step
+# (and everything `bench get-app` clones inside it) reruns from scratch on
+# every commit. (2) stays anyway as a second, independent guarantee for the
+# frontend specifically, in case CACHE_BUST is ever removed or misconfigured.
 
 ARG FRAPPE_BRANCH=version-15
 ARG FRAPPE_IMAGE_PREFIX=frappe

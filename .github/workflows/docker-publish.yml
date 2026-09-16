@@ -69,6 +69,16 @@ jobs:
             frappe_docker=./frappe_docker
           secret-files: |
             apps_json=./docker/production/apps.json
+          # bench init's `bench get-app` clones erpnext/hrms/ury straight
+          # from git INSIDE the RUN command - Docker's layer cache has no
+          # idea that clone's content can change between builds (the fetch
+          # is invisible to BuildKit's cache key), so without busting it on
+          # every commit it can silently reuse a stale clone from before
+          # this commit existed. Confirmed live: a whole new doctype+API
+          # module were simply missing from a build that otherwise
+          # succeeded and published normally.
+          build-args: |
+            CACHE_BUST=${{ needs.vars.outputs.sha }}
           platforms: linux/amd64
           push: true
           tags: |
