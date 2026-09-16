@@ -24,7 +24,13 @@
 x-image: &image
   # Tag pinned by hand here, then kept current by on-image-updated.yml's sed
   # bump on every push to burguim's develop branch — see that workflow.
+  # Pin to a specific sha in the live fogolab copy (rollback = git revert,
+  # matching every other build-from-source stack) - :latest here is just
+  # this template's starting point. pull_policy matches frappe_docker's own
+  # official compose (x-customizable-image) - without it Komodo/compose only
+  # re-pulls a tag it doesn't already have cached locally.
   image: ghcr.io/mphennrichs/burguim:latest
+  pull_policy: always
   restart: unless-stopped
 
 x-backend-defaults: &backend_defaults
@@ -104,6 +110,19 @@ services:
   # requires an existing site) — no host shell access to this deploy target,
   # so `docker compose up` alone must be able to take a stack from nothing to
   # a working site.
+  #
+  # The block after `bench new-site` works around a bug seen on two separate
+  # from-scratch installs (see the burguim incident in fogolab/CLAUDE.md):
+  # `bench new-site` on this MariaDB/Frappe combo consistently scopes the new
+  # per-site DB user to THIS container's own IP instead of '%'. Every other
+  # container (backend, queue-*) then gets "Access denied ... using password:
+  # YES", which looks like a bad password but isn't — it's the host-match
+  # stage rejecting them before the password is even checked. Widen it here,
+  # once, right after creation, so no manual fix is needed afterward. NOTE the
+  # doubled `$$` on the shell-local vars (DB_USER, CUR_HOST) — a single `$`
+  # here gets swallowed by Compose's OWN variable interpolation (silently
+  # substituted with an empty string) before the shell ever sees it, same as
+  # every other var in this file.
   create-site:
     <<: *backend_defaults
     container_name: burguim-create-site
@@ -125,6 +144,12 @@ services:
           --install-app hrms \
           --install-app ury \
           --set-default;
+        DB_USER=$$(python3 -c "import json; print(json.load(open('sites/$$SITE_NAME/site_config.json'))['db_name'])");
+        CUR_HOST=$$(mariadb -h burguim-db -uroot -p"$$DB_PASSWORD" -N -e "SELECT Host FROM mysql.user WHERE User='$$DB_USER' AND Host != '%' LIMIT 1;" 2>/dev/null);
+        if [ -n "$$CUR_HOST" ]; then
+          mariadb -h burguim-db -uroot -p"$$DB_PASSWORD" -e "RENAME USER '$$DB_USER'@'$$CUR_HOST' TO '$$DB_USER'@'%'; FLUSH PRIVILEGES;";
+          echo "[create-site] widened DB user host scope from $$CUR_HOST to %";
+        fi;
     environment:
       SITE_NAME: ${SITE_NAME}
       DB_PASSWORD: ${DB_PASSWORD}
