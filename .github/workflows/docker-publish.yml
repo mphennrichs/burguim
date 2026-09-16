@@ -12,6 +12,7 @@ on:
       - '**/*.md'
       - 'docs/**'
       - 'LICENSE'
+      - 'infra/**'
 
 env:
   REGISTRY: ghcr.io
