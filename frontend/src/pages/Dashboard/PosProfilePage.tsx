@@ -3,7 +3,7 @@ import { useBranchContext } from '../../context/BranchContext';
 import { Printer, Shield, Settings2, Plus, X, ArrowLeft, Edit2, Eye, Layers, Save } from 'lucide-react';
 import { Card, Button, Badge, Input, Spinner, showToast } from '@ury/ui';
 import { Switch } from '../../components/ui/switch';
-import { call } from '@ury/core';
+import { call, getDefaultSellingPriceList, parseFrappeError } from '@ury/core';
 import SideDrawer from '../../components/layout/SideDrawer';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 
@@ -79,6 +79,17 @@ export const PosProfilePage: React.FC = () => {
       applicable_for_users: [{ user: '', default: 0 }],
       payments: [{ mode_of_payment: '', default: 0 }]
     });
+    // Pre-fill with the site's real default Price List (e.g. "Venda Padrão"
+    // here) rather than leaving it blank - a blank field used to silently
+    // fall back to the hardcoded English "Standard Selling" on submit,
+    // which doesn't exist on this site and made every creation fail with
+    // an opaque error. Fetched after the form resets above so it can't be
+    // clobbered by the reset if the user opens the drawer again quickly.
+    getDefaultSellingPriceList().then((priceList) => {
+      if (priceList) {
+        setAddForm((prev) => (prev.selling_price_list ? prev : { ...prev, selling_price_list: priceList }));
+      }
+    });
     setIsAddDrawerOpen(true);
   };
 
@@ -105,6 +116,11 @@ export const PosProfilePage: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     try {
+      // Safety net for the pre-fill in openAddDrawer, in case it hadn't
+      // resolved yet when the user submitted - never fall back to a
+      // hardcoded name, it doesn't exist on every site (see that comment).
+      const sellingPriceList = addForm.selling_price_list || (await getDefaultSellingPriceList()) || undefined;
+
       let defaultCurrency = '';
       let defaultCostCenter = '';
       if (addForm.company) {
@@ -146,7 +162,7 @@ export const PosProfilePage: React.FC = () => {
           company: addForm.company,
           warehouse: addForm.warehouse,
           branch: addForm.branch || undefined,
-          selling_price_list: addForm.selling_price_list || 'Standard Selling',
+          selling_price_list: sellingPriceList,
           currency: defaultCurrency || undefined,
           cost_center: defaultCostCenter || undefined,
           print_format: addForm.print_format || undefined,
@@ -159,7 +175,7 @@ export const PosProfilePage: React.FC = () => {
       setIsAddDrawerOpen(false);
       fetchProfiles();
     } catch (err: any) {
-      showToast.error(err.message || 'Falha ao criar Perfil de PDV');
+      showToast.error(parseFrappeError(err, 'Falha ao criar Perfil de PDV'));
     } finally {
       setSaving(false);
     }
@@ -744,7 +760,7 @@ export const PosProfilePage: React.FC = () => {
                 >
                   <td className="px-6 py-4 font-semibold text-gray-900">{p.name}</td>
                   <td className="px-6 py-4 text-gray-600">{p.warehouse || p.company || '-'}</td>
-                  <td className="px-6 py-4 text-gray-600">{p.selling_price_list || 'Standard Selling'}</td>
+                  <td className="px-6 py-4 text-gray-600">{p.selling_price_list || '—'}</td>
                   <td className="px-6 py-4">
                     <Badge variant={!p.disabled ? "success" : "outline"} size="sm">
                       {!p.disabled ? 'Ativo' : 'Inativo'}

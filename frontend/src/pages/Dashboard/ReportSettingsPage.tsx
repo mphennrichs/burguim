@@ -11,7 +11,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { Button, Input, Select, SelectItem, Card, Spinner, showToast } from '@ury/ui';
-import { call } from '@ury/core';
+import { call, getDefaultBuyingPriceList } from '@ury/core';
 import { useBranchContext } from '../../context/BranchContext';
 
 interface FixedExpenseItem {
@@ -85,7 +85,14 @@ export const ReportSettingsPage: React.FC = () => {
   const [hoursOffset, setHoursOffset] = useState<number>(4);
 
   // Section 2: Cost Configuration
-  const [buyingPriceList, setBuyingPriceList] = useState<string>('Standard Buying');
+  // Never hardcode "Standard Buying" as the actual default - ERPNext's own
+  // regional setup can create the real default Buying Price List under a
+  // localized name instead (confirmed live: this site's is "Compra
+  // Padrão"), and saving a name that doesn't exist fails with an opaque
+  // LinkValidationError. `defaultBuyingPriceList` is resolved once below
+  // and used everywhere this used to fall back to the hardcoded name.
+  const [buyingPriceList, setBuyingPriceList] = useState<string>('');
+  const [defaultBuyingPriceList, setDefaultBuyingPriceList] = useState<string>('');
   const [depreciation, setDepreciation] = useState<number>(5.0);
   const [electricityCharges, setElectricityCharges] = useState<number>(1200.0);
 
@@ -128,7 +135,7 @@ export const ReportSettingsPage: React.FC = () => {
         // Populate form from fetched data
         setExtendedHours(settings.extended_hours || false);
         setHoursOffset(settings.hours || 4);
-        setBuyingPriceList(settings.buying_price_list || 'Standard Buying');
+        setBuyingPriceList(settings.buying_price_list || defaultBuyingPriceList);
         setDepreciation(settings.depreciation || 5.0);
         setElectricityCharges(settings.electricity_charges || 1200.0);
 
@@ -181,7 +188,7 @@ export const ReportSettingsPage: React.FC = () => {
         setReportSettingsData(null);
         setExtendedHours(false);
         setHoursOffset(4);
-        setBuyingPriceList('Standard Buying');
+        setBuyingPriceList(defaultBuyingPriceList);
         setDepreciation(5.0);
         setElectricityCharges(1200.0);
         setDirectFixedExpenses([]);
@@ -206,6 +213,14 @@ export const ReportSettingsPage: React.FC = () => {
       fetchReportSettings();
     }
   }, [activeBranchId, activeBranch]);
+
+  useEffect(() => {
+    getDefaultBuyingPriceList().then((priceList) => {
+      if (!priceList) return;
+      setDefaultBuyingPriceList(priceList);
+      setBuyingPriceList((prev) => prev || priceList);
+    });
+  }, []);
 
   // Add / Remove Handlers for Repeatable Tables
   const addDirectFixed = () => {
@@ -260,7 +275,7 @@ export const ReportSettingsPage: React.FC = () => {
       const original = {
         extended_hours: reportSettingsData.extended_hours ? 1 : 0,
         hours: reportSettingsData.hours || 4,
-        buying_price_list: reportSettingsData.buying_price_list || 'Standard Buying',
+        buying_price_list: reportSettingsData.buying_price_list || defaultBuyingPriceList,
         depreciation: parseFloat(reportSettingsData.depreciation as any) || 0,
         electricity_charges: parseFloat(reportSettingsData.electricity_charges as any) || 0,
         direct_fixed_expenses: (reportSettingsData.direct_fixed_expenses || []).map((item: any) => ({
@@ -531,7 +546,7 @@ export const ReportSettingsPage: React.FC = () => {
                       Lista de Preços de Compra
                     </label>
                     <Select value={buyingPriceList} onValueChange={(val: string) => setBuyingPriceList(val)}>
-                      <SelectItem value="Standard Buying">Compra Padrão</SelectItem>
+                      <SelectItem value={defaultBuyingPriceList || 'Standard Buying'}>Compra Padrão</SelectItem>
                       <SelectItem value="Wholesale Price List">Lista de Preços por Atacado</SelectItem>
                       <SelectItem value="Vendor Cost Basis">Base de Custo do Fornecedor</SelectItem>
                     </Select>

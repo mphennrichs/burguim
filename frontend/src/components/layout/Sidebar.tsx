@@ -109,6 +109,11 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
   const isSettingsPath = SETTINGS_ITEMS.some((item) => location.pathname.startsWith(item.path));
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(isSettingsPath);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
+  // Items render only once this resolves - hiddenKeys starts empty ("show
+  // everything"), so rendering before the fetch settles means anything the
+  // owner hid (e.g. Mesa/Sala for a delivery-only branch) flashes visible
+  // on every cold load, the same race the dashboard's currency symbol had.
+  const [hiddenKeysLoaded, setHiddenKeysLoaded] = useState(false);
 
   useEffect(() => {
     if (isSettingsPath) {
@@ -119,11 +124,12 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
   useEffect(() => {
     call<any>('ury.ury.api.sidebar_settings.get_hidden_sidebar_items')
       .then((res) => setHiddenKeys(new Set((res?.message ?? res ?? []) as string[])))
-      .catch((e) => console.error('Failed to load sidebar visibility settings', e));
+      .catch((e) => console.error('Failed to load sidebar visibility settings', e))
+      .finally(() => setHiddenKeysLoaded(true));
   }, []);
 
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key));
-  const visibleSettingsItems = SETTINGS_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key));
+  const visibleNavItems = hiddenKeysLoaded ? NAV_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key)) : [];
+  const visibleSettingsItems = hiddenKeysLoaded ? SETTINGS_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key)) : [];
 
   return (
     <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">

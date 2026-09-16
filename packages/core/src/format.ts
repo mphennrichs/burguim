@@ -20,6 +20,40 @@ export async function getDefaultCurrency(): Promise<string | null> {
   }
 }
 
+/**
+ * The site's actual default Price List names, read from Selling/Buying
+ * Settings. NEVER assume these are "Standard Selling"/"Standard Buying" -
+ * ERPNext's own regional setup can create them with a localized name
+ * instead (confirmed live: this site's are "Venda Padrão"/"Compra
+ * Padrão"), and hardcoding the English default breaks doc creation with an
+ * opaque LinkValidationError the moment a form falls back to it.
+ */
+export async function getDefaultSellingPriceList(): Promise<string | null> {
+  try {
+    const res = await call<any>('frappe.client.get_value', {
+      doctype: 'Selling Settings',
+      fieldname: 'selling_price_list',
+    });
+    return (res?.message ?? res)?.selling_price_list || null;
+  } catch (e) {
+    console.error('Failed to fetch default selling price list', e);
+    return null;
+  }
+}
+
+export async function getDefaultBuyingPriceList(): Promise<string | null> {
+  try {
+    const res = await call<any>('frappe.client.get_value', {
+      doctype: 'Buying Settings',
+      fieldname: 'buying_price_list',
+    });
+    return (res?.message ?? res)?.buying_price_list || null;
+  } catch (e) {
+    console.error('Failed to fetch default buying price list', e);
+    return null;
+  }
+}
+
 export function formatCurrency(amount: number): string {
   const symbol = storage.getItem('currencySymbol') || '₹';
   const roundedAmount = flt(amount, 2);
@@ -65,7 +99,7 @@ export function formatCompactCurrency(amount: number): string {
 }
 
 export const formatInvoiceTime = (timestamp: string | null) => {
-    if (!timestamp) return 'No bill activity yet';
+    if (!timestamp) return 'Nenhuma atividade de fatura ainda';
 
     const parsedDate = new Date(timestamp);
     if (!Number.isNaN(parsedDate.getTime())) {
