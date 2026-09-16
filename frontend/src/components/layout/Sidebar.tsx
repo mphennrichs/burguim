@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
+import { call } from '@ury/core';
 import { useAuth } from '../../store/useAuth';
 import { reportsRegistry, groupReports } from '../../pages/Reports/reportsRegistry';
 import { SidebarContainer, SidebarActiveIndicator, sidebarItemVariants, cn } from '@ury/ui';
@@ -20,10 +21,14 @@ import {
   Grid,
   Bike,
   Package,
-  Image
+  Image,
+  PanelLeft
 } from 'lucide-react';
 
 interface NavItem {
+  // Matches ury.ury.api.sidebar_settings.HIDEABLE_ITEMS - keep both in
+  // sync by hand. "dashboard" has no key: it's never hideable.
+  key?: string;
   label: string;
   path: string;
   icon: React.ElementType;
@@ -31,21 +36,23 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Pedidos de Delivery', path: '/delivery-orders', icon: Bike },
-  { label: 'Cardápio', path: '/menu', icon: UtensilsCrossed },
-  { label: 'Meu Estoque', path: '/stock', icon: Package },
-  { label: 'Mesa', path: '/table', icon: Grid3X3 },
-  { label: 'Sala', path: '/room', icon: Map },
-  { label: 'Filial', path: '/branch', icon: Building2 },
+  { key: 'delivery-orders', label: 'Pedidos de Delivery', path: '/delivery-orders', icon: Bike },
+  { key: 'menu', label: 'Cardápio', path: '/menu', icon: UtensilsCrossed },
+  { key: 'stock', label: 'Meu Estoque', path: '/stock', icon: Package },
+  { key: 'table', label: 'Mesa', path: '/table', icon: Grid3X3 },
+  { key: 'room', label: 'Sala', path: '/room', icon: Map },
+  { key: 'branch', label: 'Filial', path: '/branch', icon: Building2 },
 ];
 
 const SETTINGS_ITEMS: NavItem[] = [
-  { label: 'Identidade Visual', path: '/branding', icon: Image },
-  { label: 'Perfil POS', path: '/pos-profile', icon: SlidersHorizontal },
-  { label: 'Usuário', path: '/user', icon: Users },
-  { label: 'Agregadores', path: '/aggregator', icon: Store },
-  { label: 'Configurações de DRE Diária', path: '/report-settings', icon: FileText },
-  { label: 'Unidade de Produção', path: '/production-unit', icon: Grid }
+  { key: 'branding', label: 'Identidade Visual', path: '/branding', icon: Image },
+  { key: 'pos-profile', label: 'Perfil POS', path: '/pos-profile', icon: SlidersHorizontal },
+  { key: 'user', label: 'Usuário', path: '/user', icon: Users },
+  { key: 'aggregator', label: 'Agregadores', path: '/aggregator', icon: Store },
+  { key: 'report-settings', label: 'Configurações de DRE Diária', path: '/report-settings', icon: FileText },
+  { key: 'production-unit', label: 'Unidade de Produção', path: '/production-unit', icon: Grid },
+  // Never hideable - it's the only way to undo hiding anything else here.
+  { label: 'Menu Lateral', path: '/sidebar-settings', icon: PanelLeft },
 ];
 
 const reportGroups = groupReports(reportsRegistry);
@@ -101,12 +108,22 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
   const location = useLocation();
   const isSettingsPath = SETTINGS_ITEMS.some((item) => location.pathname.startsWith(item.path));
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(isSettingsPath);
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isSettingsPath) {
       setIsSettingsOpen(true);
     }
   }, [isSettingsPath]);
+
+  useEffect(() => {
+    call<any>('ury.ury.api.sidebar_settings.get_hidden_sidebar_items')
+      .then((res) => setHiddenKeys(new Set((res?.message ?? res ?? []) as string[])))
+      .catch((e) => console.error('Failed to load sidebar visibility settings', e));
+  }, []);
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key));
+  const visibleSettingsItems = SETTINGS_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key));
 
   return (
     <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
@@ -127,7 +144,7 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
         </NavLink>
       )}
 
-      {NAV_ITEMS.map((item) => {
+      {visibleNavItems.map((item) => {
         const Icon = item.icon;
         return (
           <NavLink
@@ -168,7 +185,7 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
 
         {isSettingsOpen && (
           <div className="mt-1 pl-4 space-y-1">
-            {SETTINGS_ITEMS.map((item) => {
+            {visibleSettingsItems.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink

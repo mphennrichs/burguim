@@ -17,6 +17,7 @@ import { ReportSettingsPage } from './pages/Dashboard/ReportSettingsPage';
 import ProductionUnitPage from './pages/Dashboard/ProductionUnitPage';
 import BrandingPage from './pages/Dashboard/BrandingPage';
 import AggregatorPage from './pages/Dashboard/AggregatorPage';
+import SidebarSettingsPage from './pages/Dashboard/SidebarSettingsPage';
 import { RoleGuard } from './components/RoleGuard';
 import { AuthGuard } from './components/AuthGuard';
 import { ReportsLayout } from './pages/Reports/ReportsLayout';
@@ -137,6 +138,7 @@ function App() {
           <Route path="production-unit" element={<ProductionUnitPage />} />
           <Route path="branding" element={<BrandingPage />} />
           <Route path="aggregator" element={<AggregatorPage />} />
+          <Route path="sidebar-settings" element={<SidebarSettingsPage />} />
 
           <Route
             path="reports/*"

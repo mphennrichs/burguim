@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { call, storage, getDefaultCurrency } from '@ury/core';
+import { Spinner } from '@ury/ui';
 import { BranchProvider } from '../../context/BranchContext';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -32,9 +33,26 @@ async function seedCurrencySymbol() {
 }
 
 export const DashboardLayout: React.FC = () => {
+  // formatCurrency() reads storage synchronously and isn't reactive, so a
+  // KPI card that renders (and calls it) before this seed resolves is stuck
+  // showing the '₹' fallback until something else happens to re-render it -
+  // confirmed live: the dashboard's own KPI cards routinely won that race on
+  // first load. Blocking here (same pattern RoleGuard already uses) means
+  // nothing under the dashboard ever calls formatCurrency before the real
+  // symbol is in storage.
+  const [currencyReady, setCurrencyReady] = useState(false);
+
   useEffect(() => {
-    seedCurrencySymbol();
+    seedCurrencySymbol().finally(() => setCurrencyReady(true));
   }, []);
+
+  if (!currencyReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <BranchProvider>
