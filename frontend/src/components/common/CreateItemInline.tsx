@@ -8,7 +8,12 @@ type Kind = 'ingredient' | 'composed';
 interface CreateItemInlineProps {
   kind: Kind;
   label: string;
-  onCreated: (item: { name: string; stock_uom: string }) => void;
+  onCreated: (item: {
+    name: string;
+    stock_uom: string;
+    shelf_life_in_days: number | null;
+    description: string | null;
+  }) => void;
 }
 
 export function CreateItemInline({ kind, label, onCreated }: CreateItemInlineProps) {
@@ -54,7 +59,12 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
         description: description.trim() || undefined,
       });
       showToast.success(`"${result.item}" criado.`);
-      onCreated({ name: result.item, stock_uom: result.stock_uom });
+      onCreated({
+        name: result.item,
+        stock_uom: result.stock_uom,
+        shelf_life_in_days: result.shelf_life_in_days,
+        description: result.description,
+      });
       setOpen(false);
       setName('');
       setDescription('');

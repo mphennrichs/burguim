@@ -176,7 +176,12 @@ def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_
     item.insert(ignore_permissions=True)
     frappe.db.commit()
 
-    return {"item": item.name, "stock_uom": item.stock_uom}
+    return {
+        "item": item.name,
+        "stock_uom": item.stock_uom,
+        "shelf_life_in_days": item.shelf_life_in_days,
+        "description": item.description,
+    }
 
 
 @frappe.whitelist()
@@ -249,6 +254,13 @@ def delete_ingredient(item_code):
         filters={"item_code": item_code, "status": ["in", _INERT_REPOST_STATUSES]},
         pluck="name",
     ):
+        # Submittable doctype - the repost queue processor submits it once
+        # picked up, so a finished one still sits at docstatus 1. delete_doc
+        # refuses a submitted record outright (force=True doesn't override
+        # that - it only relaxes the link check), so cancel first.
+        repost = frappe.get_doc("Repost Item Valuation", name)
+        if repost.docstatus == 1:
+            repost.cancel()
         frappe.delete_doc("Repost Item Valuation", name, ignore_permissions=True, force=True)
 
     try:

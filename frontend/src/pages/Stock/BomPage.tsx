@@ -100,7 +100,12 @@ export const BomPage: React.FC = () => {
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
   }
 
-  function handleIngredientCreated(item: { name: string; stock_uom: string }) {
+  function handleIngredientCreated(item: {
+    name: string;
+    stock_uom: string;
+    shelf_life_in_days: number | null;
+    description: string | null;
+  }) {
     setCandidates((prev) => [...prev, { name: item.name, item_name: item.name, stock_uom: item.stock_uom }]);
     setRows((prev) => {
       const emptyIndex = prev.findIndex((r) => !r.item_code);
@@ -109,7 +114,12 @@ export const BomPage: React.FC = () => {
     });
   }
 
-  function handleIngredientCreatedInTab(item: { name: string; stock_uom: string }) {
+  function handleIngredientCreatedInTab(item: {
+    name: string;
+    stock_uom: string;
+    shelf_life_in_days: number | null;
+    description: string | null;
+  }) {
     setCandidates((prev) => [...prev, { name: item.name, item_name: item.name, stock_uom: item.stock_uom }]);
     setIngredients((prev) => [
       ...prev,
@@ -118,8 +128,8 @@ export const BomPage: React.FC = () => {
         item_name: item.name,
         stock_uom: item.stock_uom,
         item_group: '',
-        shelf_life_in_days: null,
-        description: null,
+        shelf_life_in_days: item.shelf_life_in_days,
+        description: item.description,
       },
     ]);
   }

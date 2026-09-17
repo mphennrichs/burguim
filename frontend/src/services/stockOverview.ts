@@ -194,9 +194,19 @@ export const stockOverviewService = {
     item_group?: string;
     shelf_life_in_days?: number;
     description?: string;
-  }): Promise<{ item: string; stock_uom: string }> {
-    const res = await call<{ item: string; stock_uom: string }>('ury.ury.api.bom.create_item', params);
-    return unwrap(res, { item: '', stock_uom: params.stock_uom ?? '' });
+  }): Promise<{ item: string; stock_uom: string; shelf_life_in_days: number | null; description: string | null }> {
+    const res = await call<{
+      item: string;
+      stock_uom: string;
+      shelf_life_in_days: number | null;
+      description: string | null;
+    }>('ury.ury.api.bom.create_item', params);
+    return unwrap(res, {
+      item: '',
+      stock_uom: params.stock_uom ?? '',
+      shelf_life_in_days: params.shelf_life_in_days ?? null,
+      description: params.description ?? null,
+    });
   },
 
   async ingredients(): Promise<Ingredient[]> {
