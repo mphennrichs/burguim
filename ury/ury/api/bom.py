@@ -83,10 +83,19 @@ def get_item_groups():
     return {"groups": frappe.get_all("Item Group", filters={"is_group": 0}, pluck="name", order_by="name asc")}
 
 
+# ERPNext's global UOM catalog has 150+ entries (Megahertz, Nautical Mile,
+# ...) - useless noise for a kitchen. This is the handful an ingredient or
+# a prepared dish actually gets measured in; frontend labels each in
+# Portuguese for display, the underlying UOM name stays whatever ERPNext
+# seeded it as (never renamed - other records already reference it).
+_KITCHEN_UOMS = ["Nos", "Kg", "Gram", "Litre", "Millilitre"]
+
+
 @frappe.whitelist()
 def get_uoms():
     getBranch()
-    return {"uoms": frappe.get_all("UOM", pluck="name", order_by="name asc")}
+    existing = set(frappe.get_all("UOM", filters={"name": ["in", _KITCHEN_UOMS]}, pluck="name"))
+    return {"uoms": [u for u in _KITCHEN_UOMS if u in existing]}
 
 
 def _default_item_group(has_batch_no):
@@ -142,6 +151,56 @@ def create_item(item_name, kind, stock_uom, item_group=None, shelf_life_in_days=
     frappe.db.commit()
 
     return {"item": item.name, "stock_uom": item.stock_uom}
+
+
+@frappe.whitelist()
+def get_ingredients():
+    """Raw-material items for the "Ingredientes" management tab - fuller
+    detail (shelf life, item group) than get_bom_candidates' minimal shape
+    (name/item_name/stock_uom), which stays as-is since other code reads
+    that exact shape for the recipe picker."""
+    getBranch()
+    return {
+        "items": frappe.get_all(
+            "Item",
+            filters={"has_batch_no": 1, "disabled": 0},
+            fields=["name", "item_name", "stock_uom", "item_group", "shelf_life_in_days"],
+            order_by="item_name asc",
+        )
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def update_ingredient(item_code, shelf_life_in_days=None):
+    """Edits an ingredient's default shelf life (days until a fresh batch
+    expires) - the only field "Ingredientes" lets staff change after
+    creation. stock_uom/item_group stay fixed once set: changing a unit
+    on an item that already has purchases/batches against it would make
+    those historical quantities mean something different."""
+    getBranch()
+    item = frappe.get_doc("Item", item_code)
+    if not item.has_batch_no:
+        frappe.throw(_("Item não é um ingrediente"))
+    item.shelf_life_in_days = frappe.utils.cint(shelf_life_in_days) or None
+    item.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {"item": item.name, "shelf_life_in_days": item.shelf_life_in_days}
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_ingredient(item_code):
+    getBranch()
+    item = frappe.get_doc("Item", item_code)
+    if not item.has_batch_no:
+        frappe.throw(_("Item não é um ingrediente"))
+    try:
+        frappe.delete_doc("Item", item_code, ignore_permissions=True)
+    except frappe.LinkExistsError:
+        frappe.throw(
+            _("Não é possível excluir {0}: já foi usado em compras, produção ou receitas.").format(item.item_name)
+        )
+    frappe.db.commit()
+    return {"deleted": item_code}
 
 
 @frappe.whitelist()

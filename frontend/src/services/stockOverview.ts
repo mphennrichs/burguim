@@ -59,6 +59,14 @@ export interface BomOutputCandidateItem extends BomCandidateItem {
   has_batch_no: number;
 }
 
+export interface Ingredient {
+  name: string;
+  item_name: string;
+  stock_uom: string;
+  item_group: string;
+  shelf_life_in_days: number | null;
+}
+
 export interface BomIngredient {
   item_code: string;
   item_name: string;
@@ -186,6 +194,27 @@ export const stockOverviewService = {
   }): Promise<{ item: string; stock_uom: string }> {
     const res = await call<{ item: string; stock_uom: string }>('ury.ury.api.bom.create_item', params);
     return unwrap(res, { item: '', stock_uom: params.stock_uom });
+  },
+
+  async ingredients(): Promise<Ingredient[]> {
+    const res = await call<{ items: Ingredient[] }>('ury.ury.api.bom.get_ingredients');
+    const data = unwrap<{ items: Ingredient[] }>(res, { items: [] });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async updateIngredient(params: {
+    item_code: string;
+    shelf_life_in_days: number | null;
+  }): Promise<{ item: string; shelf_life_in_days: number | null }> {
+    const res = await call<{ item: string; shelf_life_in_days: number | null }>(
+      'ury.ury.api.bom.update_ingredient',
+      params,
+    );
+    return unwrap(res, { item: params.item_code, shelf_life_in_days: params.shelf_life_in_days });
+  },
+
+  async deleteIngredient(itemCode: string): Promise<void> {
+    await call('ury.ury.api.bom.delete_ingredient', { item_code: itemCode });
   },
 
   async boms(): Promise<Bom[]> {

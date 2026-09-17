@@ -8,17 +8,21 @@ import {
   Input,
   Select,
   Spinner,
+  DataTable,
   showToast,
+  type DataTableColumn,
 } from '@ury/ui';
+import { translateUom, parseFrappeError } from '@ury/core';
 import {
   stockOverviewService,
   type BomCandidateItem,
   type BomOutputCandidateItem,
   type Bom,
+  type Ingredient,
 } from '../../services/stockOverview';
 import { CreateItemInline } from '../../components/common/CreateItemInline';
 
-type Tab = 'receitas' | 'nova';
+type Tab = 'receitas' | 'ingredientes' | 'nova';
 
 interface IngredientRow {
   item_code: string;
@@ -35,11 +39,16 @@ export const BomPage: React.FC = () => {
   const [candidates, setCandidates] = useState<BomCandidateItem[]>([]);
   const [outputCandidates, setOutputCandidates] = useState<BomOutputCandidateItem[]>([]);
   const [boms, setBoms] = useState<Bom[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
   const [outputItem, setOutputItem] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [rows, setRows] = useState<IngredientRow[]>([emptyRow()]);
   const [submitting, setSubmitting] = useState(false);
+
+  const [shelfLifeDrafts, setShelfLifeDrafts] = useState<Record<string, string>>({});
+  const [savingIngredient, setSavingIngredient] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   function reloadAll() {
     setLoading(true);
@@ -47,11 +56,13 @@ export const BomPage: React.FC = () => {
       stockOverviewService.bomCandidates(),
       stockOverviewService.bomOutputCandidates(),
       stockOverviewService.boms(),
+      stockOverviewService.ingredients(),
     ])
-      .then(([candidateResult, outputResult, bomResult]) => {
+      .then(([candidateResult, outputResult, bomResult, ingredientResult]) => {
         setCandidates(candidateResult);
         setOutputCandidates(outputResult);
         setBoms(bomResult);
+        setIngredients(ingredientResult);
       })
       .catch(() => showToast.error('Não foi possível carregar as receitas.'))
       .finally(() => setLoading(false));
@@ -91,6 +102,14 @@ export const BomPage: React.FC = () => {
     });
   }
 
+  function handleIngredientCreatedInTab(item: { name: string; stock_uom: string }) {
+    setCandidates((prev) => [...prev, { name: item.name, item_name: item.name, stock_uom: item.stock_uom }]);
+    setIngredients((prev) => [
+      ...prev,
+      { name: item.name, item_name: item.name, stock_uom: item.stock_uom, item_group: '', shelf_life_in_days: null },
+    ]);
+  }
+
   function handleOutputCreated(item: { name: string; stock_uom: string }) {
     setOutputCandidates((prev) => [
       ...prev,
@@ -98,6 +117,103 @@ export const BomPage: React.FC = () => {
     ]);
     setOutputItem(item.name);
   }
+
+  function handleShelfLifeDraftChange(itemCode: string, value: string) {
+    setShelfLifeDrafts((prev) => ({ ...prev, [itemCode]: value }));
+  }
+
+  async function handleSaveShelfLife(itemCode: string) {
+    const draft = shelfLifeDrafts[itemCode];
+    const shelfLifeInDays = draft && draft.trim() !== '' ? Number(draft) : null;
+    setSavingIngredient(itemCode);
+    try {
+      await stockOverviewService.updateIngredient({ item_code: itemCode, shelf_life_in_days: shelfLifeInDays });
+      setIngredients((prev) =>
+        prev.map((i) => (i.name === itemCode ? { ...i, shelf_life_in_days: shelfLifeInDays } : i)),
+      );
+      showToast.success('Validade padrão atualizada.');
+    } catch {
+      showToast.error('Não foi possível salvar. Tente novamente.');
+    } finally {
+      setSavingIngredient(null);
+    }
+  }
+
+  async function handleDeleteIngredient(itemCode: string) {
+    if (confirmingDelete !== itemCode) {
+      setConfirmingDelete(itemCode);
+      return;
+    }
+    setConfirmingDelete(null);
+    setSavingIngredient(itemCode);
+    try {
+      await stockOverviewService.deleteIngredient(itemCode);
+      setIngredients((prev) => prev.filter((i) => i.name !== itemCode));
+      setCandidates((prev) => prev.filter((c) => c.name !== itemCode));
+      showToast.success('Ingrediente excluído.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível excluir o ingrediente.'));
+    } finally {
+      setSavingIngredient(null);
+    }
+  }
+
+  const ingredientColumns = useMemo<DataTableColumn<Ingredient>[]>(
+    () => [
+      {
+        key: 'item_name',
+        header: 'Ingrediente',
+        render: (i) => <span className="font-medium">{i.item_name}</span>,
+      },
+      {
+        key: 'stock_uom',
+        header: 'Unidade',
+        render: (i) => <span className="text-muted-foreground">{translateUom(i.stock_uom)}</span>,
+      },
+      {
+        key: 'shelf_life_in_days',
+        header: 'Validade padrão (dias)',
+        render: (i) => (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min="0"
+              className="w-24"
+              value={shelfLifeDrafts[i.name] ?? (i.shelf_life_in_days ?? '')}
+              onChange={(e) => handleShelfLifeDraftChange(i.name, e.target.value)}
+              placeholder="—"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={savingIngredient === i.name}
+              onClick={() => handleSaveShelfLife(i.name)}
+            >
+              Salvar
+            </Button>
+          </div>
+        ),
+      },
+      {
+        key: 'actions',
+        header: '',
+        align: 'right',
+        render: (i) => (
+          <Button
+            type="button"
+            size="sm"
+            variant={confirmingDelete === i.name ? 'danger' : 'ghost'}
+            disabled={savingIngredient === i.name}
+            onClick={() => handleDeleteIngredient(i.name)}
+          >
+            {confirmingDelete === i.name ? 'Confirmar exclusão?' : 'Excluir'}
+          </Button>
+        ),
+      },
+    ],
+    [shelfLifeDrafts, savingIngredient, confirmingDelete],
+  );
 
   function resetForm() {
     setOutputItem('');
@@ -156,6 +272,7 @@ export const BomPage: React.FC = () => {
             {(
               [
                 { id: 'receitas' as const, label: 'Receitas cadastradas' },
+                { id: 'ingredientes' as const, label: 'Ingredientes' },
                 { id: 'nova' as const, label: 'Nova receita' },
               ]
             ).map((item) => (
@@ -185,7 +302,7 @@ export const BomPage: React.FC = () => {
                     <CardHeader>
                       <CardTitle>{bom.item_name}</CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        Rende {bom.quantity} {bom.uom}
+                        Rende {bom.quantity} {translateUom(bom.uom)}
                       </p>
                     </CardHeader>
                     <CardContent>
@@ -197,7 +314,7 @@ export const BomPage: React.FC = () => {
                           >
                             <span>{ing.item_name}</span>
                             <span className="tabular-nums text-muted-foreground">
-                              {ing.qty} {ing.uom}
+                              {ing.qty} {translateUom(ing.uom)}
                             </span>
                           </li>
                         ))}
@@ -207,6 +324,25 @@ export const BomPage: React.FC = () => {
                 ))}
               </div>
             )
+          )}
+
+          {tab === 'ingredientes' && (
+            <div className="space-y-4">
+              <CreateItemInline
+                kind="ingredient"
+                label="Criar ingrediente novo"
+                onCreated={handleIngredientCreatedInTab}
+              />
+              {ingredients.length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center text-muted-foreground">
+                    Nenhum ingrediente cadastrado ainda.
+                  </CardContent>
+                </Card>
+              ) : (
+                <DataTable columns={ingredientColumns} rows={ingredients} />
+              )}
+            </div>
           )}
 
           {tab === 'nova' && (
@@ -233,7 +369,7 @@ export const BomPage: React.FC = () => {
 
                     <div className="space-y-1.5">
                       <label htmlFor="bom-quantity" className="text-sm font-medium">
-                        Rendimento {outputItem ? `(${outputCandidateByCode.get(outputItem)?.stock_uom ?? ''})` : ''}
+                        Rendimento {outputItem ? `(${translateUom(outputCandidateByCode.get(outputItem)?.stock_uom)})` : ''}
                       </label>
                       <Input
                         id="bom-quantity"
@@ -272,7 +408,7 @@ export const BomPage: React.FC = () => {
                           <div className="w-32 space-y-1.5">
                             {index === 0 && (
                               <label htmlFor={`bom-ing-qty-${index}`} className="text-xs text-muted-foreground">
-                                Quantidade {row.item_code ? `(${candidateByCode.get(row.item_code)?.stock_uom ?? ''})` : ''}
+                                Quantidade {row.item_code ? `(${translateUom(candidateByCode.get(row.item_code)?.stock_uom)})` : ''}
                               </label>
                             )}
                             <Input

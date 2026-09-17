@@ -15,7 +15,7 @@ import {
   type DataTableColumn,
   type BadgeProps,
 } from '@ury/ui';
-import { formatCurrency } from '@ury/core';
+import { formatCurrency, translateUom } from '@ury/core';
 import {
   stockOverviewService,
   type MenuCostItem,
@@ -331,7 +331,7 @@ export const StockOverviewPage: React.FC = () => {
         align: 'right',
         render: (b) => (
           <span className="tabular-nums">
-            {b.qty} {b.uom}
+            {b.qty} {translateUom(b.uom)}
           </span>
         ),
       },
@@ -464,7 +464,7 @@ export const StockOverviewPage: React.FC = () => {
                       <option value="">Selecione um ingrediente</option>
                       {purchasableItems.map((item) => (
                         <option key={item.name} value={item.name}>
-                          {item.item_name} ({item.stock_uom})
+                          {item.item_name} ({translateUom(item.stock_uom)})
                         </option>
                       ))}
                     </Select>
@@ -478,7 +478,7 @@ export const StockOverviewPage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label htmlFor="purchase-qty" className="text-sm font-medium">
-                        Quantidade {selectedItem ? `(${selectedItem.stock_uom})` : ''}
+                        Quantidade {selectedItem ? `(${translateUom(selectedItem.stock_uom)})` : ''}
                       </label>
                       <Input
                         id="purchase-qty"
@@ -492,7 +492,7 @@ export const StockOverviewPage: React.FC = () => {
                     </div>
                     <div className="space-y-1.5">
                       <label htmlFor="purchase-rate" className="text-sm font-medium">
-                        Preço pago (por {selectedItem?.stock_uom ?? 'unidade'})
+                        Preço pago (por {selectedItem ? translateUom(selectedItem.stock_uom) : 'unidade'})
                       </label>
                       <Input
                         id="purchase-rate"
@@ -571,7 +571,7 @@ export const StockOverviewPage: React.FC = () => {
                         <option value="">Selecione</option>
                         {productionItems.map((item) => (
                           <option key={item.name} value={item.name}>
-                            {item.item_name} ({item.stock_uom})
+                            {item.item_name} ({translateUom(item.stock_uom)})
                           </option>
                         ))}
                       </Select>
@@ -580,7 +580,7 @@ export const StockOverviewPage: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label htmlFor="prod-qty" className="text-sm font-medium">
-                          Quantidade produzida {selectedProdItem ? `(${selectedProdItem.stock_uom})` : ''}
+                          Quantidade produzida {selectedProdItem ? `(${translateUom(selectedProdItem.stock_uom)})` : ''}
                         </label>
                         <Input
                           id="prod-qty"

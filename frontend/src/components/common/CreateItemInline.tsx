@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select, showToast } from '@ury/ui';
+import { translateUom } from '@ury/core';
 import { stockOverviewService } from '../../services/stockOverview';
 
 type Kind = 'ingredient' | 'composed';
@@ -83,7 +84,7 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
           <Select value={uom} onChange={(e) => setUom(e.target.value)}>
             {uoms.map((u) => (
               <option key={u} value={u}>
-                {u}
+                {translateUom(u)}
               </option>
             ))}
           </Select>

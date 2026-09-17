@@ -124,3 +124,21 @@ export const formatInvoiceTime = (timestamp: string | null) => {
 
     return timestamp;
   };
+
+// ERPNext's UOM master data is seeded in English (Kg, Litre, Nos...) and
+// never renamed here - other records already reference those exact names,
+// and renaming a master record would ripple through every one of them.
+// This only relabels the handful actually used in this app for display,
+// falling back to the raw name for anything not in the map.
+const UOM_LABELS: Record<string, string> = {
+  Nos: 'Unidade',
+  Kg: 'Kg',
+  Gram: 'Grama',
+  Litre: 'Litro',
+  Millilitre: 'Mililitro',
+};
+
+export function translateUom(uom: string | null | undefined): string {
+  if (!uom) return '';
+  return UOM_LABELS[uom] ?? uom;
+}
