@@ -24,6 +24,7 @@ import {
   type ProductionItem,
 } from '../../services/stockOverview';
 import { Switch } from '../../components/ui/switch';
+import { CreateItemInline } from '../../components/common/CreateItemInline';
 
 type Tab = 'custos' | 'validade' | 'comprar' | 'produzir' | 'config';
 
@@ -136,6 +137,14 @@ export const StockOverviewPage: React.FC = () => {
           ? addDaysIso(prev.purchase_date, item.shelf_life_in_days)
           : '',
     }));
+  }
+
+  function handleIngredientCreated(item: { name: string; stock_uom: string }) {
+    setPurchasableItems((prev) => [
+      ...prev,
+      { name: item.name, item_name: item.name, stock_uom: item.stock_uom, shelf_life_in_days: null, last_buying_rate: null },
+    ]);
+    handleItemChange(item.name);
   }
 
   function handlePurchaseDateChange(dateIso: string) {
@@ -409,7 +418,7 @@ export const StockOverviewPage: React.FC = () => {
                   <span className="font-medium">
                     {itemsMissingCost.map((i) => i.item_name).join(', ')}
                   </span>
-                  . Cadastre a BOM ou o preço de compra no Frappe Desk para ver o custo aqui.
+                  . Cadastre a receita em &quot;Receitas (BOM)&quot; ou registre uma compra com preço para ver o custo aqui.
                 </div>
               )}
               {menuItems.length === 0 ? (
@@ -459,6 +468,11 @@ export const StockOverviewPage: React.FC = () => {
                         </option>
                       ))}
                     </Select>
+                    <CreateItemInline
+                      kind="ingredient"
+                      label="Criar ingrediente novo"
+                      onCreated={handleIngredientCreated}
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -540,8 +554,8 @@ export const StockOverviewPage: React.FC = () => {
                 </p>
                 {productionItems.length === 0 ? (
                   <div className="rounded-md bg-orange-50 border border-orange-200 p-3 text-sm text-orange-800">
-                    Nenhum item com receita própria cadastrada ainda. Cadastre uma BOM no Frappe Desk pra um
-                    item (ex: um molho ou preparo feito com antecedência) pra ele aparecer aqui.
+                    Nenhum item com receita própria cadastrada ainda. Cadastre uma receita em &quot;Receitas
+                    (BOM)&quot; pra um item (ex: um molho ou preparo feito com antecedência) pra ele aparecer aqui.
                   </div>
                 ) : (
                   <form className="space-y-4" onSubmit={handleSubmitProduction}>

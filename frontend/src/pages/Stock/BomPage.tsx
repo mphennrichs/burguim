@@ -10,7 +10,13 @@ import {
   Spinner,
   showToast,
 } from '@ury/ui';
-import { stockOverviewService, type BomCandidateItem, type Bom } from '../../services/stockOverview';
+import {
+  stockOverviewService,
+  type BomCandidateItem,
+  type BomOutputCandidateItem,
+  type Bom,
+} from '../../services/stockOverview';
+import { CreateItemInline } from '../../components/common/CreateItemInline';
 
 type Tab = 'receitas' | 'nova';
 
@@ -27,6 +33,7 @@ export const BomPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('receitas');
   const [loading, setLoading] = useState(true);
   const [candidates, setCandidates] = useState<BomCandidateItem[]>([]);
+  const [outputCandidates, setOutputCandidates] = useState<BomOutputCandidateItem[]>([]);
   const [boms, setBoms] = useState<Bom[]>([]);
 
   const [outputItem, setOutputItem] = useState('');
@@ -36,9 +43,14 @@ export const BomPage: React.FC = () => {
 
   function reloadAll() {
     setLoading(true);
-    return Promise.all([stockOverviewService.bomCandidates(), stockOverviewService.boms()])
-      .then(([candidateResult, bomResult]) => {
+    return Promise.all([
+      stockOverviewService.bomCandidates(),
+      stockOverviewService.bomOutputCandidates(),
+      stockOverviewService.boms(),
+    ])
+      .then(([candidateResult, outputResult, bomResult]) => {
         setCandidates(candidateResult);
+        setOutputCandidates(outputResult);
         setBoms(bomResult);
       })
       .catch(() => showToast.error('Não foi possível carregar as receitas.'))
@@ -53,6 +65,10 @@ export const BomPage: React.FC = () => {
     () => new Map(candidates.map((c) => [c.name, c])),
     [candidates],
   );
+  const outputCandidateByCode = useMemo(
+    () => new Map(outputCandidates.map((c) => [c.name, c])),
+    [outputCandidates],
+  );
 
   function updateRow(index: number, patch: Partial<IngredientRow>) {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
@@ -64,6 +80,23 @@ export const BomPage: React.FC = () => {
 
   function removeRow(index: number) {
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+  }
+
+  function handleIngredientCreated(item: { name: string; stock_uom: string }) {
+    setCandidates((prev) => [...prev, { name: item.name, item_name: item.name, stock_uom: item.stock_uom }]);
+    setRows((prev) => {
+      const emptyIndex = prev.findIndex((r) => !r.item_code);
+      if (emptyIndex === -1) return [...prev, { item_code: item.name, qty: '' }];
+      return prev.map((r, i) => (i === emptyIndex ? { ...r, item_code: item.name } : r));
+    });
+  }
+
+  function handleOutputCreated(item: { name: string; stock_uom: string }) {
+    setOutputCandidates((prev) => [
+      ...prev,
+      { name: item.name, item_name: item.name, stock_uom: item.stock_uom, has_batch_no: 0 },
+    ]);
+    setOutputItem(item.name);
   }
 
   function resetForm() {
@@ -177,14 +210,6 @@ export const BomPage: React.FC = () => {
           )}
 
           {tab === 'nova' && (
-            candidates.length === 0 ? (
-              <Card>
-                <CardContent className="py-10 text-center text-muted-foreground">
-                  Nenhum item com controle de lote/validade cadastrado ainda. Cadastre um item com
-                  &quot;controla lote/validade&quot; ativado no Frappe Desk antes de criar uma receita.
-                </CardContent>
-              </Card>
-            ) : (
               <Card className="max-w-2xl">
                 <CardHeader>
                   <CardTitle>Nova receita</CardTitle>
@@ -197,17 +222,18 @@ export const BomPage: React.FC = () => {
                       </label>
                       <Select id="bom-output" value={outputItem} onChange={(e) => setOutputItem(e.target.value)}>
                         <option value="">Selecione um item</option>
-                        {candidates.map((item) => (
+                        {outputCandidates.map((item) => (
                           <option key={item.name} value={item.name}>
                             {item.item_name}
                           </option>
                         ))}
                       </Select>
+                      <CreateItemInline kind="composed" label="Criar item novo" onCreated={handleOutputCreated} />
                     </div>
 
                     <div className="space-y-1.5">
                       <label htmlFor="bom-quantity" className="text-sm font-medium">
-                        Rendimento {outputItem ? `(${candidateByCode.get(outputItem)?.stock_uom ?? ''})` : ''}
+                        Rendimento {outputItem ? `(${outputCandidateByCode.get(outputItem)?.stock_uom ?? ''})` : ''}
                       </label>
                       <Input
                         id="bom-quantity"
@@ -271,9 +297,16 @@ export const BomPage: React.FC = () => {
                           </Button>
                         </div>
                       ))}
-                      <Button type="button" variant="outline" size="sm" onClick={addRow}>
-                        + Adicionar ingrediente
-                      </Button>
+                      <div className="flex items-center gap-4">
+                        <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                          + Adicionar ingrediente
+                        </Button>
+                        <CreateItemInline
+                          kind="ingredient"
+                          label="Criar ingrediente novo"
+                          onCreated={handleIngredientCreated}
+                        />
+                      </div>
                     </div>
 
                     <Button type="submit" disabled={submitting} className="w-full">
@@ -282,7 +315,6 @@ export const BomPage: React.FC = () => {
                   </form>
                 </CardContent>
               </Card>
-            )
           )}
         </>
       )}

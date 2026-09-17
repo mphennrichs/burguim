@@ -55,6 +55,10 @@ export interface BomCandidateItem {
   stock_uom: string;
 }
 
+export interface BomOutputCandidateItem extends BomCandidateItem {
+  has_batch_no: number;
+}
+
 export interface BomIngredient {
   item_code: string;
   item_name: string;
@@ -153,6 +157,35 @@ export const stockOverviewService = {
     const res = await call<{ items: BomCandidateItem[] }>('ury.ury.api.bom.get_bom_candidates');
     const data = unwrap<{ items: BomCandidateItem[] }>(res, { items: [] });
     return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async bomOutputCandidates(): Promise<BomOutputCandidateItem[]> {
+    const res = await call<{ items: BomOutputCandidateItem[] }>('ury.ury.api.bom.get_bom_output_candidates');
+    const data = unwrap<{ items: BomOutputCandidateItem[] }>(res, { items: [] });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async itemGroups(): Promise<string[]> {
+    const res = await call<{ groups: string[] }>('ury.ury.api.bom.get_item_groups');
+    const data = unwrap<{ groups: string[] }>(res, { groups: [] });
+    return Array.isArray(data.groups) ? data.groups : [];
+  },
+
+  async uoms(): Promise<string[]> {
+    const res = await call<{ uoms: string[] }>('ury.ury.api.bom.get_uoms');
+    const data = unwrap<{ uoms: string[] }>(res, { uoms: [] });
+    return Array.isArray(data.uoms) ? data.uoms : [];
+  },
+
+  async createItem(params: {
+    item_name: string;
+    kind: 'ingredient' | 'composed';
+    stock_uom: string;
+    item_group?: string;
+    shelf_life_in_days?: number;
+  }): Promise<{ item: string; stock_uom: string }> {
+    const res = await call<{ item: string; stock_uom: string }>('ury.ury.api.bom.create_item', params);
+    return unwrap(res, { item: '', stock_uom: params.stock_uom });
   },
 
   async boms(): Promise<Bom[]> {
