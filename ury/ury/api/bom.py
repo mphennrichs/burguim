@@ -196,6 +196,10 @@ def delete_ingredient(item_code):
     try:
         frappe.delete_doc("Item", item_code, ignore_permissions=True)
     except frappe.LinkExistsError:
+        # delete_doc's own link check already pushed its verbose message
+        # onto the response's message log before raising - clear it first
+        # or the client concatenates both instead of showing just this one.
+        frappe.clear_messages()
         frappe.throw(
             _("Não é possível excluir {0}: já foi usado em compras, produção ou receitas.").format(item.item_name)
         )
