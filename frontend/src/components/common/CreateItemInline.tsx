@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Select, showToast } from '@ury/ui';
-import { translateUom } from '@ury/core';
+import { Button, Input, Select, Textarea, showToast } from '@ury/ui';
+import { translateUom, parseFrappeError } from '@ury/core';
 import { stockOverviewService } from '../../services/stockOverview';
 
 type Kind = 'ingredient' | 'composed';
@@ -16,26 +16,30 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
   const [uoms, setUoms] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [uom, setUom] = useState('');
   const [group, setGroup] = useState('');
   const [shelfLife, setShelfLife] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Ingredients here are always weighed by the gram (see
+  // create_item's _DEFAULT_INGREDIENT_UOM) - only a composed/output item
+  // needs staff to pick its own unit and item group.
   useEffect(() => {
-    if (!open || uoms.length > 0) return;
+    if (kind !== 'composed' || !open || uoms.length > 0) return;
     Promise.all([stockOverviewService.uoms(), stockOverviewService.itemGroups()]).then(([u, g]) => {
       setUoms(u);
       setGroups(g);
       setUom((prev) => prev || u.find((x) => x === 'Nos') || u[0] || '');
     });
-  }, [open, uoms.length]);
+  }, [kind, open, uoms.length]);
 
   async function handleCreate() {
     if (!name.trim()) {
       showToast.error('Informe o nome do item.');
       return;
     }
-    if (!uom) {
+    if (kind === 'composed' && !uom) {
       showToast.error('Selecione uma unidade de medida.');
       return;
     }
@@ -44,17 +48,19 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
       const result = await stockOverviewService.createItem({
         item_name: name.trim(),
         kind,
-        stock_uom: uom,
-        item_group: group || undefined,
+        stock_uom: kind === 'composed' ? uom : undefined,
+        item_group: kind === 'composed' ? group || undefined : undefined,
         shelf_life_in_days: kind === 'ingredient' && shelfLife ? Number(shelfLife) : undefined,
+        description: description.trim() || undefined,
       });
       showToast.success(`"${result.item}" criado.`);
       onCreated({ name: result.item, stock_uom: result.stock_uom });
       setOpen(false);
       setName('');
+      setDescription('');
       setShelfLife('');
-    } catch {
-      showToast.error('Não foi possível criar o item. Verifique se já existe um com esse nome.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível criar o item.'));
     } finally {
       setSaving(false);
     }
@@ -79,15 +85,14 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
           <label className="text-xs font-medium text-muted-foreground">Nome</label>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Alface" autoFocus />
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Unidade</label>
-          <Select value={uom} onChange={(e) => setUom(e.target.value)}>
-            {uoms.map((u) => (
-              <option key={u} value={u}>
-                {translateUom(u)}
-              </option>
-            ))}
-          </Select>
+        <div className="col-span-2 space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Descrição (opcional)</label>
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Ex: Fornecedor, corte, observações..."
+            rows={2}
+          />
         </div>
         {kind === 'ingredient' && (
           <div className="space-y-1">
@@ -101,17 +106,31 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
             />
           </div>
         )}
-        <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Grupo (opcional)</label>
-          <Select value={group} onChange={(e) => setGroup(e.target.value)}>
-            <option value="">Automático</option>
-            {groups.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </Select>
-        </div>
+        {kind === 'composed' && (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Unidade</label>
+              <Select value={uom} onChange={(e) => setUom(e.target.value)}>
+                {uoms.map((u) => (
+                  <option key={u} value={u}>
+                    {translateUom(u)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Grupo (opcional)</label>
+              <Select value={group} onChange={(e) => setGroup(e.target.value)}>
+                <option value="">Automático</option>
+                {groups.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </>
+        )}
       </div>
       <div className="flex gap-2">
         <Button type="button" size="sm" onClick={handleCreate} disabled={saving}>

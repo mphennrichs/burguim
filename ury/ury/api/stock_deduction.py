@@ -7,15 +7,18 @@
 #
 # Burguim assembles to order: a sold item like "Classic Burguim" isn't
 # itself a stock item, it's a recipe (BOM) of parts - pão, carne, queijo,
-# molho - each tracked with its own batch/expiry. So a sold item is
-# resolved to what should actually leave stock:
+# molho - each tracked with its own batch/expiry. Recipes also nest: a
+# "Hambúrguer (pad)" sub-recipe (patinho + peito bovino) can itself be one
+# ingredient inside "Classic Burguim"'s recipe. So a sold item is resolved
+# to what should actually leave stock, recursively:
 #   - if the item itself is batch-tracked (has_batch_no=1), it was
 #     pre-produced ahead of time (e.g. a sauce made via record_production)
-#     and its own batch is decremented directly;
-#   - otherwise, if it has a default BOM, the BOM's direct ingredient rows
-#     are decremented instead (one level only - a sub-ingredient's own BOM,
-#     like Molho da Casa's, was already consumed when THAT batch was
-#     produced, so it isn't re-exploded here);
+#     and its own batch is decremented directly - even if it also has a
+#     BOM of its own, that BOM was already consumed when THAT batch was
+#     produced, so it isn't re-exploded here;
+#   - otherwise, if it has a default BOM, each ingredient row is resolved
+#     the same way in turn (so a nested sub-recipe keeps unwinding until
+#     it bottoms out at real batch-tracked items);
 #   - otherwise there's nothing to deduct (no stock model for this item).
 #
 # This is a doc_event hook, so it runs inside the SAME transaction as the
@@ -38,12 +41,18 @@ def _resolve_default_bom(item_code):
     )
 
 
-def _resolve_deductible_ingredients(item_code, sold_qty):
+def _resolve_deductible_ingredients(item_code, sold_qty, _chain=()):
     """What should actually leave stock for one sale of `item_code`, and
     how much of each - see module docstring for the pre-produced-batch
-    vs. assembled-to-order distinction."""
+    vs. assembled-to-order distinction. Recurses through nested recipes;
+    `_chain` guards against a cyclical BOM (shouldn't exist - BOM's own
+    check_recursion refuses to save one - but this must never hang the
+    checkout if one somehow does)."""
     if frappe.db.get_value("Item", item_code, "has_batch_no"):
         return [(item_code, sold_qty)]
+
+    if item_code in _chain:
+        return []
 
     bom_name = _resolve_default_bom(item_code)
     if not bom_name:
@@ -51,10 +60,10 @@ def _resolve_deductible_ingredients(item_code, sold_qty):
 
     bom = frappe.get_doc("BOM", bom_name)
     scale = sold_qty / flt(bom.quantity)
+    chain = _chain + (item_code,)
     result = []
     for bom_item in bom.items:
-        if frappe.db.get_value("Item", bom_item.item_code, "has_batch_no"):
-            result.append((bom_item.item_code, flt(bom_item.qty) * scale))
+        result.extend(_resolve_deductible_ingredients(bom_item.item_code, flt(bom_item.qty) * scale, chain))
     return result
 
 

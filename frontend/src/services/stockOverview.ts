@@ -65,6 +65,7 @@ export interface Ingredient {
   stock_uom: string;
   item_group: string;
   shelf_life_in_days: number | null;
+  description: string | null;
 }
 
 export interface BomIngredient {
@@ -80,6 +81,7 @@ export interface Bom {
   item_name: string;
   quantity: number;
   uom: string;
+  preparation_notes: string | null;
   ingredients: BomIngredient[];
 }
 
@@ -188,12 +190,13 @@ export const stockOverviewService = {
   async createItem(params: {
     item_name: string;
     kind: 'ingredient' | 'composed';
-    stock_uom: string;
+    stock_uom?: string;
     item_group?: string;
     shelf_life_in_days?: number;
+    description?: string;
   }): Promise<{ item: string; stock_uom: string }> {
     const res = await call<{ item: string; stock_uom: string }>('ury.ury.api.bom.create_item', params);
-    return unwrap(res, { item: '', stock_uom: params.stock_uom });
+    return unwrap(res, { item: '', stock_uom: params.stock_uom ?? '' });
   },
 
   async ingredients(): Promise<Ingredient[]> {
@@ -205,12 +208,17 @@ export const stockOverviewService = {
   async updateIngredient(params: {
     item_code: string;
     shelf_life_in_days: number | null;
-  }): Promise<{ item: string; shelf_life_in_days: number | null }> {
-    const res = await call<{ item: string; shelf_life_in_days: number | null }>(
+    description?: string | null;
+  }): Promise<{ item: string; shelf_life_in_days: number | null; description: string | null }> {
+    const res = await call<{ item: string; shelf_life_in_days: number | null; description: string | null }>(
       'ury.ury.api.bom.update_ingredient',
       params,
     );
-    return unwrap(res, { item: params.item_code, shelf_life_in_days: params.shelf_life_in_days });
+    return unwrap(res, {
+      item: params.item_code,
+      shelf_life_in_days: params.shelf_life_in_days,
+      description: params.description ?? null,
+    });
   },
 
   async deleteIngredient(itemCode: string): Promise<void> {
@@ -227,9 +235,24 @@ export const stockOverviewService = {
     item_code: string;
     quantity: number;
     ingredients: { item_code: string; qty: number }[];
+    preparation_notes?: string;
   }): Promise<{ bom: string }> {
     const res = await call<{ bom: string }>('ury.ury.api.bom.create_bom', params);
     return unwrap<{ bom: string }>(res, { bom: '' });
+  },
+
+  async updateBom(params: {
+    bom_name: string;
+    quantity: number;
+    ingredients: { item_code: string; qty: number }[];
+    preparation_notes?: string;
+  }): Promise<{ bom: string }> {
+    const res = await call<{ bom: string }>('ury.ury.api.bom.update_bom', params);
+    return unwrap<{ bom: string }>(res, { bom: '' });
+  },
+
+  async deleteBom(bomName: string): Promise<void> {
+    await call('ury.ury.api.bom.delete_bom', { bom_name: bomName });
   },
 
   async getStockSettings(): Promise<{ block_sale_on_insufficient_stock: boolean }> {

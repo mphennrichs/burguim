@@ -17,17 +17,32 @@ from ury.ury.api.branding import _resolve_company
 
 @frappe.whitelist()
 def get_bom_candidates():
-    """Batch-tracked items - the only ones with real stock tracking in
-    this system (see get_purchasable_items/get_production_items) - usable
-    as a BOM's ingredients."""
+    """Everything usable as a BOM's ingredient: batch-tracked items (real
+    stock/expiry - see get_purchasable_items/get_production_items) AND any
+    item that already has its own default BOM - recipes nest, e.g. a
+    "Hambúrguer (pad)" sub-recipe can be one ingredient inside another
+    recipe's own list (see ury.ury.api.stock_deduction, which unwinds this
+    same nesting recursively at sale time)."""
     getBranch()
-    items = frappe.get_all(
-        "Item",
-        filters={"has_batch_no": 1, "disabled": 0},
-        fields=["name", "item_name", "stock_uom"],
-        order_by="item_name asc",
-    )
-    return {"items": items}
+    items = {
+        item.name: item
+        for item in frappe.get_all(
+            "Item",
+            filters={"has_batch_no": 1, "disabled": 0},
+            fields=["name", "item_name", "stock_uom"],
+        )
+    }
+    composed_items = set(
+        frappe.get_all("BOM", filters={"docstatus": 1, "is_active": 1, "is_default": 1}, pluck="item")
+    ) - set(items)
+    if composed_items:
+        for item in frappe.get_all(
+            "Item",
+            filters={"name": ["in", list(composed_items)], "disabled": 0},
+            fields=["name", "item_name", "stock_uom"],
+        ):
+            items[item.name] = item
+    return {"items": sorted(items.values(), key=lambda i: i.item_name)}
 
 
 @frappe.whitelist()
@@ -120,8 +135,16 @@ def _default_item_group(has_batch_no):
     return fallback[0] if fallback else None
 
 
+# Ingredients are always weighed by the gram in this kitchen (confirmed
+# live: every real ingredient created so far - patinho moído, peito
+# bovino - uses it) - so unlike a composed/output item, staff never has
+# to think about a unit when logging one. Doesn't affect existing items;
+# only the default for a brand new one.
+_DEFAULT_INGREDIENT_UOM = "Gram"
+
+
 @frappe.whitelist(methods=["POST"])
-def create_item(item_name, kind, stock_uom, item_group=None, shelf_life_in_days=None):
+def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_days=None, description=None):
     """Creates the underlying Item for a new ingredient ("matéria-prima")
     or assembled-to-order item ("item composto"), with exactly the flags
     each needs - is_stock_item=1 always (required for the item to be
@@ -136,16 +159,19 @@ def create_item(item_name, kind, stock_uom, item_group=None, shelf_life_in_days=
     item_group = item_group or _default_item_group(has_batch_no)
     if not item_group:
         frappe.throw(_("Nenhum grupo de itens cadastrado no sistema"))
+    if kind == "composed" and not stock_uom:
+        frappe.throw(_("Selecione uma unidade de medida"))
 
     item = frappe.get_doc({
         "doctype": "Item",
         "item_code": item_name,
         "item_name": item_name,
         "item_group": item_group,
-        "stock_uom": stock_uom,
+        "stock_uom": stock_uom or _DEFAULT_INGREDIENT_UOM,
         "is_stock_item": 1,
         "has_batch_no": has_batch_no,
         "shelf_life_in_days": frappe.utils.cint(shelf_life_in_days) or None,
+        "description": description or None,
     })
     item.insert(ignore_permissions=True)
     frappe.db.commit()
@@ -156,35 +182,36 @@ def create_item(item_name, kind, stock_uom, item_group=None, shelf_life_in_days=
 @frappe.whitelist()
 def get_ingredients():
     """Raw-material items for the "Ingredientes" management tab - fuller
-    detail (shelf life, item group) than get_bom_candidates' minimal shape
-    (name/item_name/stock_uom), which stays as-is since other code reads
-    that exact shape for the recipe picker."""
+    detail (shelf life, description) than get_bom_candidates' minimal
+    shape (name/item_name/stock_uom), which stays as-is since other code
+    reads that exact shape for the recipe picker."""
     getBranch()
     return {
         "items": frappe.get_all(
             "Item",
             filters={"has_batch_no": 1, "disabled": 0},
-            fields=["name", "item_name", "stock_uom", "item_group", "shelf_life_in_days"],
+            fields=["name", "item_name", "stock_uom", "item_group", "shelf_life_in_days", "description"],
             order_by="item_name asc",
         )
     }
 
 
 @frappe.whitelist(methods=["POST"])
-def update_ingredient(item_code, shelf_life_in_days=None):
-    """Edits an ingredient's default shelf life (days until a fresh batch
-    expires) - the only field "Ingredientes" lets staff change after
-    creation. stock_uom/item_group stay fixed once set: changing a unit
-    on an item that already has purchases/batches against it would make
-    those historical quantities mean something different."""
+def update_ingredient(item_code, shelf_life_in_days=None, description=None):
+    """Edits an ingredient's default shelf life and description - the
+    fields "Ingredientes" lets staff change after creation. stock_uom/
+    item_group stay fixed once set: changing a unit on an item that
+    already has purchases/batches against it would make those historical
+    quantities mean something different."""
     getBranch()
     item = frappe.get_doc("Item", item_code)
     if not item.has_batch_no:
         frappe.throw(_("Item não é um ingrediente"))
     item.shelf_life_in_days = frappe.utils.cint(shelf_life_in_days) or None
+    item.description = description or None
     item.save(ignore_permissions=True)
     frappe.db.commit()
-    return {"item": item.name, "shelf_life_in_days": item.shelf_life_in_days}
+    return {"item": item.name, "shelf_life_in_days": item.shelf_life_in_days, "description": item.description}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -207,18 +234,41 @@ def delete_ingredient(item_code):
     return {"deleted": item_code}
 
 
+# BOM has no plain description field of its own - validate_main_item()
+# overwrites bom.description with the *output item's* description on
+# every save, so that field can't double as prep notes. Added lazily
+# (once per site, cached after) rather than via a fixtures migration,
+# since nothing else here depends on bench migrate having run.
+_PREP_NOTES_FIELD = "custom_preparation_notes"
+
+
+def _ensure_preparation_notes_field():
+    if frappe.get_meta("BOM").has_field(_PREP_NOTES_FIELD):
+        return
+    from frappe.custom.doctype.custom_field.custom_field import create_custom_field
+
+    create_custom_field("BOM", {
+        "fieldname": _PREP_NOTES_FIELD,
+        "label": "Modo de preparo",
+        "fieldtype": "Text",
+        "insert_after": "description",
+    })
+
+
 @frappe.whitelist()
 def get_boms():
     """Existing default/active recipes, with their ingredient rows, for
     the "receitas cadastradas" list."""
     getBranch()
+    _ensure_preparation_notes_field()
     boms = frappe.get_all(
         "BOM",
         filters={"docstatus": 1, "is_active": 1, "is_default": 1},
-        fields=["name", "item", "item_name", "quantity", "uom"],
+        fields=["name", "item", "item_name", "quantity", "uom", _PREP_NOTES_FIELD],
         order_by="item_name asc",
     )
     for bom in boms:
+        bom["preparation_notes"] = bom.pop(_PREP_NOTES_FIELD, None)
         bom["ingredients"] = frappe.get_all(
             "BOM Item",
             filters={"parent": bom.name},
@@ -228,15 +278,7 @@ def get_boms():
     return {"boms": boms}
 
 
-@frappe.whitelist(methods=["POST"])
-def create_bom(item_code, quantity, ingredients):
-    branch = getBranch()
-    company = _resolve_company(branch)
-
-    quantity = flt(quantity)
-    if quantity <= 0:
-        frappe.throw(_("Rendimento deve ser maior que zero"))
-
+def _build_bom_rows(item_code, ingredients):
     if isinstance(ingredients, str):
         ingredients = frappe.parse_json(ingredients)
 
@@ -250,7 +292,10 @@ def create_bom(item_code, quantity, ingredients):
         frappe.throw(_("Adicione pelo menos um ingrediente"))
     if any(row["item_code"] == item_code for row in rows):
         frappe.throw(_("Um item não pode ser ingrediente da própria receita"))
+    return rows
 
+
+def _new_bom(item_code, quantity, rows, preparation_notes, company):
     # BOM's own "Item" field requires is_stock_item=1 - a menu item created
     # via Cardápio (or before this feature existed) doesn't have it set, so
     # flip it here rather than making the owner fix it in Frappe Desk first.
@@ -269,9 +314,69 @@ def create_bom(item_code, quantity, ingredients):
         "is_default": 1,
         "with_operations": 0,
         "items": rows,
+        _PREP_NOTES_FIELD: preparation_notes or None,
     })
     bom.insert(ignore_permissions=True)
     bom.submit()
+    return bom
+
+
+@frappe.whitelist(methods=["POST"])
+def create_bom(item_code, quantity, ingredients, preparation_notes=None):
+    branch = getBranch()
+    company = _resolve_company(branch)
+    _ensure_preparation_notes_field()
+
+    quantity = flt(quantity)
+    if quantity <= 0:
+        frappe.throw(_("Rendimento deve ser maior que zero"))
+
+    rows = _build_bom_rows(item_code, ingredients)
+    bom = _new_bom(item_code, quantity, rows, preparation_notes, company)
     frappe.db.commit()
 
     return {"bom": bom.name}
+
+
+@frappe.whitelist(methods=["POST"])
+def update_bom(bom_name, quantity, ingredients, preparation_notes=None):
+    """"Editing" a submitted BOM means replacing it: cancel the old
+    version and submit a new one for the same output item, the same
+    versioning pattern ERPNext's own "New Version" button on the BOM form
+    uses - a submitted doc's child table can't just be edited in place."""
+    branch = getBranch()
+    company = _resolve_company(branch)
+    _ensure_preparation_notes_field()
+
+    quantity = flt(quantity)
+    if quantity <= 0:
+        frappe.throw(_("Rendimento deve ser maior que zero"))
+
+    old = frappe.get_doc("BOM", bom_name)
+    rows = _build_bom_rows(old.item, ingredients)
+
+    new_bom = _new_bom(old.item, quantity, rows, preparation_notes, company)
+
+    old.reload()
+    if old.docstatus == 1:
+        old.cancel()
+    frappe.db.commit()
+
+    return {"bom": new_bom.name}
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_bom(bom_name):
+    getBranch()
+    bom = frappe.get_doc("BOM", bom_name)
+    if bom.docstatus == 1:
+        bom.cancel()
+    try:
+        frappe.delete_doc("BOM", bom_name, ignore_permissions=True)
+    except frappe.LinkExistsError:
+        frappe.clear_messages()
+        frappe.throw(
+            _("Não é possível excluir a receita de {0}: já foi usada em produção.").format(bom.item_name)
+        )
+    frappe.db.commit()
+    return {"deleted": bom_name}

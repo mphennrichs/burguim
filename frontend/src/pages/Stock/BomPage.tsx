@@ -7,6 +7,7 @@ import {
   Button,
   Input,
   Select,
+  Textarea,
   Spinner,
   DataTable,
   showToast,
@@ -41,12 +42,18 @@ export const BomPage: React.FC = () => {
   const [boms, setBoms] = useState<Bom[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
+  const [editingBom, setEditingBom] = useState<Bom | null>(null);
   const [outputItem, setOutputItem] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [preparationNotes, setPreparationNotes] = useState('');
   const [rows, setRows] = useState<IngredientRow[]>([emptyRow()]);
   const [submitting, setSubmitting] = useState(false);
+  const [savingBom, setSavingBom] = useState<string | null>(null);
+  const [confirmingDeleteBom, setConfirmingDeleteBom] = useState<string | null>(null);
 
-  const [shelfLifeDrafts, setShelfLifeDrafts] = useState<Record<string, string>>({});
+  const [ingredientDrafts, setIngredientDrafts] = useState<
+    Record<string, { description: string; shelfLife: string }>
+  >({});
   const [savingIngredient, setSavingIngredient] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
@@ -106,7 +113,14 @@ export const BomPage: React.FC = () => {
     setCandidates((prev) => [...prev, { name: item.name, item_name: item.name, stock_uom: item.stock_uom }]);
     setIngredients((prev) => [
       ...prev,
-      { name: item.name, item_name: item.name, stock_uom: item.stock_uom, item_group: '', shelf_life_in_days: null },
+      {
+        name: item.name,
+        item_name: item.name,
+        stock_uom: item.stock_uom,
+        item_group: '',
+        shelf_life_in_days: null,
+        description: null,
+      },
     ]);
   }
 
@@ -118,22 +132,36 @@ export const BomPage: React.FC = () => {
     setOutputItem(item.name);
   }
 
-  function handleShelfLifeDraftChange(itemCode: string, value: string) {
-    setShelfLifeDrafts((prev) => ({ ...prev, [itemCode]: value }));
+  function handleIngredientDraftChange(itemCode: string, patch: Partial<{ description: string; shelfLife: string }>) {
+    setIngredientDrafts((prev) => ({
+      ...prev,
+      [itemCode]: { ...defaultIngredientDraft(itemCode), ...prev[itemCode], ...patch },
+    }));
   }
 
-  async function handleSaveShelfLife(itemCode: string) {
-    const draft = shelfLifeDrafts[itemCode];
-    const shelfLifeInDays = draft && draft.trim() !== '' ? Number(draft) : null;
+  function defaultIngredientDraft(itemCode: string) {
+    const ing = ingredients.find((i) => i.name === itemCode);
+    return { description: ing?.description ?? '', shelfLife: String(ing?.shelf_life_in_days ?? '') };
+  }
+
+  async function handleSaveIngredient(itemCode: string) {
+    const draft = ingredientDrafts[itemCode] ?? defaultIngredientDraft(itemCode);
+    const shelfLifeInDays = draft.shelfLife.trim() !== '' ? Number(draft.shelfLife) : null;
     setSavingIngredient(itemCode);
     try {
-      await stockOverviewService.updateIngredient({ item_code: itemCode, shelf_life_in_days: shelfLifeInDays });
+      await stockOverviewService.updateIngredient({
+        item_code: itemCode,
+        shelf_life_in_days: shelfLifeInDays,
+        description: draft.description.trim() || null,
+      });
       setIngredients((prev) =>
-        prev.map((i) => (i.name === itemCode ? { ...i, shelf_life_in_days: shelfLifeInDays } : i)),
+        prev.map((i) =>
+          i.name === itemCode ? { ...i, shelf_life_in_days: shelfLifeInDays, description: draft.description.trim() || null } : i,
+        ),
       );
-      showToast.success('Validade padrão atualizada.');
-    } catch {
-      showToast.error('Não foi possível salvar. Tente novamente.');
+      showToast.success('Ingrediente atualizado.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível salvar. Tente novamente.'));
     } finally {
       setSavingIngredient(null);
     }
@@ -166,33 +194,29 @@ export const BomPage: React.FC = () => {
         render: (i) => <span className="font-medium">{i.item_name}</span>,
       },
       {
-        key: 'stock_uom',
-        header: 'Unidade',
-        render: (i) => <span className="text-muted-foreground">{translateUom(i.stock_uom)}</span>,
+        key: 'description',
+        header: 'Descrição',
+        render: (i) => (
+          <Input
+            className="min-w-[160px]"
+            value={ingredientDrafts[i.name]?.description ?? i.description ?? ''}
+            onChange={(e) => handleIngredientDraftChange(i.name, { description: e.target.value })}
+            placeholder="Opcional"
+          />
+        ),
       },
       {
         key: 'shelf_life_in_days',
         header: 'Validade padrão (dias)',
         render: (i) => (
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min="0"
-              className="w-24"
-              value={shelfLifeDrafts[i.name] ?? (i.shelf_life_in_days ?? '')}
-              onChange={(e) => handleShelfLifeDraftChange(i.name, e.target.value)}
-              placeholder="—"
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={savingIngredient === i.name}
-              onClick={() => handleSaveShelfLife(i.name)}
-            >
-              Salvar
-            </Button>
-          </div>
+          <Input
+            type="number"
+            min="0"
+            className="w-24"
+            value={ingredientDrafts[i.name]?.shelfLife ?? (i.shelf_life_in_days ?? '')}
+            onChange={(e) => handleIngredientDraftChange(i.name, { shelfLife: e.target.value })}
+            placeholder="—"
+          />
         ),
       },
       {
@@ -200,25 +224,69 @@ export const BomPage: React.FC = () => {
         header: '',
         align: 'right',
         render: (i) => (
-          <Button
-            type="button"
-            size="sm"
-            variant={confirmingDelete === i.name ? 'danger' : 'ghost'}
-            disabled={savingIngredient === i.name}
-            onClick={() => handleDeleteIngredient(i.name)}
-          >
-            {confirmingDelete === i.name ? 'Confirmar exclusão?' : 'Excluir'}
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={savingIngredient === i.name}
+              onClick={() => handleSaveIngredient(i.name)}
+            >
+              Salvar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={confirmingDelete === i.name ? 'danger' : 'ghost'}
+              disabled={savingIngredient === i.name}
+              onClick={() => handleDeleteIngredient(i.name)}
+            >
+              {confirmingDelete === i.name ? 'Confirmar exclusão?' : 'Excluir'}
+            </Button>
+          </div>
         ),
       },
     ],
-    [shelfLifeDrafts, savingIngredient, confirmingDelete],
+    [ingredientDrafts, savingIngredient, confirmingDelete, ingredients],
   );
 
   function resetForm() {
+    setEditingBom(null);
     setOutputItem('');
     setQuantity('1');
+    setPreparationNotes('');
     setRows([emptyRow()]);
+  }
+
+  function handleStartEdit(bom: Bom) {
+    setEditingBom(bom);
+    setOutputItem(bom.item);
+    setQuantity(String(bom.quantity));
+    setPreparationNotes(bom.preparation_notes ?? '');
+    setRows(
+      bom.ingredients.length > 0
+        ? bom.ingredients.map((ing) => ({ item_code: ing.item_code, qty: String(ing.qty) }))
+        : [emptyRow()],
+    );
+    setTab('nova');
+  }
+
+  async function handleDeleteBom(bomName: string) {
+    if (confirmingDeleteBom !== bomName) {
+      setConfirmingDeleteBom(bomName);
+      return;
+    }
+    setConfirmingDeleteBom(null);
+    setSavingBom(bomName);
+    try {
+      await stockOverviewService.deleteBom(bomName);
+      setBoms((prev) => prev.filter((b) => b.name !== bomName));
+      showToast.success('Receita excluída.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível excluir a receita.'));
+    } finally {
+      setSavingBom(null);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -232,27 +300,42 @@ export const BomPage: React.FC = () => {
       showToast.error('Informe um rendimento válido.');
       return;
     }
-    const ingredients = rows
+    const ingredientRows = rows
       .filter((r) => r.item_code && Number(r.qty) > 0)
       .map((r) => ({ item_code: r.item_code, qty: Number(r.qty) }));
-    if (ingredients.length === 0) {
+    if (ingredientRows.length === 0) {
       showToast.error('Adicione pelo menos um ingrediente com quantidade válida.');
       return;
     }
-    if (ingredients.some((i) => i.item_code === outputItem)) {
+    if (ingredientRows.some((i) => i.item_code === outputItem)) {
       showToast.error('Um item não pode ser ingrediente da própria receita.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await stockOverviewService.createBom({ item_code: outputItem, quantity: qty, ingredients });
-      showToast.success('Receita cadastrada.');
+      if (editingBom) {
+        await stockOverviewService.updateBom({
+          bom_name: editingBom.name,
+          quantity: qty,
+          ingredients: ingredientRows,
+          preparation_notes: preparationNotes.trim() || undefined,
+        });
+        showToast.success('Receita atualizada.');
+      } else {
+        await stockOverviewService.createBom({
+          item_code: outputItem,
+          quantity: qty,
+          ingredients: ingredientRows,
+          preparation_notes: preparationNotes.trim() || undefined,
+        });
+        showToast.success('Receita cadastrada.');
+      }
       resetForm();
       await reloadAll();
       setTab('receitas');
-    } catch {
-      showToast.error('Não foi possível cadastrar a receita. Tente novamente.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível salvar a receita. Tente novamente.'));
     } finally {
       setSubmitting(false);
     }
@@ -273,7 +356,7 @@ export const BomPage: React.FC = () => {
               [
                 { id: 'receitas' as const, label: 'Receitas cadastradas' },
                 { id: 'ingredientes' as const, label: 'Ingredientes' },
-                { id: 'nova' as const, label: 'Nova receita' },
+                { id: 'nova' as const, label: editingBom ? 'Editar receita' : 'Nova receita' },
               ]
             ).map((item) => (
               <Button
@@ -281,7 +364,10 @@ export const BomPage: React.FC = () => {
                 variant="tab"
                 size="sm"
                 data-selected={tab === item.id}
-                onClick={() => setTab(item.id)}
+                onClick={() => {
+                  if (item.id !== 'nova') resetForm();
+                  setTab(item.id);
+                }}
               >
                 {item.label}
               </Button>
@@ -300,12 +386,30 @@ export const BomPage: React.FC = () => {
                 {boms.map((bom) => (
                   <Card key={bom.name}>
                     <CardHeader>
-                      <CardTitle>{bom.item_name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Rende {bom.quantity} {translateUom(bom.uom)}
-                      </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <CardTitle>{bom.item_name}</CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            Rende {bom.quantity} {translateUom(bom.uom)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button type="button" size="sm" variant="ghost" onClick={() => handleStartEdit(bom)}>
+                            Editar
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={confirmingDeleteBom === bom.name ? 'danger' : 'ghost'}
+                            disabled={savingBom === bom.name}
+                            onClick={() => handleDeleteBom(bom.name)}
+                          >
+                            {confirmingDeleteBom === bom.name ? 'Confirmar?' : 'Excluir'}
+                          </Button>
+                        </div>
+                      </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-3">
                       <ul className="space-y-1.5">
                         {bom.ingredients.map((ing) => (
                           <li
@@ -319,6 +423,11 @@ export const BomPage: React.FC = () => {
                           </li>
                         ))}
                       </ul>
+                      {bom.preparation_notes && (
+                        <div className="rounded-md bg-muted/50 p-2.5 text-sm text-muted-foreground whitespace-pre-wrap">
+                          {bom.preparation_notes}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -348,7 +457,7 @@ export const BomPage: React.FC = () => {
           {tab === 'nova' && (
               <Card className="max-w-2xl">
                 <CardHeader>
-                  <CardTitle>Nova receita</CardTitle>
+                  <CardTitle>{editingBom ? `Editar receita: ${editingBom.item_name}` : 'Nova receita'}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <form className="space-y-4" onSubmit={handleSubmit}>
@@ -356,15 +465,21 @@ export const BomPage: React.FC = () => {
                       <label htmlFor="bom-output" className="text-sm font-medium">
                         O que essa receita produz
                       </label>
-                      <Select id="bom-output" value={outputItem} onChange={(e) => setOutputItem(e.target.value)}>
-                        <option value="">Selecione um item</option>
-                        {outputCandidates.map((item) => (
-                          <option key={item.name} value={item.name}>
-                            {item.item_name}
-                          </option>
-                        ))}
-                      </Select>
-                      <CreateItemInline kind="composed" label="Criar item novo" onCreated={handleOutputCreated} />
+                      {editingBom ? (
+                        <Input value={editingBom.item_name} disabled />
+                      ) : (
+                        <>
+                          <Select id="bom-output" value={outputItem} onChange={(e) => setOutputItem(e.target.value)}>
+                            <option value="">Selecione um item</option>
+                            {outputCandidates.map((item) => (
+                              <option key={item.name} value={item.name}>
+                                {item.item_name}
+                              </option>
+                            ))}
+                          </Select>
+                          <CreateItemInline kind="composed" label="Criar item novo" onCreated={handleOutputCreated} />
+                        </>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -445,9 +560,37 @@ export const BomPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <Button type="submit" disabled={submitting} className="w-full">
-                      {submitting ? 'Cadastrando...' : 'Cadastrar receita'}
-                    </Button>
+                    <div className="space-y-1.5">
+                      <label htmlFor="bom-prep" className="text-sm font-medium">
+                        Modo de preparo (opcional)
+                      </label>
+                      <Textarea
+                        id="bom-prep"
+                        value={preparationNotes}
+                        onChange={(e) => setPreparationNotes(e.target.value)}
+                        placeholder="Ex: Grelhe o hambúrguer por 3 min de cada lado, monte na ordem: pão, molho, carne, queijo, pão."
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button type="submit" disabled={submitting} className="flex-1">
+                        {submitting ? 'Salvando...' : editingBom ? 'Salvar alterações' : 'Cadastrar receita'}
+                      </Button>
+                      {editingBom && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={submitting}
+                          onClick={() => {
+                            resetForm();
+                            setTab('receitas');
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
                   </form>
                 </CardContent>
               </Card>
