@@ -214,12 +214,43 @@ def update_ingredient(item_code, shelf_life_in_days=None, description=None):
     return {"item": item.name, "shelf_life_in_days": item.shelf_life_in_days, "description": item.description}
 
 
+# Repost Item Valuation rows (based_on="Item and Warehouse") link to an
+# item via a real Link field, so delete_doc's generic link check treats
+# them the same as a Purchase Receipt or BOM - but they're just the stock
+# module's own background reconciliation jobs, not a use of the item, and
+# outlive whatever transaction queued them. Left alone they silently
+# block every delete with a message that (wrongly) tells the owner the
+# item was used in compras/produção/receitas. Queued/In Progress ones are
+# excluded - clearing those out from under an active repost could corrupt
+# the valuation it's mid-computing for this item's warehouse.
+_INERT_REPOST_STATUSES = ["Completed", "Skipped", "Cancelled", "Failed"]
+
+
 @frappe.whitelist(methods=["POST"])
 def delete_ingredient(item_code):
     getBranch()
     item = frappe.get_doc("Item", item_code)
     if not item.has_batch_no:
         frappe.throw(_("Item não é um ingrediente"))
+
+    pending_reposts = frappe.get_all(
+        "Repost Item Valuation",
+        filters={"item_code": item_code, "status": ["in", ["Queued", "In Progress"]]},
+    )
+    if pending_reposts:
+        frappe.throw(
+            _("{0} tem um reprocessamento de estoque em andamento. Tente excluir novamente em alguns minutos.").format(
+                item.item_name
+            )
+        )
+
+    for name in frappe.get_all(
+        "Repost Item Valuation",
+        filters={"item_code": item_code, "status": ["in", _INERT_REPOST_STATUSES]},
+        pluck="name",
+    ):
+        frappe.delete_doc("Repost Item Valuation", name, ignore_permissions=True, force=True)
+
     try:
         frappe.delete_doc("Item", item_code, ignore_permissions=True)
     except frappe.LinkExistsError:
