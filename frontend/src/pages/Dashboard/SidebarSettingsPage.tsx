@@ -11,6 +11,7 @@ const MAIN_ITEMS = [
   { key: 'delivery-orders', label: 'Pedidos de Delivery' },
   { key: 'menu', label: 'Cardápio' },
   { key: 'stock', label: 'Meu Estoque' },
+  { key: 'bom', label: 'Receitas (BOM)' },
   { key: 'table', label: 'Mesa' },
   { key: 'room', label: 'Sala' },
   { key: 'branch', label: 'Filial' },

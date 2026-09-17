@@ -16,6 +16,15 @@ from ury.ury_pos.api import getBranch
 from ury.ury.api.branding import _resolve_company
 
 
+def _default_buying_price_list():
+    """Never hardcode "Standard Buying" - ERPNext's own regional setup can
+    create the real default Buying Price List under a localized name
+    instead (confirmed live: this site's is "Compra Padrão"), and an Item
+    Price insert against a name that doesn't exist fails with a
+    LinkValidationError."""
+    return frappe.db.get_single_value("Buying Settings", "buying_price_list")
+
+
 def _resolve_warehouse(item_code, branch):
     company = _resolve_company(branch)
     warehouse = frappe.db.get_value(
@@ -39,10 +48,11 @@ def get_purchasable_items():
         fields=["name", "item_name", "stock_uom", "shelf_life_in_days"],
         order_by="item_name asc",
     )
+    buying_price_list = _default_buying_price_list()
     for item in items:
         item["last_buying_rate"] = frappe.db.get_value(
-            "Item Price", {"item_code": item.name, "price_list": "Standard Buying"}, "price_list_rate"
-        )
+            "Item Price", {"item_code": item.name, "price_list": buying_price_list}, "price_list_rate"
+        ) if buying_price_list else None
     return {"items": items}
 
 
@@ -105,18 +115,20 @@ def record_purchase(item_code, qty, rate, purchase_date=None, expiry_date=None):
     entry.submit()
     batch_no = batch.name
 
-    price_name = frappe.db.get_value(
-        "Item Price", {"item_code": item_code, "price_list": "Standard Buying"}, "name"
-    )
-    if price_name:
-        frappe.db.set_value("Item Price", price_name, "price_list_rate", rate)
-    else:
-        frappe.get_doc({
-            "doctype": "Item Price",
-            "item_code": item_code,
-            "price_list": "Standard Buying",
-            "price_list_rate": rate,
-        }).insert(ignore_permissions=True)
+    buying_price_list = _default_buying_price_list()
+    if buying_price_list:
+        price_name = frappe.db.get_value(
+            "Item Price", {"item_code": item_code, "price_list": buying_price_list}, "name"
+        )
+        if price_name:
+            frappe.db.set_value("Item Price", price_name, "price_list_rate", rate)
+        else:
+            frappe.get_doc({
+                "doctype": "Item Price",
+                "item_code": item_code,
+                "price_list": buying_price_list,
+                "price_list_rate": rate,
+            }).insert(ignore_permissions=True)
     frappe.db.commit()
 
     return {

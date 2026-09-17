@@ -22,7 +22,8 @@ import {
   Bike,
   Package,
   Image,
-  PanelLeft
+  PanelLeft,
+  ChefHat
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'delivery-orders', label: 'Pedidos de Delivery', path: '/delivery-orders', icon: Bike },
   { key: 'menu', label: 'Cardápio', path: '/menu', icon: UtensilsCrossed },
   { key: 'stock', label: 'Meu Estoque', path: '/stock', icon: Package },
+  { key: 'bom', label: 'Receitas (BOM)', path: '/bom', icon: ChefHat },
   { key: 'table', label: 'Mesa', path: '/table', icon: Grid3X3 },
   { key: 'room', label: 'Sala', path: '/room', icon: Map },
   { key: 'branch', label: 'Filial', path: '/branch', icon: Building2 },

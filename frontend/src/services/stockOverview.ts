@@ -49,6 +49,28 @@ export interface ProductionItem {
   bom: string;
 }
 
+export interface BomCandidateItem {
+  name: string;
+  item_name: string;
+  stock_uom: string;
+}
+
+export interface BomIngredient {
+  item_code: string;
+  item_name: string;
+  qty: number;
+  uom: string;
+}
+
+export interface Bom {
+  name: string;
+  item: string;
+  item_name: string;
+  quantity: number;
+  uom: string;
+  ingredients: BomIngredient[];
+}
+
 interface MenuCostOverviewResponse {
   items: MenuCostItem[];
   currency_symbol: string | null;
@@ -125,5 +147,41 @@ export const stockOverviewService = {
   }): Promise<RecordedPurchase> {
     const res = await call<RecordedPurchase>('ury.ury.api.stock_entry.record_production', params);
     return unwrap<RecordedPurchase>(res, { stock_entry: '', batch_no: '', qty: 0, expiry_date: null });
+  },
+
+  async bomCandidates(): Promise<BomCandidateItem[]> {
+    const res = await call<{ items: BomCandidateItem[] }>('ury.ury.api.bom.get_bom_candidates');
+    const data = unwrap<{ items: BomCandidateItem[] }>(res, { items: [] });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async boms(): Promise<Bom[]> {
+    const res = await call<{ boms: Bom[] }>('ury.ury.api.bom.get_boms');
+    const data = unwrap<{ boms: Bom[] }>(res, { boms: [] });
+    return Array.isArray(data.boms) ? data.boms : [];
+  },
+
+  async createBom(params: {
+    item_code: string;
+    quantity: number;
+    ingredients: { item_code: string; qty: number }[];
+  }): Promise<{ bom: string }> {
+    const res = await call<{ bom: string }>('ury.ury.api.bom.create_bom', params);
+    return unwrap<{ bom: string }>(res, { bom: '' });
+  },
+
+  async getStockSettings(): Promise<{ block_sale_on_insufficient_stock: boolean }> {
+    const res = await call<{ block_sale_on_insufficient_stock: boolean }>(
+      'ury.ury.api.stock_settings.get_stock_settings',
+    );
+    return unwrap(res, { block_sale_on_insufficient_stock: false });
+  },
+
+  async updateStockSettings(blockSaleOnInsufficientStock: boolean): Promise<{ block_sale_on_insufficient_stock: boolean }> {
+    const res = await call<{ block_sale_on_insufficient_stock: boolean }>(
+      'ury.ury.api.stock_settings.update_stock_settings',
+      { block_sale_on_insufficient_stock: blockSaleOnInsufficientStock },
+    );
+    return unwrap(res, { block_sale_on_insufficient_stock: blockSaleOnInsufficientStock });
   },
 };

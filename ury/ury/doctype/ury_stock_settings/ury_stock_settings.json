@@ -1,0 +1,62 @@
+{
+ "actions": [],
+ "creation": "2026-09-16 22:00:00.000000",
+ "default_view": "List",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "block_sale_on_insufficient_stock"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "description": "When on, a sale is refused if any ingredient it needs (the item itself, or - for assembled-to-order items - its recipe's parts) doesn't have enough batch stock left. Off (default) never blocks a sale - it just deducts whatever stock is there and leaves the rest.",
+   "fieldname": "block_sale_on_insufficient_stock",
+   "fieldtype": "Check",
+   "label": "Bloquear venda sem estoque suficiente"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-16 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "URY",
+ "name": "URY Stock Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "URY Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "URY Admin",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

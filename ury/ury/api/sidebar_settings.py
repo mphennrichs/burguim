@@ -21,6 +21,7 @@ HIDEABLE_ITEMS = {
     "delivery-orders",
     "menu",
     "stock",
+    "bom",
     "table",
     "room",
     "branch",

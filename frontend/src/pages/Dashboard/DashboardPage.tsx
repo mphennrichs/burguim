@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useBranchContext } from '../../context/BranchContext';
+import QuickActions from './QuickActions';
 import KPIGrid from './KPIGrid';
 import AnalyticsCharts from './AnalyticsCharts';
 import ReportWidgets from './ReportWidgets';
@@ -42,6 +43,8 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <QuickActions />
+
       {/* 1. KPI Stat Cards Grid */}
       <KPIGrid summary={summary} loading={loading} />
 

@@ -191,7 +191,10 @@ doc_events = {
         "validate": "ury.ury.hooks.ury_pos_invoice.validate",
         "after_insert":"ury.ury.api.ury_kot_order_number.set_order_number",
         "before_submit": "ury.ury.hooks.ury_pos_invoice.before_submit",
-        "on_submit": "ury.ury.hooks.ury_pos_invoice.on_submit",
+        "on_submit": [
+            "ury.ury.hooks.ury_pos_invoice.on_submit",
+            "ury.ury.api.stock_deduction.deduct_stock_on_sale",
+        ],
         "on_update": "ury.ury.hooks.ury_pos_invoice.on_update",
         "on_cancel": "ury.ury.hooks.ury_pos_invoice.on_trash",
         "on_trash": "ury.ury.hooks.ury_pos_invoice.on_trash",
@@ -200,6 +203,7 @@ doc_events = {
     "Sales Invoice": {
         "before_insert": "ury.ury.hooks.ury_sales_invoice.before_insert",
         "on_update":"ury.ury.hooks.ury_sales_invoice.on_update",
+        "on_submit": "ury.ury.api.stock_deduction.deduct_stock_on_sale",
         },
     "Item": {"validate": "ury.ury.hooks.ury_item.validate"},
     "POS Opening Entry": {

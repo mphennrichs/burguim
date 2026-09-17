@@ -21,9 +21,15 @@ def _resolve_buying_price_list(branch):
     price_list = None
     if frappe.db.exists("URY Report Settings", branch):
         price_list = frappe.db.get_value("URY Report Settings", branch, "buying_price_list")
+    if price_list:
+        return price_list
     # Greenfield branches (no Daily P&L configured yet) still get a usable
-    # cost readout against ERPNext's built-in default buying price list.
-    return price_list or "Standard Buying"
+    # cost readout against the site's real default buying price list -
+    # never the hardcoded "Standard Buying": ERPNext's own regional setup
+    # can create it under a localized name instead (confirmed live: this
+    # site's is "Compra Padrão"), and the wrong name here doesn't error,
+    # it just silently makes every item look like it has no cost.
+    return frappe.db.get_single_value("Buying Settings", "buying_price_list") or "Standard Buying"
 
 
 def _resolve_item_cost(item_code, buying_price_list):

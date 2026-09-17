@@ -23,8 +23,9 @@ import {
   type PurchasableItem,
   type ProductionItem,
 } from '../../services/stockOverview';
+import { Switch } from '../../components/ui/switch';
 
-type Tab = 'custos' | 'validade' | 'comprar' | 'produzir';
+type Tab = 'custos' | 'validade' | 'comprar' | 'produzir' | 'config';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -79,6 +80,9 @@ export const StockOverviewPage: React.FC = () => {
   const [prodExpiryTouched, setProdExpiryTouched] = useState(false);
   const [prodSubmitting, setProdSubmitting] = useState(false);
 
+  const [blockOnInsufficientStock, setBlockOnInsufficientStock] = useState(false);
+  const [savingStockSettings, setSavingStockSettings] = useState(false);
+
   function reloadAll() {
     setLoading(true);
     return Promise.all([
@@ -86,16 +90,32 @@ export const StockOverviewPage: React.FC = () => {
       stockOverviewService.expiringBatches(14),
       stockOverviewService.purchasableItems(),
       stockOverviewService.productionItems(),
+      stockOverviewService.getStockSettings(),
     ])
-      .then(([costResult, batchResult, purchasableResult, productionResult]) => {
+      .then(([costResult, batchResult, purchasableResult, productionResult, settingsResult]) => {
         setMenuItems(costResult.items);
         setBatches(batchResult);
         setPurchasableItems(purchasableResult);
         setProductionItems(productionResult);
+        setBlockOnInsufficientStock(settingsResult.block_sale_on_insufficient_stock);
         setError(null);
       })
       .catch(() => setError('Não foi possível carregar os dados de estoque.'))
       .finally(() => setLoading(false));
+  }
+
+  async function handleToggleBlockOnInsufficientStock(checked: boolean) {
+    setBlockOnInsufficientStock(checked);
+    setSavingStockSettings(true);
+    try {
+      await stockOverviewService.updateStockSettings(checked);
+      showToast.success('Configuração de estoque atualizada.');
+    } catch {
+      setBlockOnInsufficientStock(!checked);
+      showToast.error('Não foi possível salvar. Tente novamente.');
+    } finally {
+      setSavingStockSettings(false);
+    }
   }
 
   useEffect(() => {
@@ -364,6 +384,7 @@ export const StockOverviewPage: React.FC = () => {
                 { id: 'validade' as const, label: 'Validade' },
                 { id: 'comprar' as const, label: 'Registrar Compra' },
                 { id: 'produzir' as const, label: 'Registrar Produção' },
+                { id: 'config' as const, label: 'Configurações' },
               ]
             ).map((item) => (
               <Button
@@ -590,6 +611,34 @@ export const StockOverviewPage: React.FC = () => {
                     </Button>
                   </form>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {tab === 'config' && (
+            <Card className="max-w-xl">
+              <CardHeader>
+                <CardTitle>Configurações de estoque</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between gap-4 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Bloquear venda sem estoque suficiente
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Quando ligado, uma venda é recusada se faltar estoque de algum ingrediente —
+                      seja o próprio item (quando pré-produzido) ou, para itens montados na hora,
+                      qualquer parte da receita. Desligado (padrão), a venda sempre é concluída — o
+                      estoque só é descontado até onde houver.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={blockOnInsufficientStock}
+                    onCheckedChange={handleToggleBlockOnInsufficientStock}
+                    disabled={savingStockSettings}
+                  />
+                </div>
               </CardContent>
             </Card>
           )}
