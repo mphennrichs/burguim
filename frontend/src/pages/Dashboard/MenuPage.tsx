@@ -40,7 +40,7 @@ export const MenuPage: React.FC = () => {
   const { activeBranchId } = useBranchContext();
   const [menus, setMenus] = useState<URYMenuRecord[]>([]);
   const [selectedMenu, setSelectedMenu] = useState<string>('');
-  const [availableCourses, setAvailableCourses] = useState<{ name: string }[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<{ name: string; icon?: string }[]>([]);
 
   const [items, setItems] = useState<MenuItemRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -92,10 +92,17 @@ export const MenuPage: React.FC = () => {
     price_list: '',
   });
 
-  // Add course form state
+  // Add/Edit course form state
   const [newCourseName, setNewCourseName] = useState('');
   const [newCourseIcon, setNewCourseIcon] = useState('');
   const [returnToAddItemFromCourse, setReturnToAddItemFromCourse] = useState(false);
+  // Set while editing an existing category - holds its current name so
+  // handleSaveCourse knows to rename instead of insert (and what to pass
+  // as the rename's old_name, since newCourseName is the field being typed
+  // into and may no longer match it).
+  const [editingCourseOriginalName, setEditingCourseOriginalName] = useState<string | null>(null);
+  const [savingCourseDelete, setSavingCourseDelete] = useState<string | null>(null);
+  const [confirmingDeleteCourse, setConfirmingDeleteCourse] = useState<string | null>(null);
 
   // Add new menu item rows & global item options
   const [allItems, setAllItems] = useState<{ name: string; item_name: string; standard_rate?: number; custom_course?: string; image?: string }[]>([]);
@@ -113,7 +120,7 @@ export const MenuPage: React.FC = () => {
     try {
       const [records, coursesRes] = await Promise.all([
         dashboardService.getModuleRecords<URYMenuRecord>('URY Menu', activeBranchId),
-        dashboardService.getModuleRecords<{ name: string }>('URY Menu Course', activeBranchId),
+        dashboardService.getModuleRecords<{ name: string; icon?: string }>('URY Menu Course', activeBranchId),
       ]);
       setMenus(records);
       setAvailableCourses(coursesRes || []);
@@ -163,7 +170,7 @@ export const MenuPage: React.FC = () => {
 
   const fetchCourses = async () => {
     try {
-      const coursesRes = await dashboardService.getModuleRecords<{ name: string }>('URY Menu Course', activeBranchId);
+      const coursesRes = await dashboardService.getModuleRecords<{ name: string; icon?: string }>('URY Menu Course', activeBranchId);
       setAvailableCourses(coursesRes || []);
     } catch {
       // silently ignore
@@ -387,7 +394,16 @@ export const MenuPage: React.FC = () => {
   const openAddCourseDrawer = (fromAddItem = false) => {
     setNewCourseName('');
     setNewCourseIcon('');
+    setEditingCourseOriginalName(null);
     setReturnToAddItemFromCourse(fromAddItem);
+    setDrawerMode('add-course');
+  };
+
+  const openEditCourseDrawer = (course: { name: string; icon?: string }) => {
+    setNewCourseName(course.name);
+    setNewCourseIcon(course.icon || '');
+    setEditingCourseOriginalName(course.name);
+    setReturnToAddItemFromCourse(false);
     setDrawerMode('add-course');
   };
 
@@ -686,30 +702,65 @@ export const MenuPage: React.FC = () => {
   const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCourseName.trim()) return;
-    const createdCourse = newCourseName.trim();
+    const targetCourseName = newCourseName.trim();
     setSavingCourse(true);
     try {
-      await call('frappe.client.insert', {
-        doc: {
-          doctype: 'URY Menu Course',
-          course: createdCourse,
-          icon: newCourseIcon || undefined,
-        },
-      });
-      await fetchCourses();
-      showToast.success('Categoria salva');
-      if (returnToAddItemFromCourse) {
-        setNewItem(prev => ({ ...prev, course: createdCourse }));
-        setReturnToAddItemFromCourse(false);
-        setDrawerMode('add-item');
-      } else {
+      if (editingCourseOriginalName) {
+        const res = await call<any>('ury.ury.api.menu.rename_course', {
+          old_name: editingCourseOriginalName,
+          new_name: targetCourseName,
+          icon: newCourseIcon || '',
+        });
+        const renamed = (res.message || res).name || targetCourseName;
+        await fetchCourses();
+        // A menu item currently showing the old category name in the
+        // (still-open) edit-item form needs to follow the rename too -
+        // otherwise submitting it would resurrect the old name.
+        setNewItem((prev) => (prev.course === editingCourseOriginalName ? { ...prev, course: renamed } : prev));
+        showToast.success('Categoria atualizada');
         closeDrawer();
+      } else {
+        await call('frappe.client.insert', {
+          doc: {
+            doctype: 'URY Menu Course',
+            course: targetCourseName,
+            icon: newCourseIcon || undefined,
+          },
+        });
+        await fetchCourses();
+        showToast.success('Categoria salva');
+        if (returnToAddItemFromCourse) {
+          setNewItem(prev => ({ ...prev, course: targetCourseName }));
+          setReturnToAddItemFromCourse(false);
+          setDrawerMode('add-item');
+        } else {
+          closeDrawer();
+        }
       }
     } catch (err) {
-      console.error('Failed to create Course', err);
-      showToast.error('Falha ao salvar a categoria');
+      console.error('Failed to save Course', err);
+      showToast.error(parseFrappeError(err, 'Falha ao salvar a categoria'));
     } finally {
       setSavingCourse(false);
+    }
+  };
+
+  const handleDeleteCourse = async (courseName: string) => {
+    if (confirmingDeleteCourse !== courseName) {
+      setConfirmingDeleteCourse(courseName);
+      return;
+    }
+    setConfirmingDeleteCourse(null);
+    setSavingCourseDelete(courseName);
+    try {
+      await call('ury.ury.api.menu.delete_course', { course_name: courseName });
+      await fetchCourses();
+      showToast.success('Categoria excluída');
+    } catch (err) {
+      console.error('Failed to delete Course', err);
+      showToast.error(parseFrappeError(err, 'Não foi possível excluir a categoria.'));
+    } finally {
+      setSavingCourseDelete(null);
     }
   };
 
@@ -1339,12 +1390,45 @@ export const MenuPage: React.FC = () => {
         </form>
       </SideDrawer>
 
-      {/* Add New Course Drawer */}
+      {/* Add/Edit Course Drawer */}
       <SideDrawer
         isOpen={drawerMode === 'add-course'}
         onClose={closeDrawer}
-        title="Adicionar Nova Categoria"
+        title={editingCourseOriginalName ? 'Editar Categoria' : 'Adicionar Nova Categoria'}
       >
+        {/* Existing-categories list: only in the standalone entry point
+            (toolbar's "Adicionar Categoria"), not the quick mid-flow one
+            reached from inside the item form (returnToAddItemFromCourse) -
+            that path should stay a fast one-field add. */}
+        {!returnToAddItemFromCourse && !editingCourseOriginalName && availableCourses.length > 0 && (
+          <div className="mb-6 space-y-1.5">
+            <span className="block font-semibold text-gray-700 mb-1.5 text-sm">Categorias existentes</span>
+            <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+              {availableCourses.map((course) => (
+                <div key={course.name} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <span className="font-medium text-gray-900 truncate">{course.name}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => openEditCourseDrawer(course)} className="text-gray-500 hover:text-primary">
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCourse(course.name)}
+                      disabled={savingCourseDelete === course.name}
+                      className={confirmingDeleteCourse === course.name ? 'text-red-600 hover:text-red-700' : 'text-gray-500 hover:text-red-600'}
+                      title={confirmingDeleteCourse === course.name ? 'Confirmar exclusão?' : 'Excluir Categoria'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSaveCourse} className="space-y-5 text-sm">
           <div>
             <label className="block font-semibold text-gray-700 mb-1.5">Nome da Categoria <span className="text-red-500">*</span></label>
@@ -1382,7 +1466,7 @@ export const MenuPage: React.FC = () => {
           <div className="pt-6 flex justify-end gap-3 border-t mt-8 border-gray-100">
             <Button type="button" variant="outline" onClick={closeDrawer} className="font-semibold" disabled={savingCourse}>Cancelar</Button>
             <Button type="submit" disabled={savingCourse} className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs flex items-center gap-2">
-              Criar Categoria
+              {editingCourseOriginalName ? 'Salvar Categoria' : 'Criar Categoria'}
             </Button>
           </div>
         </form>
