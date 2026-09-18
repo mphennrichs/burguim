@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useBranchContext } from '../../context/BranchContext';
 import { Utensils, Search, Plus, LayoutGrid, List, Edit2, Check, X, Trash2 } from 'lucide-react';
 import { Card, Button, Badge, Input, Spinner, showToast } from '@ury/ui';
-import { formatCurrency, call } from '@ury/core';
+import { formatCurrency, call, parseFrappeError } from '@ury/core';
 import { dashboardService } from '../../services/dashboard';
 import SideDrawer from '../../components/layout/SideDrawer';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
@@ -60,6 +60,15 @@ export const MenuPage: React.FC = () => {
 
   // Options for Branch and Price List selects
   const [branchOptions, setBranchOptions] = useState<{ name: string; title?: string }[]>([]);
+
+  // A brand-new menu Item needs a real leaf Item Group to insert - "All
+  // Item Groups" (the generic ERPNext root node name) doesn't necessarily
+  // exist under that literal name on a localized site (confirmed live:
+  // this one doesn't have it at all, so every item creation here was
+  // failing with LinkValidationError). Resolve one of the site's actual
+  // leaf groups instead - same endpoint bom.py's own item-creation form
+  // uses for the same reason.
+  const [defaultItemGroup, setDefaultItemGroup] = useState<string>('');
 
   // Add/Edit item form state
   const [newItem, setNewItem] = useState({
@@ -179,10 +188,21 @@ export const MenuPage: React.FC = () => {
     }
   };
 
+  const fetchDefaultItemGroup = async () => {
+    try {
+      const res = await call<any>('ury.ury.api.bom.get_item_groups');
+      const groups = (res.message || res).groups || [];
+      setDefaultItemGroup(groups[0] || '');
+    } catch {
+      setDefaultItemGroup('');
+    }
+  };
+
   useEffect(() => {
     fetchMenus();
     fetchBranches();
     fetchAllItems();
+    fetchDefaultItemGroup();
   }, [activeBranchId]);
 
   useEffect(() => {
@@ -296,13 +316,23 @@ export const MenuPage: React.FC = () => {
         showToast.error('Não foi possível encontrar o item para excluir');
         return;
       }
+      // `items` is a mandatory child table on URY Menu - Frappe rejects a
+      // save that leaves it empty with a MandatoryError. Catch that before
+      // the round-trip instead of showing a confusing generic failure for
+      // what's actually an "you can't empty a menu this way" constraint.
+      if (menuDoc.items.length <= 1) {
+        showToast.error(
+          'Um cardápio precisa ter ao menos um item - não é possível excluir o último. Desative-o em vez de excluir, ou exclua o cardápio inteiro.',
+        );
+        return;
+      }
       menuDoc.items.splice(rowIndex, 1);
       await call('frappe.client.save', { doc: menuDoc });
       setItems((prev) => prev.filter((row) => row.name !== item.name));
       showToast.success('Item removido do cardápio');
     } catch (err) {
       console.error('Failed to delete menu item', err);
-      showToast.error('Não foi possível excluir o item. Tente novamente.');
+      showToast.error(parseFrappeError(err, 'Não foi possível excluir o item. Tente novamente.'));
     } finally {
       setDeletingItem(null);
     }
@@ -439,12 +469,16 @@ export const MenuPage: React.FC = () => {
           }
         }
       } else {
+        if (!defaultItemGroup) {
+          showToast.error('Nenhum grupo de itens cadastrado no sistema');
+          return;
+        }
         const insertRes = await call<any>('frappe.client.insert', {
           doc: {
             doctype: 'Item',
             item_code: newItem.item_name,
             item_name: newItem.item_name,
-            item_group: 'All Item Groups',
+            item_group: defaultItemGroup,
             stock_uom: 'Nos',
             standard_rate: parseFloat(newItem.rate),
             is_sales_item: 1,
@@ -499,7 +533,7 @@ export const MenuPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to save Item', err);
-      showToast.error('Falha ao salvar o item');
+      showToast.error(parseFrappeError(err, 'Falha ao salvar o item'));
     } finally {
       setSavingItem(false);
     }
@@ -553,6 +587,10 @@ export const MenuPage: React.FC = () => {
   };
 
   const handleBulkUploadParsed = async (parsedRows: { name: string; course: string; price: number }[]) => {
+    if (!defaultItemGroup) {
+      showToast.error('Nenhum grupo de itens cadastrado no sistema');
+      return;
+    }
     showToast.info('Processando itens enviados...');
     const resolvedRows: MenuItemRow[] = [];
     let updatedAllItems = [...allItems];
@@ -600,7 +638,7 @@ export const MenuPage: React.FC = () => {
               doctype: 'Item',
               item_code: row.name,
               item_name: row.name,
-              item_group: 'All Item Groups',
+              item_group: defaultItemGroup,
               stock_uom: 'Nos',
               standard_rate: row.price || 0,
               is_sales_item: 1,
