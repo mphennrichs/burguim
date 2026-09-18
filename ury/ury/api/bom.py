@@ -231,16 +231,15 @@ def update_ingredient(item_code, shelf_life_in_days=None, description=None):
 _INERT_REPOST_STATUSES = ["Completed", "Skipped", "Cancelled", "Failed"]
 
 
-@frappe.whitelist(methods=["POST"])
-def delete_ingredient(item_code):
-    getBranch()
-    item = frappe.get_doc("Item", item_code)
-    if not item.has_batch_no:
-        frappe.throw(_("Item não é um ingrediente"))
-
+def _delete_item(item):
+    """Shared by delete_ingredient and delete_composed_item: clear out any
+    finished Repost Item Valuation jobs blocking the link check (see
+    _INERT_REPOST_STATUSES above), then delete the Item itself, turning a
+    real LinkExistsError (purchase, production, recipe, menu...) into one
+    friendly message instead of Frappe's own verbose one."""
     pending_reposts = frappe.get_all(
         "Repost Item Valuation",
-        filters={"item_code": item_code, "status": ["in", ["Queued", "In Progress"]]},
+        filters={"item_code": item.name, "status": ["in", ["Queued", "In Progress"]]},
     )
     if pending_reposts:
         frappe.throw(
@@ -251,7 +250,7 @@ def delete_ingredient(item_code):
 
     for name in frappe.get_all(
         "Repost Item Valuation",
-        filters={"item_code": item_code, "status": ["in", _INERT_REPOST_STATUSES]},
+        filters={"item_code": item.name, "status": ["in", _INERT_REPOST_STATUSES]},
         pluck="name",
     ):
         # Submittable doctype - the repost queue processor submits it once
@@ -264,16 +263,56 @@ def delete_ingredient(item_code):
         frappe.delete_doc("Repost Item Valuation", name, ignore_permissions=True, force=True)
 
     try:
-        frappe.delete_doc("Item", item_code, ignore_permissions=True)
+        frappe.delete_doc("Item", item.name, ignore_permissions=True)
     except frappe.LinkExistsError:
         # delete_doc's own link check already pushed its verbose message
         # onto the response's message log before raising - clear it first
         # or the client concatenates both instead of showing just this one.
         frappe.clear_messages()
         frappe.throw(
-            _("Não é possível excluir {0}: já foi usado em compras, produção ou receitas.").format(item.item_name)
+            _("Não é possível excluir {0}: já foi usado em compras, produção, receitas ou cardápio.").format(item.item_name)
         )
     frappe.db.commit()
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_ingredient(item_code):
+    getBranch()
+    item = frappe.get_doc("Item", item_code)
+    if not item.has_batch_no:
+        frappe.throw(_("Item não é um ingrediente"))
+    _delete_item(item)
+    return {"deleted": item_code}
+
+
+@frappe.whitelist()
+def get_composed_items():
+    """Composed/output items ("itens compostos") for a management list,
+    same idea as get_ingredients but the other kind of item: has_batch_no=0
+    (no batch/expiry tracking - it's assembled or sold, not stocked raw)
+    and is_stock_item=1, matching how get_bom_candidates' own nested-recipe
+    lookup and create_item's "composed" kind define this category. Doesn't
+    include pure is_stock_item=0 menu items (Cardápio's own create-item
+    flow) - those never had inventory tracking to begin with and are
+    managed from the Cardápio screen, not here."""
+    getBranch()
+    return {
+        "items": frappe.get_all(
+            "Item",
+            filters={"has_batch_no": 0, "is_stock_item": 1, "disabled": 0},
+            fields=["name", "item_name", "stock_uom", "item_group", "description"],
+            order_by="item_name asc",
+        )
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_composed_item(item_code):
+    getBranch()
+    item = frappe.get_doc("Item", item_code)
+    if item.has_batch_no or not item.is_stock_item:
+        frappe.throw(_("Item não é um item composto"))
+    _delete_item(item)
     return {"deleted": item_code}
 
 

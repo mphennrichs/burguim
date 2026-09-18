@@ -20,10 +20,11 @@ import {
   type BomOutputCandidateItem,
   type Bom,
   type Ingredient,
+  type ComposedItem,
 } from '../../services/stockOverview';
 import { CreateItemInline } from '../../components/common/CreateItemInline';
 
-type Tab = 'receitas' | 'ingredientes' | 'nova';
+type Tab = 'receitas' | 'ingredientes' | 'compostos' | 'nova';
 
 interface IngredientRow {
   item_code: string;
@@ -41,6 +42,7 @@ export const BomPage: React.FC = () => {
   const [outputCandidates, setOutputCandidates] = useState<BomOutputCandidateItem[]>([]);
   const [boms, setBoms] = useState<Bom[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [composedItems, setComposedItems] = useState<ComposedItem[]>([]);
 
   const [editingBom, setEditingBom] = useState<Bom | null>(null);
   const [outputItem, setOutputItem] = useState('');
@@ -57,6 +59,9 @@ export const BomPage: React.FC = () => {
   const [savingIngredient, setSavingIngredient] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
+  const [savingComposed, setSavingComposed] = useState<string | null>(null);
+  const [confirmingDeleteComposed, setConfirmingDeleteComposed] = useState<string | null>(null);
+
   function reloadAll() {
     setLoading(true);
     return Promise.all([
@@ -64,12 +69,14 @@ export const BomPage: React.FC = () => {
       stockOverviewService.bomOutputCandidates(),
       stockOverviewService.boms(),
       stockOverviewService.ingredients(),
+      stockOverviewService.composedItems(),
     ])
-      .then(([candidateResult, outputResult, bomResult, ingredientResult]) => {
+      .then(([candidateResult, outputResult, bomResult, ingredientResult, composedResult]) => {
         setCandidates(candidateResult);
         setOutputCandidates(outputResult);
         setBoms(bomResult);
         setIngredients(ingredientResult);
+        setComposedItems(composedResult);
       })
       .catch(() => showToast.error('Não foi possível carregar as receitas.'))
       .finally(() => setLoading(false));
@@ -260,6 +267,58 @@ export const BomPage: React.FC = () => {
     [ingredientDrafts, savingIngredient, confirmingDelete, ingredients],
   );
 
+  async function handleDeleteComposedItem(itemCode: string) {
+    if (confirmingDeleteComposed !== itemCode) {
+      setConfirmingDeleteComposed(itemCode);
+      return;
+    }
+    setConfirmingDeleteComposed(null);
+    setSavingComposed(itemCode);
+    try {
+      await stockOverviewService.deleteComposedItem(itemCode);
+      setComposedItems((prev) => prev.filter((i) => i.name !== itemCode));
+      setCandidates((prev) => prev.filter((c) => c.name !== itemCode));
+      setOutputCandidates((prev) => prev.filter((c) => c.name !== itemCode));
+      showToast.success('Item excluído.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível excluir o item.'));
+    } finally {
+      setSavingComposed(null);
+    }
+  }
+
+  const composedColumns = useMemo<DataTableColumn<ComposedItem>[]>(
+    () => [
+      {
+        key: 'item_name',
+        header: 'Item',
+        render: (i) => <span className="font-medium">{i.item_name}</span>,
+      },
+      {
+        key: 'description',
+        header: 'Descrição',
+        render: (i) => <span className="text-muted-foreground">{i.description || '—'}</span>,
+      },
+      {
+        key: 'actions',
+        header: '',
+        align: 'right',
+        render: (i) => (
+          <Button
+            type="button"
+            size="sm"
+            variant={confirmingDeleteComposed === i.name ? 'danger' : 'ghost'}
+            disabled={savingComposed === i.name}
+            onClick={() => handleDeleteComposedItem(i.name)}
+          >
+            {confirmingDeleteComposed === i.name ? 'Confirmar exclusão?' : 'Excluir'}
+          </Button>
+        ),
+      },
+    ],
+    [savingComposed, confirmingDeleteComposed],
+  );
+
   function resetForm() {
     setEditingBom(null);
     setOutputItem('');
@@ -366,6 +425,7 @@ export const BomPage: React.FC = () => {
               [
                 { id: 'receitas' as const, label: 'Receitas cadastradas' },
                 { id: 'ingredientes' as const, label: 'Ingredientes' },
+                { id: 'compostos' as const, label: 'Itens compostos' },
                 { id: 'nova' as const, label: editingBom ? 'Editar receita' : 'Nova receita' },
               ]
             ).map((item) => (
@@ -460,6 +520,24 @@ export const BomPage: React.FC = () => {
                 </Card>
               ) : (
                 <DataTable columns={ingredientColumns} rows={ingredients} />
+              )}
+            </div>
+          )}
+
+          {tab === 'compostos' && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Itens que uma receita produz (ex: um hambúrguer montado). Removê-los do cardápio não os apaga daqui
+                — use este botão pra excluir de vez um item que não está mais em uso.
+              </p>
+              {composedItems.length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center text-muted-foreground">
+                    Nenhum item composto cadastrado ainda.
+                  </CardContent>
+                </Card>
+              ) : (
+                <DataTable columns={composedColumns} rows={composedItems} />
               )}
             </div>
           )}

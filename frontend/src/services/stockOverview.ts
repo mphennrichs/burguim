@@ -68,6 +68,14 @@ export interface Ingredient {
   description: string | null;
 }
 
+export interface ComposedItem {
+  name: string;
+  item_name: string;
+  stock_uom: string;
+  item_group: string;
+  description: string | null;
+}
+
 export interface BomIngredient {
   item_code: string;
   item_name: string;
@@ -233,6 +241,16 @@ export const stockOverviewService = {
 
   async deleteIngredient(itemCode: string): Promise<void> {
     await call('ury.ury.api.bom.delete_ingredient', { item_code: itemCode });
+  },
+
+  async composedItems(): Promise<ComposedItem[]> {
+    const res = await call<{ items: ComposedItem[] }>('ury.ury.api.bom.get_composed_items');
+    const data = unwrap<{ items: ComposedItem[] }>(res, { items: [] });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
+  async deleteComposedItem(itemCode: string): Promise<void> {
+    await call('ury.ury.api.bom.delete_composed_item', { item_code: itemCode });
   },
 
   async boms(): Promise<Bom[]> {
