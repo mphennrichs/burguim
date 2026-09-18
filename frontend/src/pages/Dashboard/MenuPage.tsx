@@ -268,6 +268,46 @@ export const MenuPage: React.FC = () => {
     }
   };
 
+  const [deletingItem, setDeletingItem] = useState<string | null>(null);
+  const [confirmingDeleteItem, setConfirmingDeleteItem] = useState<string | null>(null);
+
+  // Removes the item's row from the menu's own item list (URY Menu Item is
+  // a child table - same fetch-whole-doc/splice/save pattern as
+  // toggleSoldOut/handleSaveItem above). Doesn't touch the underlying Item
+  // doc itself: an item can be on more than one menu, or referenced by a
+  // BOM/old invoice, so deleting that master record is a separate,
+  // riskier action (see delete_ingredient in bom.py) - this just takes it
+  // off this cardápio.
+  const handleDeleteItem = async (item: MenuItemRecord) => {
+    if (!item.name) return;
+    if (confirmingDeleteItem !== item.name) {
+      setConfirmingDeleteItem(item.name);
+      return;
+    }
+    setConfirmingDeleteItem(null);
+    const menuName = selectedMenu === 'all' ? (menus[0]?.name || '') : selectedMenu;
+    if (!menuName) return;
+    setDeletingItem(item.name);
+    try {
+      const res = await call<any>('frappe.client.get', { doctype: 'URY Menu', name: menuName });
+      const menuDoc = res.message || res;
+      const rowIndex = menuDoc.items.findIndex((row: any) => row.name === item.name);
+      if (rowIndex === -1) {
+        showToast.error('Não foi possível encontrar o item para excluir');
+        return;
+      }
+      menuDoc.items.splice(rowIndex, 1);
+      await call('frappe.client.save', { doc: menuDoc });
+      setItems((prev) => prev.filter((row) => row.name !== item.name));
+      showToast.success('Item removido do cardápio');
+    } catch (err) {
+      console.error('Failed to delete menu item', err);
+      showToast.error('Não foi possível excluir o item. Tente novamente.');
+    } finally {
+      setDeletingItem(null);
+    }
+  };
+
   const getItemImage = (item: MenuItemRecord): string | undefined => {
     if (item.image) return item.image;
     const matched = allItems.find(i => i.name === item.item);
@@ -813,13 +853,27 @@ export const MenuPage: React.FC = () => {
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
                     {formatCurrency(item.rate || 0)}
                   </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openEditItemDrawer(item); }}
-                    className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-md transition-colors -mr-1.5 -mb-1.5"
-                    title="Editar Item"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center -mr-1.5 -mb-1.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openEditItemDrawer(item); }}
+                      className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
+                      title="Editar Item"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteItem(item); }}
+                      disabled={deletingItem === item.name}
+                      className={`p-1.5 rounded-md transition-colors ${
+                        confirmingDeleteItem === item.name
+                          ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                          : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                      title={confirmingDeleteItem === item.name ? 'Confirmar exclusão?' : 'Excluir Item'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -890,9 +944,21 @@ export const MenuPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => openEditItemDrawer(item)} className="text-gray-500 hover:text-primary">
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEditItemDrawer(item)} className="text-gray-500 hover:text-primary">
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteItem(item)}
+                        disabled={deletingItem === item.name}
+                        className={confirmingDeleteItem === item.name ? 'text-red-600 hover:text-red-700' : 'text-gray-500 hover:text-red-600'}
+                        title={confirmingDeleteItem === item.name ? 'Confirmar exclusão?' : 'Excluir Item'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
