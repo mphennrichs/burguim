@@ -217,6 +217,10 @@ export const stockOverviewService = {
     });
   },
 
+  async disableItem(itemCode: string): Promise<void> {
+    await call('ury.ury.api.bom.disable_item', { item_code: itemCode });
+  },
+
   async renameItem(itemCode: string, itemName: string): Promise<{ item: string; item_name: string }> {
     const res = await call<{ item: string; item_name: string }>('ury.ury.api.bom.rename_item', {
       item_code: itemCode,

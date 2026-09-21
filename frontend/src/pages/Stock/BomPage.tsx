@@ -204,6 +204,20 @@ export const BomPage: React.FC = () => {
     }
   }
 
+  async function handleDisableIngredient(itemCode: string) {
+    setSavingIngredient(itemCode);
+    try {
+      await stockOverviewService.disableItem(itemCode);
+      setIngredients((prev) => prev.filter((i) => i.name !== itemCode));
+      setCandidates((prev) => prev.filter((c) => c.name !== itemCode));
+      showToast.success('Ingrediente desativado.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível desativar o ingrediente.'));
+    } finally {
+      setSavingIngredient(null);
+    }
+  }
+
   const ingredientColumns = useMemo<DataTableColumn<Ingredient>[]>(
     () => [
       {
@@ -255,6 +269,16 @@ export const BomPage: React.FC = () => {
             <Button
               type="button"
               size="sm"
+              variant="ghost"
+              disabled={savingIngredient === i.name}
+              onClick={() => handleDisableIngredient(i.name)}
+              title="Tira o ingrediente das listas sem apagar o histórico de compras/produção"
+            >
+              Desativar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
               variant={confirmingDelete === i.name ? 'danger' : 'ghost'}
               disabled={savingIngredient === i.name}
               onClick={() => handleDeleteIngredient(i.name)}
@@ -288,6 +312,21 @@ export const BomPage: React.FC = () => {
     }
   }
 
+  async function handleDisableComposedItem(itemCode: string) {
+    setSavingComposed(itemCode);
+    try {
+      await stockOverviewService.disableItem(itemCode);
+      setComposedItems((prev) => prev.filter((i) => i.name !== itemCode));
+      setCandidates((prev) => prev.filter((c) => c.name !== itemCode));
+      setOutputCandidates((prev) => prev.filter((c) => c.name !== itemCode));
+      showToast.success('Item desativado.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível desativar o item.'));
+    } finally {
+      setSavingComposed(null);
+    }
+  }
+
   const composedColumns = useMemo<DataTableColumn<ComposedItem>[]>(
     () => [
       {
@@ -305,15 +344,27 @@ export const BomPage: React.FC = () => {
         header: '',
         align: 'right',
         render: (i) => (
-          <Button
-            type="button"
-            size="sm"
-            variant={confirmingDeleteComposed === i.name ? 'danger' : 'ghost'}
-            disabled={savingComposed === i.name}
-            onClick={() => handleDeleteComposedItem(i.name)}
-          >
-            {confirmingDeleteComposed === i.name ? 'Confirmar exclusão?' : 'Excluir'}
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={savingComposed === i.name}
+              onClick={() => handleDisableComposedItem(i.name)}
+              title="Tira o item das listas sem apagar o histórico de vendas/produção"
+            >
+              Desativar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={confirmingDeleteComposed === i.name ? 'danger' : 'ghost'}
+              disabled={savingComposed === i.name}
+              onClick={() => handleDeleteComposedItem(i.name)}
+            >
+              {confirmingDeleteComposed === i.name ? 'Confirmar exclusão?' : 'Excluir'}
+            </Button>
+          </div>
         ),
       },
     ],

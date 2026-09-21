@@ -273,11 +273,19 @@ _ITEM_LINK_LABELS = {
     "BOM": "uma receita (como item produzido)",
     "BOM Item": "uma receita (como ingrediente)",
     "URY Menu Item": "um cardápio",
+    "Purchase Receipt": "uma compra recebida",
     "Purchase Receipt Item": "uma compra recebida",
+    "Purchase Order": "um pedido de compra",
     "Purchase Order Item": "um pedido de compra",
+    "Purchase Invoice": "uma nota de compra",
     "Purchase Invoice Item": "uma nota de compra",
+    "Sales Invoice": "uma venda",
     "Sales Invoice Item": "uma venda",
+    "POS Invoice": "uma venda",
     "POS Invoice Item": "uma venda",
+    "Delivery Note": "uma entrega",
+    "Delivery Note Item": "uma entrega",
+    "Stock Entry": "uma movimentação de estoque",
     "Stock Entry Detail": "uma movimentação de estoque",
     "Batch": "um lote",
     "Item Price": "uma tabela de preços",
@@ -328,7 +336,9 @@ def _delete_item(item):
             if label not in labels:
                 labels.append(label)
         frappe.throw(
-            _("Não é possível excluir {0}: ainda está em uso em {1}.").format(item.item_name, ", ".join(labels))
+            _(
+                "Não é possível excluir {0}: ainda está em uso em {1}. Use \"Desativar\" pra tirá-lo das listas sem apagar esse histórico."
+            ).format(item.item_name, ", ".join(labels))
         )
 
     try:
@@ -341,6 +351,23 @@ def _delete_item(item):
         frappe.clear_messages()
         frappe.throw(_("Não é possível excluir {0}: ainda está em uso.").format(item.item_name))
     frappe.db.commit()
+
+
+@frappe.whitelist(methods=["POST"])
+def disable_item(item_code):
+    """The alternative _delete_item points to when an item has real
+    history (a completed sale, a purchase, a batch...) and Frappe won't
+    let it be deleted at all - disabled=0 is exactly the filter every
+    candidate list here already applies (get_ingredients,
+    get_composed_items, get_bom_candidates, get_bom_output_candidates),
+    so this is enough to get the item out of every picker without
+    touching the transactions that reference it."""
+    getBranch()
+    item = frappe.get_doc("Item", item_code)
+    item.disabled = 1
+    item.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {"item": item_code, "disabled": 1}
 
 
 @frappe.whitelist(methods=["POST"])
