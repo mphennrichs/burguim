@@ -25,7 +25,16 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
   const [uom, setUom] = useState('');
   const [group, setGroup] = useState('');
   const [shelfLife, setShelfLife] = useState('');
+  const [preparedAhead, setPreparedAhead] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // A composed item assembled to order (kind="composed", box left
+  // unchecked) has no batch of its own - stock_deduction.py unwinds its
+  // recipe straight from raw stock at the moment it's sold. One marked
+  // "preparado com antecedência" gets real batch/expiry tracking instead
+  // (has_batch_no=1 on the backend), same as an ingredient - it's what
+  // "Registrar produção" requires to create a batch for it at all.
+  const needsShelfLife = kind === 'ingredient' || (kind === 'composed' && preparedAhead);
 
   // Both kinds pick their own unit now (grams was a fine default for a
   // kitchen mostly weighing raw ingredients, but breaks down for
@@ -58,8 +67,9 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
         kind,
         stock_uom: uom || undefined,
         item_group: kind === 'composed' ? group || undefined : undefined,
-        shelf_life_in_days: kind === 'ingredient' && shelfLife ? Number(shelfLife) : undefined,
+        shelf_life_in_days: needsShelfLife && shelfLife ? Number(shelfLife) : undefined,
         description: description.trim() || undefined,
+        prepared_ahead: kind === 'composed' && preparedAhead,
       });
       showToast.success(`"${result.item}" criado.`);
       onCreated({
@@ -72,6 +82,7 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
       setName('');
       setDescription('');
       setShelfLife('');
+      setPreparedAhead(false);
     } catch (err) {
       showToast.error(parseFrappeError(err, 'Não foi possível criar o item.'));
     } finally {
@@ -117,7 +128,21 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
             ))}
           </Select>
         </div>
-        {kind === 'ingredient' && (
+        {kind === 'composed' && (
+          <div className="col-span-2 flex items-center gap-2">
+            <input
+              id="prepared-ahead"
+              type="checkbox"
+              checked={preparedAhead}
+              onChange={(e) => setPreparedAhead(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor="prepared-ahead" className="text-xs font-medium text-muted-foreground">
+              Preparado com antecedência (tem validade própria, ex: molho, carne grelhada)
+            </label>
+          </div>
+        )}
+        {needsShelfLife && (
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Validade padrão (dias)</label>
             <Input

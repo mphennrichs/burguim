@@ -145,18 +145,27 @@ _DEFAULT_INGREDIENT_UOM = "Gram"
 
 
 @frappe.whitelist(methods=["POST"])
-def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_days=None, description=None):
+def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_days=None, description=None, prepared_ahead=0):
     """Creates the underlying Item for a new ingredient ("matéria-prima")
     or assembled-to-order item ("item composto"), with exactly the flags
     each needs - is_stock_item=1 always (required for the item to be
-    usable as a BOM's output at all), has_batch_no=1 only for
-    ingredients (so they get real batch/expiry tracking) - instead of
-    staff having to know those flags exist in Frappe Desk's Item form."""
+    usable as a BOM's output at all).
+
+    has_batch_no=1 (real batch/expiry tracking, and what get_production_items
+    requires alongside a BOM) for every ingredient, and for a composed item
+    only when prepared_ahead is set - a burger assembled to order at sale
+    time doesn't need a batch of its own (stock_deduction.py unwinds its
+    recipe straight from raw stock at the moment it's sold), but something
+    like a house sauce or a pre-grilled patty, made ahead in a batch with
+    its own shelf life, does. Without this flag a composed item with its
+    own recipe could never show up in "Registrar produção" at all - that
+    screen can only create a batch for something has_batch_no=1 lets have
+    one."""
     getBranch()
     if kind not in ("ingredient", "composed"):
         frappe.throw(_("Tipo de item inválido"))
 
-    has_batch_no = 1 if kind == "ingredient" else 0
+    has_batch_no = 1 if kind == "ingredient" or frappe.utils.cint(prepared_ahead) else 0
     item_group = item_group or _default_item_group(has_batch_no)
     if not item_group:
         frappe.throw(_("Nenhum grupo de itens cadastrado no sistema"))

@@ -202,6 +202,7 @@ export const stockOverviewService = {
     item_group?: string;
     shelf_life_in_days?: number;
     description?: string;
+    prepared_ahead?: boolean;
   }): Promise<{ item: string; stock_uom: string; shelf_life_in_days: number | null; description: string | null }> {
     const res = await call<{
       item: string;
