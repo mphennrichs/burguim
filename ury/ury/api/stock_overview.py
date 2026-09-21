@@ -165,6 +165,43 @@ def get_expiring_batches(days=14):
 
 
 @frappe.whitelist()
+def get_consolidated_stock():
+    """Total stock on hand per ingredient, right now - every batch of
+    the same item summed into one number, as opposed to
+    get_expiring_batches' per-batch/soonest-expiry-first list. Same
+    qty-from-Stock-Ledger-Entry query, grouped by item instead of listed
+    by batch, and excluding anything already past its expiry_date -
+    get_expiring_batches keeps those (marked "expired", since knowing
+    spoiled stock is still on the shelf is useful there); here it would
+    only inflate a total meant to answer "how much do I actually have
+    usable right now"."""
+    getBranch()  # staff-only gate; batches aren't themselves branch-scoped
+
+    rows = frappe.db.sql(
+        """
+        SELECT
+            b.item AS item_code,
+            i.item_name AS item_name,
+            i.stock_uom AS uom,
+            COALESCE(SUM(sbe.qty), 0) AS qty
+        FROM `tabBatch` b
+        LEFT JOIN `tabItem` i ON i.name = b.item
+        LEFT JOIN `tabSerial and Batch Entry` sbe ON sbe.batch_no = b.name
+        LEFT JOIN `tabSerial and Batch Bundle` sbb ON sbb.name = sbe.parent
+        WHERE b.expiry_date IS NOT NULL
+            AND b.expiry_date >= %(today)s
+            AND (sbb.name IS NULL OR (sbb.docstatus = 1 AND sbb.is_cancelled = 0))
+        GROUP BY b.item
+        HAVING qty > 0
+        ORDER BY i.item_name ASC
+        """,
+        {"today": nowdate()},
+        as_dict=True,
+    )
+    return {"items": rows}
+
+
+@frappe.whitelist()
 def get_items_without_bom():
     """Active menu items with neither a default BOM nor a direct buying
     price — the "you can't cost this yet" list, surfaced separately from

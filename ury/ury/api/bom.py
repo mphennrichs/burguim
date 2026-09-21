@@ -380,6 +380,31 @@ def disable_item(item_code):
 
 
 @frappe.whitelist(methods=["POST"])
+def mark_prepared_ahead(item_code):
+    """Converts an existing composed item (has_batch_no=0) into a
+    "preparado com antecedência" one, has_batch_no=1 - for one created
+    before create_item's prepared_ahead option existed, with no way
+    short of Frappe Desk to fix it after the fact. Once this is set the
+    item shows up in get_ingredients (not get_composed_items anymore -
+    same has_batch_no split every list here already uses) and, once it
+    also has a BOM, in get_production_items.
+
+    Item.cant_change() (frappe/stock/doctype/item/item.py) blocks this
+    outright if any submitted document already references the item (a
+    submitted BOM being the obvious one here) - left uncaught so its own
+    message reaches the user via parseFrappeError, same as every other
+    real validation error in this app."""
+    getBranch()
+    item = frappe.get_doc("Item", item_code)
+    if item.has_batch_no or not item.is_stock_item:
+        frappe.throw(_("Item não é um item composto"))
+    item.has_batch_no = 1
+    item.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {"item": item_code, "has_batch_no": 1}
+
+
+@frappe.whitelist(methods=["POST"])
 def delete_ingredient(item_code):
     getBranch()
     item = frappe.get_doc("Item", item_code)

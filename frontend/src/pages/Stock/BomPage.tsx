@@ -327,6 +327,23 @@ export const BomPage: React.FC = () => {
     }
   }
 
+  async function handleMarkPreparedAhead(itemCode: string) {
+    setSavingComposed(itemCode);
+    try {
+      await stockOverviewService.markPreparedAhead(itemCode);
+      // Once has_batch_no flips it stops matching get_composed_items'
+      // own filter (has_batch_no=0) - drop it from this list, same as a
+      // delete/disable would, instead of leaving a stale row that would
+      // 404 on the next action taken against it.
+      setComposedItems((prev) => prev.filter((i) => i.name !== itemCode));
+      showToast.success('Item convertido. Agora aparece na aba Ingredientes, com validade própria.');
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível converter o item.'));
+    } finally {
+      setSavingComposed(null);
+    }
+  }
+
   const composedColumns = useMemo<DataTableColumn<ComposedItem>[]>(
     () => [
       {
@@ -345,6 +362,16 @@ export const BomPage: React.FC = () => {
         align: 'right',
         render: (i) => (
           <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={savingComposed === i.name}
+              onClick={() => handleMarkPreparedAhead(i.name)}
+              title="Pra itens preparados com antecedência (ex: molho, carne grelhada) - passa a ter validade própria e aparece em Registrar Produção"
+            >
+              Preparado com antecedência
+            </Button>
             <Button
               type="button"
               size="sm"

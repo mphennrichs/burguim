@@ -21,6 +21,13 @@ export interface ExpiringBatch {
   status: 'expired' | 'critical' | 'warning' | 'ok';
 }
 
+export interface ConsolidatedStockItem {
+  item_code: string;
+  item_name: string;
+  uom: string;
+  qty: number;
+}
+
 export interface ItemWithoutBom {
   item: string;
   item_name: string;
@@ -132,6 +139,12 @@ export const stockOverviewService = {
     return Array.isArray(data.batches) ? data.batches : [];
   },
 
+  async consolidatedStock(): Promise<ConsolidatedStockItem[]> {
+    const res = await call<{ items: ConsolidatedStockItem[] }>('ury.ury.api.stock_overview.get_consolidated_stock');
+    const data = unwrap<{ items: ConsolidatedStockItem[] }>(res, { items: [] });
+    return Array.isArray(data.items) ? data.items : [];
+  },
+
   async itemsWithoutBom(): Promise<ItemWithoutBom[]> {
     const res = await call<ItemsWithoutBomResponse>('ury.ury.api.stock_overview.get_items_without_bom');
     const data = unwrap<ItemsWithoutBomResponse>(res, { items: [] });
@@ -220,6 +233,10 @@ export const stockOverviewService = {
 
   async disableItem(itemCode: string): Promise<void> {
     await call('ury.ury.api.bom.disable_item', { item_code: itemCode });
+  },
+
+  async markPreparedAhead(itemCode: string): Promise<void> {
+    await call('ury.ury.api.bom.mark_prepared_ahead', { item_code: itemCode });
   },
 
   async renameItem(itemCode: string, itemName: string): Promise<{ item: string; item_name: string }> {

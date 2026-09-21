@@ -20,13 +20,14 @@ import {
   stockOverviewService,
   type MenuCostItem,
   type ExpiringBatch,
+  type ConsolidatedStockItem,
   type PurchasableItem,
   type ProductionItem,
 } from '../../services/stockOverview';
 import { Switch } from '../../components/ui/switch';
 import { CreateItemInline } from '../../components/common/CreateItemInline';
 
-type Tab = 'custos' | 'validade' | 'comprar' | 'produzir' | 'config';
+type Tab = 'custos' | 'validade' | 'consolidado' | 'comprar' | 'produzir' | 'config';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -75,6 +76,21 @@ function purchaseUnitFactor(purchaseUnit: string, stockUom: string | undefined):
   return purchaseUnit !== stockUom && _BULK_UNIT_FOR[stockUom ?? ''] === purchaseUnit ? 1000 : 1;
 }
 
+// Same bulk-unit idea, for reading a quantity back instead of entering
+// one: a batch/stock total is always stored in the base unit (grams,
+// millilitres - what a recipe actually consumes), but showing "10000
+// Grama" instead of "10 Kg" on a stock screen is the kind of number a
+// person has to mentally divide by 1000 to make sense of.
+function formatBulkQty(qty: number, stockUom: string | undefined): string {
+  const bulk = _BULK_UNIT_FOR[stockUom ?? ''];
+  if (bulk) {
+    const converted = qty / 1000;
+    const rounded = Math.round(converted * 1000) / 1000;
+    return `${rounded} ${translateUom(bulk)}`;
+  }
+  return `${qty} ${translateUom(stockUom)}`;
+}
+
 export const StockOverviewPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('custos');
   const [loading, setLoading] = useState(true);
@@ -82,6 +98,7 @@ export const StockOverviewPage: React.FC = () => {
 
   const [menuItems, setMenuItems] = useState<MenuCostItem[]>([]);
   const [batches, setBatches] = useState<ExpiringBatch[]>([]);
+  const [consolidatedStock, setConsolidatedStock] = useState<ConsolidatedStockItem[]>([]);
   const [purchasableItems, setPurchasableItems] = useState<PurchasableItem[]>([]);
   const [productionItems, setProductionItems] = useState<ProductionItem[]>([]);
 
@@ -113,13 +130,15 @@ export const StockOverviewPage: React.FC = () => {
     return Promise.all([
       stockOverviewService.menuCosts(),
       stockOverviewService.expiringBatches(14),
+      stockOverviewService.consolidatedStock(),
       stockOverviewService.purchasableItems(),
       stockOverviewService.productionItems(),
       stockOverviewService.getStockSettings(),
     ])
-      .then(([costResult, batchResult, purchasableResult, productionResult, settingsResult]) => {
+      .then(([costResult, batchResult, consolidatedResult, purchasableResult, productionResult, settingsResult]) => {
         setMenuItems(costResult.items);
         setBatches(batchResult);
+        setConsolidatedStock(consolidatedResult);
         setPurchasableItems(purchasableResult);
         setProductionItems(productionResult);
         setBlockOnInsufficientStock(settingsResult.block_sale_on_insufficient_stock);
@@ -383,11 +402,7 @@ export const StockOverviewPage: React.FC = () => {
         key: 'qty',
         header: 'Quantidade',
         align: 'right',
-        render: (b) => (
-          <span className="tabular-nums">
-            {b.qty} {translateUom(b.uom)}
-          </span>
-        ),
+        render: (b) => <span className="tabular-nums">{formatBulkQty(b.qty, b.uom)}</span>,
       },
       {
         key: 'expiry_date',
@@ -403,6 +418,19 @@ export const StockOverviewPage: React.FC = () => {
             {EXPIRY_BADGE[b.status].label}
           </Badge>
         ),
+      },
+    ],
+    [],
+  );
+
+  const consolidatedColumns = useMemo<DataTableColumn<ConsolidatedStockItem>[]>(
+    () => [
+      { key: 'item_name', header: 'Ingrediente', render: (i) => <span className="font-medium">{i.item_name}</span> },
+      {
+        key: 'qty',
+        header: 'Estoque total',
+        align: 'right',
+        render: (i) => <span className="tabular-nums">{formatBulkQty(i.qty, i.uom)}</span>,
       },
     ],
     [],
@@ -445,6 +473,7 @@ export const StockOverviewPage: React.FC = () => {
               [
                 { id: 'custos' as const, label: 'Custo & Margem' },
                 { id: 'validade' as const, label: 'Validade' },
+                { id: 'consolidado' as const, label: 'Estoque Consolidado' },
                 { id: 'comprar' as const, label: 'Registrar Compra' },
                 { id: 'produzir' as const, label: 'Registrar Produção' },
                 { id: 'config' as const, label: 'Configurações' },
@@ -499,6 +528,18 @@ export const StockOverviewPage: React.FC = () => {
             )
           )}
 
+          {tab === 'consolidado' && (
+            consolidatedStock.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  Nenhum estoque dentro da validade no momento. Registre uma compra na aba ao lado.
+                </CardContent>
+              </Card>
+            ) : (
+              <DataTable columns={consolidatedColumns} rows={consolidatedStock} />
+            )
+          )}
+
           {tab === 'comprar' && (
             <Card className="max-w-xl">
               <CardHeader>
@@ -518,7 +559,7 @@ export const StockOverviewPage: React.FC = () => {
                       <option value="">Selecione um ingrediente</option>
                       {purchasableItems.map((item) => (
                         <option key={item.name} value={item.name}>
-                          {item.item_name} ({translateUom(item.stock_uom)})
+                          {item.item_name}
                         </option>
                       ))}
                     </Select>
@@ -647,7 +688,7 @@ export const StockOverviewPage: React.FC = () => {
                         <option value="">Selecione</option>
                         {productionItems.map((item) => (
                           <option key={item.name} value={item.name}>
-                            {item.item_name} ({translateUom(item.stock_uom)})
+                            {item.item_name}
                           </option>
                         ))}
                       </Select>
