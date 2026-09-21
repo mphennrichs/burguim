@@ -217,6 +217,14 @@ export const stockOverviewService = {
     });
   },
 
+  async renameItem(itemCode: string, itemName: string): Promise<{ item: string; item_name: string }> {
+    const res = await call<{ item: string; item_name: string }>('ury.ury.api.bom.rename_item', {
+      item_code: itemCode,
+      item_name: itemName,
+    });
+    return unwrap(res, { item: itemCode, item_name: itemName });
+  },
+
   async ingredients(): Promise<Ingredient[]> {
     const res = await call<{ items: Ingredient[] }>('ury.ury.api.bom.get_ingredients');
     const data = unwrap<{ items: Ingredient[] }>(res, { items: [] });

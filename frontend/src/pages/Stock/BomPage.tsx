@@ -45,6 +45,7 @@ export const BomPage: React.FC = () => {
   const [composedItems, setComposedItems] = useState<ComposedItem[]>([]);
 
   const [editingBom, setEditingBom] = useState<Bom | null>(null);
+  const [outputItemName, setOutputItemName] = useState('');
   const [outputItem, setOutputItem] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [preparationNotes, setPreparationNotes] = useState('');
@@ -321,6 +322,7 @@ export const BomPage: React.FC = () => {
 
   function resetForm() {
     setEditingBom(null);
+    setOutputItemName('');
     setOutputItem('');
     setQuantity('1');
     setPreparationNotes('');
@@ -329,6 +331,7 @@ export const BomPage: React.FC = () => {
 
   function handleStartEdit(bom: Bom) {
     setEditingBom(bom);
+    setOutputItemName(bom.item_name);
     setOutputItem(bom.item);
     setQuantity(String(bom.quantity));
     setPreparationNotes(bom.preparation_notes ?? '');
@@ -365,6 +368,10 @@ export const BomPage: React.FC = () => {
       showToast.error('Selecione o item que a receita produz.');
       return;
     }
+    if (editingBom && !outputItemName.trim()) {
+      showToast.error('Informe o nome da receita.');
+      return;
+    }
     if (!qty || qty <= 0) {
       showToast.error('Informe um rendimento válido.');
       return;
@@ -384,6 +391,10 @@ export const BomPage: React.FC = () => {
     setSubmitting(true);
     try {
       if (editingBom) {
+        const trimmedName = outputItemName.trim();
+        if (trimmedName !== editingBom.item_name) {
+          await stockOverviewService.renameItem(editingBom.item, trimmedName);
+        }
         await stockOverviewService.updateBom({
           bom_name: editingBom.name,
           quantity: qty,
@@ -554,7 +565,11 @@ export const BomPage: React.FC = () => {
                         O que essa receita produz
                       </label>
                       {editingBom ? (
-                        <Input value={editingBom.item_name} disabled />
+                        <Input
+                          id="bom-output"
+                          value={outputItemName}
+                          onChange={(e) => setOutputItemName(e.target.value)}
+                        />
                       ) : (
                         <>
                           <Select id="bom-output" value={outputItem} onChange={(e) => setOutputItem(e.target.value)}>

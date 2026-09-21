@@ -9,6 +9,7 @@
 
 import frappe
 from frappe import _
+from frappe.model.delete_doc import get_linked_docs
 from frappe.utils import flt
 
 from ury.ury_pos.api import getBranch
@@ -184,6 +185,39 @@ def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_
     }
 
 
+@frappe.whitelist(methods=["POST"])
+def rename_item(item_code, item_name):
+    """Changes an item's display name - "editar o nome de uma receita"
+    means this: a BOM has no name of its own, "Receitas cadastradas"
+    shows the *output item's* item_name (get_boms' own item_name field
+    comes straight from BOM, which Frappe only fetches from Item on the
+    BOM's own next save - editing Item.item_name alone would leave the
+    recipe list showing the old name until something unrelated happened
+    to re-save that BOM). item_code (the Item's name/primary key,
+    autoname="field:item_code") never changes here - only the label.
+
+    Item.item_name is plain Data, not a Link, so unlike rename_course's
+    rename_doc (which repoints every Link automatically) each place that
+    cached a copy of the old name has to be pushed the new one by hand:
+    the item's own BOM (if it's a recipe's output), every BOM Item row
+    that lists it as an ingredient (nested recipes - see
+    get_bom_candidates), and every URY Menu Item row that lists it on a
+    cardápio. Historical Sales/POS Invoice Item rows are untouched on
+    purpose, same reasoning as rename_course - a past order keeps the
+    name that was true when it was placed."""
+    getBranch()
+    item_name = (item_name or "").strip()
+    if not item_name:
+        frappe.throw(_("Informe um nome"))
+
+    frappe.db.set_value("Item", item_code, "item_name", item_name)
+    frappe.db.set_value("BOM", {"item": item_code, "docstatus": 1}, "item_name", item_name)
+    frappe.db.set_value("BOM Item", {"item_code": item_code}, "item_name", item_name)
+    frappe.db.set_value("URY Menu Item", {"item": item_code}, "item_name", item_name)
+    frappe.db.commit()
+    return {"item": item_code, "item_name": item_name}
+
+
 @frappe.whitelist()
 def get_ingredients():
     """Raw-material items for the "Ingredientes" management tab - fuller
@@ -230,13 +264,37 @@ def update_ingredient(item_code, shelf_life_in_days=None, description=None):
 # the valuation it's mid-computing for this item's warehouse.
 _INERT_REPOST_STATUSES = ["Completed", "Skipped", "Cancelled", "Failed"]
 
+# Friendly Portuguese label for the doctypes an Item most plausibly links
+# to, keyed by exactly what get_linked_docs reports (reference_doctype) -
+# anything not listed here falls back to the raw doctype name, so a link
+# from a doctype nobody anticipated still names itself instead of going
+# through a generic "something, somewhere" message.
+_ITEM_LINK_LABELS = {
+    "BOM": "uma receita (como item produzido)",
+    "BOM Item": "uma receita (como ingrediente)",
+    "URY Menu Item": "um cardápio",
+    "Purchase Receipt Item": "uma compra recebida",
+    "Purchase Order Item": "um pedido de compra",
+    "Purchase Invoice Item": "uma nota de compra",
+    "Sales Invoice Item": "uma venda",
+    "POS Invoice Item": "uma venda",
+    "Stock Entry Detail": "uma movimentação de estoque",
+    "Batch": "um lote",
+    "Item Price": "uma tabela de preços",
+}
+
 
 def _delete_item(item):
     """Shared by delete_ingredient and delete_composed_item: clear out any
     finished Repost Item Valuation jobs blocking the link check (see
-    _INERT_REPOST_STATUSES above), then delete the Item itself, turning a
-    real LinkExistsError (purchase, production, recipe, menu...) into one
-    friendly message instead of Frappe's own verbose one."""
+    _INERT_REPOST_STATUSES above), then delete the Item itself.
+
+    Checks get_linked_docs() (the same lookup frappe.delete_doc's own
+    check_if_doc_is_linked runs internally) *before* attempting the
+    delete, instead of catching the resulting LinkExistsError and
+    replacing it with one message that lists every possible cause - so
+    the owner is told exactly what's blocking this specific item
+    ("ainda está em uma receita"), not a guess-all list."""
     pending_reposts = frappe.get_all(
         "Repost Item Valuation",
         filters={"item_code": item.name, "status": ["in", ["Queued", "In Progress"]]},
@@ -262,16 +320,26 @@ def _delete_item(item):
             repost.cancel()
         frappe.delete_doc("Repost Item Valuation", name, ignore_permissions=True, force=True)
 
+    links = get_linked_docs(item, method="Delete")
+    if links:
+        labels = []
+        for link in links:
+            label = _ITEM_LINK_LABELS.get(link["reference_doctype"], link["reference_doctype"])
+            if label not in labels:
+                labels.append(label)
+        frappe.throw(
+            _("Não é possível excluir {0}: ainda está em uso em {1}.").format(item.item_name, ", ".join(labels))
+        )
+
     try:
         frappe.delete_doc("Item", item.name, ignore_permissions=True)
     except frappe.LinkExistsError:
-        # delete_doc's own link check already pushed its verbose message
-        # onto the response's message log before raising - clear it first
-        # or the client concatenates both instead of showing just this one.
+        # get_linked_docs above covers Frappe's own static-link check, so
+        # this is a fallback for something outside it (a dynamic link,
+        # or a doctype's own on_trash raising this directly) - still
+        # better than the raw verbose message it would show otherwise.
         frappe.clear_messages()
-        frappe.throw(
-            _("Não é possível excluir {0}: já foi usado em compras, produção, receitas ou cardápio.").format(item.item_name)
-        )
+        frappe.throw(_("Não é possível excluir {0}: ainda está em uso.").format(item.item_name))
     frappe.db.commit()
 
 
