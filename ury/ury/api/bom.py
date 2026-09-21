@@ -136,11 +136,11 @@ def _default_item_group(has_batch_no):
     return fallback[0] if fallback else None
 
 
-# Ingredients are always weighed by the gram in this kitchen (confirmed
-# live: every real ingredient created so far - patinho moído, peito
-# bovino - uses it) - so unlike a composed/output item, staff never has
-# to think about a unit when logging one. Doesn't affect existing items;
-# only the default for a brand new one.
+# Most ingredients so far have been weighed by the gram (patinho moído,
+# peito bovino...), so it's the pre-selected default in the "Unidade"
+# picker - staff can still change it (Litre for oil/milk, Nos for
+# eggs/buns, Kg for bulk meat) before creating the item. Doesn't affect
+# existing items; only the default shown for a brand new one.
 _DEFAULT_INGREDIENT_UOM = "Gram"
 
 

@@ -27,15 +27,18 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
   const [shelfLife, setShelfLife] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Ingredients here are always weighed by the gram (see
-  // create_item's _DEFAULT_INGREDIENT_UOM) - only a composed/output item
-  // needs staff to pick its own unit and item group.
+  // Both kinds pick their own unit now (grams was a fine default for a
+  // kitchen mostly weighing raw ingredients, but breaks down for
+  // anything bought by volume - oil, milk - or by the piece - eggs,
+  // buns). Only a composed/output item also gets a group picker.
   useEffect(() => {
-    if (kind !== 'composed' || !open || uoms.length > 0) return;
-    Promise.all([stockOverviewService.uoms(), stockOverviewService.itemGroups()]).then(([u, g]) => {
+    if (!open || uoms.length > 0) return;
+    const fetchGroups = kind === 'composed' ? stockOverviewService.itemGroups() : Promise.resolve([]);
+    Promise.all([stockOverviewService.uoms(), fetchGroups]).then(([u, g]) => {
       setUoms(u);
       setGroups(g);
-      setUom((prev) => prev || u.find((x) => x === 'Nos') || u[0] || '');
+      const fallback = kind === 'ingredient' ? 'Gram' : 'Nos';
+      setUom((prev) => prev || u.find((x) => x === fallback) || u[0] || '');
     });
   }, [kind, open, uoms.length]);
 
@@ -53,7 +56,7 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
       const result = await stockOverviewService.createItem({
         item_name: name.trim(),
         kind,
-        stock_uom: kind === 'composed' ? uom : undefined,
+        stock_uom: uom || undefined,
         item_group: kind === 'composed' ? group || undefined : undefined,
         shelf_life_in_days: kind === 'ingredient' && shelfLife ? Number(shelfLife) : undefined,
         description: description.trim() || undefined,
@@ -104,6 +107,16 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
             rows={2}
           />
         </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Unidade</label>
+          <Select value={uom} onChange={(e) => setUom(e.target.value)}>
+            {uoms.map((u) => (
+              <option key={u} value={u}>
+                {translateUom(u)}
+              </option>
+            ))}
+          </Select>
+        </div>
         {kind === 'ingredient' && (
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Validade padrão (dias)</label>
@@ -117,29 +130,17 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
           </div>
         )}
         {kind === 'composed' && (
-          <>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Unidade</label>
-              <Select value={uom} onChange={(e) => setUom(e.target.value)}>
-                {uoms.map((u) => (
-                  <option key={u} value={u}>
-                    {translateUom(u)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="col-span-2 space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Grupo (opcional)</label>
-              <Select value={group} onChange={(e) => setGroup(e.target.value)}>
-                <option value="">Automático</option>
-                {groups.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </>
+          <div className="col-span-2 space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Grupo (opcional)</label>
+            <Select value={group} onChange={(e) => setGroup(e.target.value)}>
+              <option value="">Automático</option>
+              {groups.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </Select>
+          </div>
         )}
       </div>
       <div className="flex gap-2">
