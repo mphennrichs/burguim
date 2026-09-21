@@ -52,6 +52,29 @@ function formatDaysLeft(days: number): string {
   return `Vence em ${days} dias`;
 }
 
+// Stock is always kept (and recipes always measured) in the smaller unit
+// of each pair - Gram, Millilitre - since that's the precision a recipe
+// actually needs (10g of alface, 50ml of maionese). A purchase is almost
+// always bulk though (4 litros de leite, 2kg de patinho), so this offers
+// the bigger metric unit too and converts 1:1000 on submit - the batch
+// itself still ends up stored in the item's real stock_uom, unchanged
+// from what recordPurchase always expected.
+const _BULK_UNIT_FOR: Record<string, string> = { Gram: 'Kg', Millilitre: 'Litre' };
+
+function purchaseUnitOptions(stockUom: string | undefined): string[] {
+  if (!stockUom) return [];
+  const bulk = _BULK_UNIT_FOR[stockUom];
+  return bulk ? [bulk, stockUom] : [stockUom];
+}
+
+function defaultPurchaseUnit(stockUom: string | undefined): string {
+  return purchaseUnitOptions(stockUom)[0] ?? '';
+}
+
+function purchaseUnitFactor(purchaseUnit: string, stockUom: string | undefined): number {
+  return purchaseUnit !== stockUom && _BULK_UNIT_FOR[stockUom ?? ''] === purchaseUnit ? 1000 : 1;
+}
+
 export const StockOverviewPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('custos');
   const [loading, setLoading] = useState(true);
@@ -70,6 +93,7 @@ export const StockOverviewPage: React.FC = () => {
     expiry_date: '',
   });
   const [expiryTouched, setExpiryTouched] = useState(false);
+  const [purchaseUnit, setPurchaseUnit] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const [prodForm, setProdForm] = useState({
@@ -127,15 +151,36 @@ export const StockOverviewPage: React.FC = () => {
 
   function handleItemChange(itemCode: string) {
     const item = purchasableItems.find((i) => i.name === itemCode) ?? null;
+    const unit = defaultPurchaseUnit(item?.stock_uom);
+    const factor = purchaseUnitFactor(unit, item?.stock_uom);
     setExpiryTouched(false);
+    setPurchaseUnit(unit);
     setForm((prev) => ({
       ...prev,
       item_code: itemCode,
-      rate: item?.last_buying_rate != null ? String(item.last_buying_rate) : prev.rate,
+      // last_buying_rate is stored per stock_uom (the base unit) - scale
+      // it into whatever unit is now pre-selected (Kg/Litre default to
+      // bulk) so the field shows a sensible number, not the raw per-gram
+      // price where a per-kg one was expected.
+      rate: item?.last_buying_rate != null ? String(item.last_buying_rate * factor) : prev.rate,
       expiry_date:
         item?.shelf_life_in_days != null
           ? addDaysIso(prev.purchase_date, item.shelf_life_in_days)
           : '',
+    }));
+  }
+
+  function handlePurchaseUnitChange(unit: string) {
+    const prevFactor = purchaseUnitFactor(purchaseUnit, selectedItem?.stock_uom);
+    const nextFactor = purchaseUnitFactor(unit, selectedItem?.stock_uom);
+    setPurchaseUnit(unit);
+    // Keep the same real-world quantity/price the fields represent when
+    // switching units mid-entry, instead of leaving stale numbers behind
+    // in the new unit's scale (4 "Litros" silently becoming 4 "ml").
+    setForm((prev) => ({
+      ...prev,
+      qty: prev.qty ? String((Number(prev.qty) * prevFactor) / nextFactor) : prev.qty,
+      rate: prev.rate ? String((Number(prev.rate) * nextFactor) / prevFactor) : prev.rate,
     }));
   }
 
@@ -160,20 +205,28 @@ export const StockOverviewPage: React.FC = () => {
 
   async function handleSubmitPurchase(e: React.FormEvent) {
     e.preventDefault();
-    const qty = Number(form.qty);
-    const rate = Number(form.rate);
+    const enteredQty = Number(form.qty);
+    const enteredRate = Number(form.rate);
     if (!form.item_code) {
       showToast.error('Selecione um ingrediente.');
       return;
     }
-    if (!qty || qty <= 0) {
+    if (!enteredQty || enteredQty <= 0) {
       showToast.error('Informe uma quantidade válida.');
       return;
     }
-    if (!rate || rate <= 0) {
+    if (!enteredRate || enteredRate <= 0) {
       showToast.error('Informe um preço válido.');
       return;
     }
+
+    // The batch is always recorded in the item's own stock_uom - convert
+    // out of whatever bulk unit (Kg/Litre) was picked for entry. qty
+    // scales up, rate scales down by the same factor so qty × rate (the
+    // total paid) comes out the same either way.
+    const factor = purchaseUnitFactor(purchaseUnit, selectedItem?.stock_uom);
+    const qty = enteredQty * factor;
+    const rate = enteredRate / factor;
 
     setSubmitting(true);
     try {
@@ -186,6 +239,7 @@ export const StockOverviewPage: React.FC = () => {
       });
       showToast.success(`Compra registrada — lote ${result.batch_no}`);
       setForm({ item_code: '', qty: '', rate: '', purchase_date: todayIso(), expiry_date: '' });
+      setPurchaseUnit('');
       setExpiryTouched(false);
       await reloadAll();
       setTab('validade');
@@ -478,21 +532,43 @@ export const StockOverviewPage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label htmlFor="purchase-qty" className="text-sm font-medium">
-                        Quantidade {selectedItem ? `(${translateUom(selectedItem.stock_uom)})` : ''}
+                        Quantidade
                       </label>
-                      <Input
-                        id="purchase-qty"
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        value={form.qty}
-                        onChange={(e) => setForm((prev) => ({ ...prev, qty: e.target.value }))}
-                        placeholder="0"
-                      />
+                      <div className="flex gap-1.5">
+                        <Input
+                          id="purchase-qty"
+                          type="number"
+                          min="0"
+                          step="0.001"
+                          value={form.qty}
+                          onChange={(e) => setForm((prev) => ({ ...prev, qty: e.target.value }))}
+                          placeholder="0"
+                        />
+                        {selectedItem && purchaseUnitOptions(selectedItem.stock_uom).length > 1 ? (
+                          <div className="w-28 shrink-0">
+                            <Select
+                              value={purchaseUnit}
+                              onChange={(e) => handlePurchaseUnitChange(e.target.value)}
+                            >
+                              {purchaseUnitOptions(selectedItem.stock_uom).map((u) => (
+                                <option key={u} value={u}>
+                                  {translateUom(u)}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                        ) : (
+                          selectedItem && (
+                            <span className="flex items-center px-2 text-sm text-muted-foreground shrink-0">
+                              {translateUom(selectedItem.stock_uom)}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label htmlFor="purchase-rate" className="text-sm font-medium">
-                        Preço pago (por {selectedItem ? translateUom(selectedItem.stock_uom) : 'unidade'})
+                        Preço pago (por {selectedItem ? translateUom(purchaseUnit || selectedItem.stock_uom) : 'unidade'})
                       </label>
                       <Input
                         id="purchase-rate"
