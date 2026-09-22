@@ -145,32 +145,29 @@ _DEFAULT_INGREDIENT_UOM = "Gram"
 
 
 @frappe.whitelist(methods=["POST"])
-def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_days=None, description=None, prepared_ahead=0):
-    """Creates the underlying Item for a new ingredient ("matéria-prima")
-    or assembled-to-order item ("item composto"), with exactly the flags
-    each needs - is_stock_item=1 always (required for the item to be
-    usable as a BOM's output at all).
+def create_item(item_name, vendavel=0, rastreio_lote=1, stock_uom=None, item_group=None, shelf_life_in_days=None, description=None):
+    """Creates the underlying Item from the two independent properties
+    CONTEXT.md's "Tipos de item" defines instead of a single "kind":
+    Vendável (is_sales_item - aparece no cardápio) and Rastreio de lote
+    (has_batch_no - controle de lote/validade). is_stock_item=1 always -
+    required for the item to be usable as a BOM's output
+    (get_bom_output_candidates) and, when rastreio_lote is set, for real
+    batch tracking.
 
-    has_batch_no=1 (real batch/expiry tracking, and what get_production_items
-    requires alongside a BOM) for every ingredient, and for a composed item
-    only when prepared_ahead is set - a burger assembled to order at sale
-    time doesn't need a batch of its own (stock_deduction.py unwinds its
-    recipe straight from raw stock at the moment it's sold), but something
-    like a house sauce or a pre-grilled patty, made ahead in a batch with
-    its own shelf life, does. Without this flag a composed item with its
-    own recipe could never show up in "Registrar produção" at all - that
-    screen can only create a batch for something has_batch_no=1 lets have
-    one."""
+    The three real combinations from CONTEXT.md:
+    - Ingrediente: rastreio_lote=1, vendavel=0.
+    - Preparo: rastreio_lote=1, vendavel=0, com uma Receita - a mesma
+      combinação de flags que Ingrediente; só a presença de uma BOM
+      diferencia os dois (get_ingredients devolve os dois juntos).
+    - Produto: vendavel=1, com rastreio_lote=0 (ex: Burguim Clássico,
+      montado na hora) ou =1 (ex: um refrigerante comprado pronto e
+      revendido, com lote controlado)."""
     getBranch()
-    if kind not in ("ingredient", "composed"):
-        frappe.throw(_("Tipo de item inválido"))
-
-    has_batch_no = 1 if kind == "ingredient" or frappe.utils.cint(prepared_ahead) else 0
+    has_batch_no = 1 if frappe.utils.cint(rastreio_lote) else 0
+    is_sales_item = 1 if frappe.utils.cint(vendavel) else 0
     item_group = item_group or _default_item_group(has_batch_no)
     if not item_group:
         frappe.throw(_("Nenhum grupo de itens cadastrado no sistema"))
-    if kind == "composed" and not stock_uom:
-        frappe.throw(_("Selecione uma unidade de medida"))
 
     item = frappe.get_doc({
         "doctype": "Item",
@@ -179,6 +176,7 @@ def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_
         "item_group": item_group,
         "stock_uom": stock_uom or _DEFAULT_INGREDIENT_UOM,
         "is_stock_item": 1,
+        "is_sales_item": is_sales_item,
         "has_batch_no": has_batch_no,
         "shelf_life_in_days": frappe.utils.cint(shelf_life_in_days) or None,
         "description": description or None,
@@ -191,6 +189,8 @@ def create_item(item_name, kind, stock_uom=None, item_group=None, shelf_life_in_
         "stock_uom": item.stock_uom,
         "shelf_life_in_days": item.shelf_life_in_days,
         "description": item.description,
+        "vendavel": item.is_sales_item,
+        "rastreio_lote": item.has_batch_no,
     }
 
 
@@ -229,15 +229,20 @@ def rename_item(item_code, item_name):
 
 @frappe.whitelist()
 def get_ingredients():
-    """Raw-material items for the "Ingredientes" management tab - fuller
-    detail (shelf life, description) than get_bom_candidates' minimal
-    shape (name/item_name/stock_uom), which stays as-is since other code
-    reads that exact shape for the recipe picker."""
+    """Ingredientes e Preparos (CONTEXT.md "Tipos de item") for the
+    "Ingredientes" management tab - both share the same flags (Rastreio
+    de lote, não Vendável); what tells a Preparo apart from a verdadeiro
+    Ingrediente is only having a Receita, which this list doesn't need to
+    know for management purposes (edit shelf life, disable, delete all
+    work the same either way). Fuller detail (shelf life, description)
+    than get_bom_candidates' minimal shape (name/item_name/stock_uom),
+    which stays as-is since other code reads that exact shape for the
+    recipe picker."""
     getBranch()
     return {
         "items": frappe.get_all(
             "Item",
-            filters={"has_batch_no": 1, "disabled": 0},
+            filters={"has_batch_no": 1, "is_sales_item": 0, "disabled": 0},
             fields=["name", "item_name", "stock_uom", "item_group", "shelf_life_in_days", "description"],
             order_by="item_name asc",
         )
@@ -246,15 +251,15 @@ def get_ingredients():
 
 @frappe.whitelist(methods=["POST"])
 def update_ingredient(item_code, shelf_life_in_days=None, description=None):
-    """Edits an ingredient's default shelf life and description - the
-    fields "Ingredientes" lets staff change after creation. stock_uom/
+    """Edits an Ingrediente/Preparo's default shelf life and description -
+    the fields "Ingredientes" lets staff change after creation. stock_uom/
     item_group stay fixed once set: changing a unit on an item that
     already has purchases/batches against it would make those historical
     quantities mean something different."""
     getBranch()
     item = frappe.get_doc("Item", item_code)
-    if not item.has_batch_no:
-        frappe.throw(_("Item não é um ingrediente"))
+    if not item.has_batch_no or item.is_sales_item:
+        frappe.throw(_("Item não é um ingrediente ou preparo"))
     item.shelf_life_in_days = frappe.utils.cint(shelf_life_in_days) or None
     item.description = description or None
     item.save(ignore_permissions=True)
@@ -302,7 +307,7 @@ _ITEM_LINK_LABELS = {
 
 
 def _delete_item(item):
-    """Shared by delete_ingredient and delete_composed_item: clear out any
+    """Shared by delete_ingredient and delete_produto: clear out any
     finished Repost Item Valuation jobs blocking the link check (see
     _INERT_REPOST_STATUSES above), then delete the Item itself.
 
@@ -367,10 +372,10 @@ def disable_item(item_code):
     """The alternative _delete_item points to when an item has real
     history (a completed sale, a purchase, a batch...) and Frappe won't
     let it be deleted at all - disabled=0 is exactly the filter every
-    candidate list here already applies (get_ingredients,
-    get_composed_items, get_bom_candidates, get_bom_output_candidates),
-    so this is enough to get the item out of every picker without
-    touching the transactions that reference it."""
+    candidate list here already applies (get_ingredients, get_produtos,
+    get_bom_candidates, get_bom_output_candidates), so this is enough to
+    get the item out of every picker without touching the transactions
+    that reference it."""
     getBranch()
     item = frappe.get_doc("Item", item_code)
     item.disabled = 1
@@ -381,13 +386,11 @@ def disable_item(item_code):
 
 @frappe.whitelist(methods=["POST"])
 def mark_prepared_ahead(item_code):
-    """Converts an existing composed item (has_batch_no=0) into a
-    "preparado com antecedência" one, has_batch_no=1 - for one created
-    before create_item's prepared_ahead option existed, with no way
-    short of Frappe Desk to fix it after the fact. Once this is set the
-    item shows up in get_ingredients (not get_composed_items anymore -
-    same has_batch_no split every list here already uses) and, once it
-    also has a BOM, in get_production_items.
+    """Liga o Rastreio de lote (has_batch_no) num Produto que hoje não
+    tem - CONTEXT.md: um Produto pode ou não ter rastreio (Burguim
+    Clássico não tem, montado na hora; um refrigerante revendido pode
+    ter). Uma vez ligado, o item passa a exigir validade e, se também
+    tiver uma Receita, aparece em "Registrar produção".
 
     Item.cant_change() (frappe/stock/doctype/item/item.py) blocks this
     outright if any submitted document already references the item (a
@@ -396,8 +399,10 @@ def mark_prepared_ahead(item_code):
     real validation error in this app."""
     getBranch()
     item = frappe.get_doc("Item", item_code)
-    if item.has_batch_no or not item.is_stock_item:
-        frappe.throw(_("Item não é um item composto"))
+    if not item.is_sales_item:
+        frappe.throw(_("Item não é um Produto"))
+    if item.has_batch_no:
+        frappe.throw(_("Este Produto já tem rastreio de lote"))
     item.has_batch_no = 1
     item.save(ignore_permissions=True)
     frappe.db.commit()
@@ -408,39 +413,34 @@ def mark_prepared_ahead(item_code):
 def delete_ingredient(item_code):
     getBranch()
     item = frappe.get_doc("Item", item_code)
-    if not item.has_batch_no:
-        frappe.throw(_("Item não é um ingrediente"))
+    if not item.has_batch_no or item.is_sales_item:
+        frappe.throw(_("Item não é um ingrediente ou preparo"))
     _delete_item(item)
     return {"deleted": item_code}
 
 
 @frappe.whitelist()
-def get_composed_items():
-    """Composed/output items ("itens compostos") for a management list,
-    same idea as get_ingredients but the other kind of item: has_batch_no=0
-    (no batch/expiry tracking - it's assembled or sold, not stocked raw)
-    and is_stock_item=1, matching how get_bom_candidates' own nested-recipe
-    lookup and create_item's "composed" kind define this category. Doesn't
-    include pure is_stock_item=0 menu items (Cardápio's own create-item
-    flow) - those never had inventory tracking to begin with and are
-    managed from the Cardápio screen, not here."""
+def get_produtos():
+    """Produtos (CONTEXT.md "Tipos de item") for a management list -
+    every Vendável item, com ou sem Receita, com ou sem Rastreio de lote
+    (é só ser Vendável que importa pra estar nesta lista)."""
     getBranch()
     return {
         "items": frappe.get_all(
             "Item",
-            filters={"has_batch_no": 0, "is_stock_item": 1, "disabled": 0},
-            fields=["name", "item_name", "stock_uom", "item_group", "description"],
+            filters={"is_sales_item": 1, "disabled": 0},
+            fields=["name", "item_name", "stock_uom", "item_group", "description", "has_batch_no"],
             order_by="item_name asc",
         )
     }
 
 
 @frappe.whitelist(methods=["POST"])
-def delete_composed_item(item_code):
+def delete_produto(item_code):
     getBranch()
     item = frappe.get_doc("Item", item_code)
-    if item.has_batch_no or not item.is_stock_item:
-        frappe.throw(_("Item não é um item composto"))
+    if not item.is_sales_item:
+        frappe.throw(_("Item não é um Produto"))
     _delete_item(item)
     return {"deleted": item_code}
 

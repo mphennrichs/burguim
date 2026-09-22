@@ -110,7 +110,7 @@ export const MenuPage: React.FC = () => {
   const [creatingItemForRowIndex, setCreatingItemForRowIndex] = useState<number | null>(null);
   // Standalone "Adicionar Item" (menu already selected, not the Nova Menu
   // row builder) - set when linking an EXISTING Item (ingredient, item
-  // composto...) to this menu instead of creating a brand new one. Empty
+  // composto/Produto...) to this menu instead of creating a brand new one. Empty
   // string = the normal create-new-Item flow.
   const [addExistingItem, setAddExistingItem] = useState('');
 
@@ -492,7 +492,7 @@ export const MenuPage: React.FC = () => {
           }
         }
       } else if (addExistingItem && creatingItemForRowIndex === null) {
-        // Linking an existing Item (ingredient, item composto...) - no
+        // Linking an existing Item (Ingrediente, Preparo, Produto...) - no
         // new Item to create, just add a row referencing it.
         const res = await call<any>('frappe.client.get', { doctype: 'URY Menu', name: newItem.target_menu });
         const menuDoc = res.message || res;
@@ -1105,7 +1105,7 @@ export const MenuPage: React.FC = () => {
               <SearchableSelect
                 id="existing-item"
                 value={addExistingItem}
-                placeholder="Buscar ingrediente ou item composto..."
+                placeholder="Buscar ingrediente, preparo ou produto..."
                 options={[
                   { value: '', label: 'Nenhum - criar item novo' },
                   ...allItems

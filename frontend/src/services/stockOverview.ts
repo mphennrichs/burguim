@@ -75,12 +75,13 @@ export interface Ingredient {
   description: string | null;
 }
 
-export interface ComposedItem {
+export interface Produto {
   name: string;
   item_name: string;
   stock_uom: string;
   item_group: string;
   description: string | null;
+  has_batch_no: number;
 }
 
 export interface BomIngredient {
@@ -210,24 +211,35 @@ export const stockOverviewService = {
 
   async createItem(params: {
     item_name: string;
-    kind: 'ingredient' | 'composed';
+    vendavel: boolean;
+    rastreio_lote: boolean;
     stock_uom?: string;
     item_group?: string;
     shelf_life_in_days?: number;
     description?: string;
-    prepared_ahead?: boolean;
-  }): Promise<{ item: string; stock_uom: string; shelf_life_in_days: number | null; description: string | null }> {
+  }): Promise<{
+    item: string;
+    stock_uom: string;
+    shelf_life_in_days: number | null;
+    description: string | null;
+    vendavel: number;
+    rastreio_lote: number;
+  }> {
     const res = await call<{
       item: string;
       stock_uom: string;
       shelf_life_in_days: number | null;
       description: string | null;
+      vendavel: number;
+      rastreio_lote: number;
     }>('ury.ury.api.bom.create_item', params);
     return unwrap(res, {
       item: '',
       stock_uom: params.stock_uom ?? '',
       shelf_life_in_days: params.shelf_life_in_days ?? null,
       description: params.description ?? null,
+      vendavel: params.vendavel ? 1 : 0,
+      rastreio_lote: params.rastreio_lote ? 1 : 0,
     });
   },
 
@@ -273,14 +285,14 @@ export const stockOverviewService = {
     await call('ury.ury.api.bom.delete_ingredient', { item_code: itemCode });
   },
 
-  async composedItems(): Promise<ComposedItem[]> {
-    const res = await call<{ items: ComposedItem[] }>('ury.ury.api.bom.get_composed_items');
-    const data = unwrap<{ items: ComposedItem[] }>(res, { items: [] });
+  async produtos(): Promise<Produto[]> {
+    const res = await call<{ items: Produto[] }>('ury.ury.api.bom.get_produtos');
+    const data = unwrap<{ items: Produto[] }>(res, { items: [] });
     return Array.isArray(data.items) ? data.items : [];
   },
 
-  async deleteComposedItem(itemCode: string): Promise<void> {
-    await call('ury.ury.api.bom.delete_composed_item', { item_code: itemCode });
+  async deleteProduto(itemCode: string): Promise<void> {
+    await call('ury.ury.api.bom.delete_produto', { item_code: itemCode });
   },
 
   async boms(): Promise<Bom[]> {

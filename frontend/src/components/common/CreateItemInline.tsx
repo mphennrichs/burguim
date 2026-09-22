@@ -3,6 +3,17 @@ import { Button, Input, Select, Textarea, showToast } from '@ury/ui';
 import { translateUom, parseFrappeError } from '@ury/core';
 import { stockOverviewService } from '../../services/stockOverview';
 
+// Two UI contexts, not two "kinds" of item (see CONTEXT.md "Tipos de
+// item" - Ingrediente/Preparo/Produto are combinations of two
+// independent properties, not fixed categories):
+// - 'ingredient': always Vendável=não, Rastreio de lote=sim (an
+//   Ingrediente or Preparo) - no toggles shown, this context only ever
+//   creates that combination.
+// - 'composed': what a Receita produces - could be a Preparo (Vendável
+//   não, ex: Hambúrguer) or a Produto (Vendável sim, ex: Burguim
+//   Clássico), and either can have Rastreio de lote or not - both
+//   toggles shown, defaulting to the more common case (Produto, sem
+//   rastreio - montado na hora).
 type Kind = 'ingredient' | 'composed';
 
 interface CreateItemInlineProps {
@@ -25,21 +36,18 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
   const [uom, setUom] = useState('');
   const [group, setGroup] = useState('');
   const [shelfLife, setShelfLife] = useState('');
-  const [preparedAhead, setPreparedAhead] = useState(false);
+  const [vendavel, setVendavel] = useState(kind === 'composed');
+  const [rastreioLote, setRastreioLote] = useState(kind === 'ingredient');
   const [saving, setSaving] = useState(false);
 
-  // A composed item assembled to order (kind="composed", box left
-  // unchecked) has no batch of its own - stock_deduction.py unwinds its
-  // recipe straight from raw stock at the moment it's sold. One marked
-  // "preparado com antecedência" gets real batch/expiry tracking instead
-  // (has_batch_no=1 on the backend), same as an ingredient - it's what
-  // "Registrar produção" requires to create a batch for it at all.
-  const needsShelfLife = kind === 'ingredient' || (kind === 'composed' && preparedAhead);
+  const needsShelfLife = rastreioLote;
 
   // Both kinds pick their own unit now (grams was a fine default for a
   // kitchen mostly weighing raw ingredients, but breaks down for
   // anything bought by volume - oil, milk - or by the piece - eggs,
-  // buns). Only a composed/output item also gets a group picker.
+  // buns). Item Group picker only shows for a Vendável item (Produto) -
+  // an Ingrediente/Preparo's group is auto-guessed, matching how
+  // stock_uom's own default already varies by context.
   useEffect(() => {
     if (!open || uoms.length > 0) return;
     const fetchGroups = kind === 'composed' ? stockOverviewService.itemGroups() : Promise.resolve([]);
@@ -64,12 +72,12 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
     try {
       const result = await stockOverviewService.createItem({
         item_name: name.trim(),
-        kind,
+        vendavel,
+        rastreio_lote: rastreioLote,
         stock_uom: uom || undefined,
-        item_group: kind === 'composed' ? group || undefined : undefined,
+        item_group: kind === 'composed' && vendavel ? group || undefined : undefined,
         shelf_life_in_days: needsShelfLife && shelfLife ? Number(shelfLife) : undefined,
         description: description.trim() || undefined,
-        prepared_ahead: kind === 'composed' && preparedAhead,
       });
       showToast.success(`"${result.item}" criado.`);
       onCreated({
@@ -82,7 +90,8 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
       setName('');
       setDescription('');
       setShelfLife('');
-      setPreparedAhead(false);
+      setVendavel(kind === 'composed');
+      setRastreioLote(kind === 'ingredient');
     } catch (err) {
       showToast.error(parseFrappeError(err, 'Não foi possível criar o item.'));
     } finally {
@@ -129,17 +138,31 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
           </Select>
         </div>
         {kind === 'composed' && (
-          <div className="col-span-2 flex items-center gap-2">
-            <input
-              id="prepared-ahead"
-              type="checkbox"
-              checked={preparedAhead}
-              onChange={(e) => setPreparedAhead(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <label htmlFor="prepared-ahead" className="text-xs font-medium text-muted-foreground">
-              Preparado com antecedência (tem validade própria, ex: molho, carne grelhada)
-            </label>
+          <div className="col-span-2 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <input
+                id="vendavel"
+                type="checkbox"
+                checked={vendavel}
+                onChange={(e) => setVendavel(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <label htmlFor="vendavel" className="text-xs font-medium text-muted-foreground">
+                Vendável (aparece no cardápio) - desmarque se é só um preparo interno, ex: Hambúrguer
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="rastreio-lote"
+                type="checkbox"
+                checked={rastreioLote}
+                onChange={(e) => setRastreioLote(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <label htmlFor="rastreio-lote" className="text-xs font-medium text-muted-foreground">
+                Preparado com antecedência (tem validade/lote próprio, ex: molho, carne grelhada)
+              </label>
+            </div>
           </div>
         )}
         {needsShelfLife && (
@@ -154,7 +177,7 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
             />
           </div>
         )}
-        {kind === 'composed' && (
+        {kind === 'composed' && vendavel && (
           <div className="col-span-2 space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Grupo (opcional)</label>
             <Select value={group} onChange={(e) => setGroup(e.target.value)}>

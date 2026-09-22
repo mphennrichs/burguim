@@ -20,11 +20,11 @@ import {
   type BomOutputCandidateItem,
   type Bom,
   type Ingredient,
-  type ComposedItem,
+  type Produto,
 } from '../../services/stockOverview';
 import { CreateItemInline } from '../../components/common/CreateItemInline';
 
-type Tab = 'receitas' | 'ingredientes' | 'compostos' | 'nova';
+type Tab = 'receitas' | 'ingredientes' | 'produtos' | 'nova';
 
 interface IngredientRow {
   item_code: string;
@@ -42,7 +42,7 @@ export const BomPage: React.FC = () => {
   const [outputCandidates, setOutputCandidates] = useState<BomOutputCandidateItem[]>([]);
   const [boms, setBoms] = useState<Bom[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [composedItems, setComposedItems] = useState<ComposedItem[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
 
   const [editingBom, setEditingBom] = useState<Bom | null>(null);
   const [outputItemName, setOutputItemName] = useState('');
@@ -60,8 +60,8 @@ export const BomPage: React.FC = () => {
   const [savingIngredient, setSavingIngredient] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
-  const [savingComposed, setSavingComposed] = useState<string | null>(null);
-  const [confirmingDeleteComposed, setConfirmingDeleteComposed] = useState<string | null>(null);
+  const [savingProduto, setSavingProduto] = useState<string | null>(null);
+  const [confirmingDeleteProduto, setConfirmingDeleteProduto] = useState<string | null>(null);
 
   function reloadAll() {
     setLoading(true);
@@ -70,14 +70,14 @@ export const BomPage: React.FC = () => {
       stockOverviewService.bomOutputCandidates(),
       stockOverviewService.boms(),
       stockOverviewService.ingredients(),
-      stockOverviewService.composedItems(),
+      stockOverviewService.produtos(),
     ])
-      .then(([candidateResult, outputResult, bomResult, ingredientResult, composedResult]) => {
+      .then(([candidateResult, outputResult, bomResult, ingredientResult, produtoResult]) => {
         setCandidates(candidateResult);
         setOutputCandidates(outputResult);
         setBoms(bomResult);
         setIngredients(ingredientResult);
-        setComposedItems(composedResult);
+        setProdutos(produtoResult);
       })
       .catch(() => showToast.error('Não foi possível carregar as receitas.'))
       .finally(() => setLoading(false));
@@ -292,59 +292,59 @@ export const BomPage: React.FC = () => {
     [ingredientDrafts, savingIngredient, confirmingDelete, ingredients],
   );
 
-  async function handleDeleteComposedItem(itemCode: string) {
-    if (confirmingDeleteComposed !== itemCode) {
-      setConfirmingDeleteComposed(itemCode);
+  async function handleDeleteProduto(itemCode: string) {
+    if (confirmingDeleteProduto !== itemCode) {
+      setConfirmingDeleteProduto(itemCode);
       return;
     }
-    setConfirmingDeleteComposed(null);
-    setSavingComposed(itemCode);
+    setConfirmingDeleteProduto(null);
+    setSavingProduto(itemCode);
     try {
-      await stockOverviewService.deleteComposedItem(itemCode);
-      setComposedItems((prev) => prev.filter((i) => i.name !== itemCode));
+      await stockOverviewService.deleteProduto(itemCode);
+      setProdutos((prev) => prev.filter((i) => i.name !== itemCode));
       setCandidates((prev) => prev.filter((c) => c.name !== itemCode));
       setOutputCandidates((prev) => prev.filter((c) => c.name !== itemCode));
       showToast.success('Item excluído.');
     } catch (err) {
       showToast.error(parseFrappeError(err, 'Não foi possível excluir o item.'));
     } finally {
-      setSavingComposed(null);
+      setSavingProduto(null);
     }
   }
 
-  async function handleDisableComposedItem(itemCode: string) {
-    setSavingComposed(itemCode);
+  async function handleDisableProduto(itemCode: string) {
+    setSavingProduto(itemCode);
     try {
       await stockOverviewService.disableItem(itemCode);
-      setComposedItems((prev) => prev.filter((i) => i.name !== itemCode));
+      setProdutos((prev) => prev.filter((i) => i.name !== itemCode));
       setCandidates((prev) => prev.filter((c) => c.name !== itemCode));
       setOutputCandidates((prev) => prev.filter((c) => c.name !== itemCode));
       showToast.success('Item desativado.');
     } catch (err) {
       showToast.error(parseFrappeError(err, 'Não foi possível desativar o item.'));
     } finally {
-      setSavingComposed(null);
+      setSavingProduto(null);
     }
   }
 
   async function handleMarkPreparedAhead(itemCode: string) {
-    setSavingComposed(itemCode);
+    setSavingProduto(itemCode);
     try {
       await stockOverviewService.markPreparedAhead(itemCode);
-      // Once has_batch_no flips it stops matching get_composed_items'
-      // own filter (has_batch_no=0) - drop it from this list, same as a
-      // delete/disable would, instead of leaving a stale row that would
-      // 404 on the next action taken against it.
-      setComposedItems((prev) => prev.filter((i) => i.name !== itemCode));
-      showToast.success('Item convertido. Agora aparece na aba Ingredientes, com validade própria.');
+      // Unlike an Ingrediente/Preparo, a Produto stays in this list
+      // either way - Vendável is the only thing that decides membership
+      // here (get_produtos). Rastreio de lote is just a flag on it, so
+      // just flip it in place instead of dropping the row.
+      setProdutos((prev) => prev.map((i) => (i.name === itemCode ? { ...i, has_batch_no: 1 } : i)));
+      showToast.success('Produto passou a ter validade/lote próprio.');
     } catch (err) {
       showToast.error(parseFrappeError(err, 'Não foi possível converter o item.'));
     } finally {
-      setSavingComposed(null);
+      setSavingProduto(null);
     }
   }
 
-  const composedColumns = useMemo<DataTableColumn<ComposedItem>[]>(
+  const produtoColumns = useMemo<DataTableColumn<Produto>[]>(
     () => [
       {
         key: 'item_name',
@@ -357,27 +357,34 @@ export const BomPage: React.FC = () => {
         render: (i) => <span className="text-muted-foreground">{i.description || '—'}</span>,
       },
       {
+        key: 'has_batch_no',
+        header: 'Rastreio de lote',
+        render: (i) => <span className="text-muted-foreground">{i.has_batch_no ? 'Sim' : 'Não'}</span>,
+      },
+      {
         key: 'actions',
         header: '',
         align: 'right',
         render: (i) => (
           <div className="flex items-center justify-end gap-2">
+            {!i.has_batch_no && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={savingProduto === i.name}
+                onClick={() => handleMarkPreparedAhead(i.name)}
+                title="Pra itens preparados com antecedência (ex: molho, carne grelhada) - passa a ter validade própria e aparece em Registrar Produção"
+              >
+                Preparado com antecedência
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              disabled={savingComposed === i.name}
-              onClick={() => handleMarkPreparedAhead(i.name)}
-              title="Pra itens preparados com antecedência (ex: molho, carne grelhada) - passa a ter validade própria e aparece em Registrar Produção"
-            >
-              Preparado com antecedência
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={savingComposed === i.name}
-              onClick={() => handleDisableComposedItem(i.name)}
+              disabled={savingProduto === i.name}
+              onClick={() => handleDisableProduto(i.name)}
               title="Tira o item das listas sem apagar o histórico de vendas/produção"
             >
               Desativar
@@ -385,17 +392,17 @@ export const BomPage: React.FC = () => {
             <Button
               type="button"
               size="sm"
-              variant={confirmingDeleteComposed === i.name ? 'danger' : 'ghost'}
-              disabled={savingComposed === i.name}
-              onClick={() => handleDeleteComposedItem(i.name)}
+              variant={confirmingDeleteProduto === i.name ? 'danger' : 'ghost'}
+              disabled={savingProduto === i.name}
+              onClick={() => handleDeleteProduto(i.name)}
             >
-              {confirmingDeleteComposed === i.name ? 'Confirmar exclusão?' : 'Excluir'}
+              {confirmingDeleteProduto === i.name ? 'Confirmar exclusão?' : 'Excluir'}
             </Button>
           </div>
         ),
       },
     ],
-    [savingComposed, confirmingDeleteComposed],
+    [savingProduto, confirmingDeleteProduto],
   );
 
   function resetForm() {
@@ -514,7 +521,7 @@ export const BomPage: React.FC = () => {
               [
                 { id: 'receitas' as const, label: 'Receitas cadastradas' },
                 { id: 'ingredientes' as const, label: 'Ingredientes' },
-                { id: 'compostos' as const, label: 'Itens compostos' },
+                { id: 'produtos' as const, label: 'Produtos' },
                 { id: 'nova' as const, label: editingBom ? 'Editar receita' : 'Nova receita' },
               ]
             ).map((item) => (
@@ -613,20 +620,20 @@ export const BomPage: React.FC = () => {
             </div>
           )}
 
-          {tab === 'compostos' && (
+          {tab === 'produtos' && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Itens que uma receita produz (ex: um hambúrguer montado). Removê-los do cardápio não os apaga daqui
-                — use este botão pra excluir de vez um item que não está mais em uso.
+                Itens vendáveis (aparecem no cardápio), com ou sem receita. Removê-los do cardápio não os apaga
+                daqui — use este botão pra excluir de vez um item que não está mais em uso.
               </p>
-              {composedItems.length === 0 ? (
+              {produtos.length === 0 ? (
                 <Card>
                   <CardContent className="py-10 text-center text-muted-foreground">
-                    Nenhum item composto cadastrado ainda.
+                    Nenhum produto cadastrado ainda.
                   </CardContent>
                 </Card>
               ) : (
-                <DataTable columns={composedColumns} rows={composedItems} />
+                <DataTable columns={produtoColumns} rows={produtos} />
               )}
             </div>
           )}
