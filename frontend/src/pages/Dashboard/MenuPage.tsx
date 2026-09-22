@@ -108,6 +108,11 @@ export const MenuPage: React.FC = () => {
   const [allItems, setAllItems] = useState<{ name: string; item_name: string; standard_rate?: number; custom_course?: string; image?: string }[]>([]);
   const [newMenuRows, setNewMenuRows] = useState<MenuItemRow[]>([]);
   const [creatingItemForRowIndex, setCreatingItemForRowIndex] = useState<number | null>(null);
+  // Standalone "Adicionar Item" (menu already selected, not the Nova Menu
+  // row builder) - set when linking an EXISTING Item (ingredient, item
+  // composto...) to this menu instead of creating a brand new one. Empty
+  // string = the normal create-new-Item flow.
+  const [addExistingItem, setAddExistingItem] = useState('');
 
   const createEmptyRow = (): MenuItemRow => ({
     id: `row-${Math.random().toString(36).substr(2, 9)}`,
@@ -221,6 +226,7 @@ export const MenuPage: React.FC = () => {
   const openAddItemDrawer = () => {
     setEditingItem(null);
     setPreviewImageUrl(null);
+    setAddExistingItem('');
     setNewItem({
       item_name: '',
       rate: '',
@@ -240,6 +246,7 @@ export const MenuPage: React.FC = () => {
   const openEditItemDrawer = (item: MenuItemRecord) => {
     setEditingItem(item);
     setPreviewImageUrl(null);
+    setAddExistingItem('');
     const matchedItem = allItems.find(i => i.name === item.item);
     const initialImage = item.image || matchedItem?.image || '';
     let initialImageName = '';
@@ -484,6 +491,23 @@ export const MenuPage: React.FC = () => {
             console.error('Failed to update Item doc image', err);
           }
         }
+      } else if (addExistingItem && creatingItemForRowIndex === null) {
+        // Linking an existing Item (ingredient, item composto...) - no
+        // new Item to create, just add a row referencing it.
+        const res = await call<any>('frappe.client.get', { doctype: 'URY Menu', name: newItem.target_menu });
+        const menuDoc = res.message || res;
+        if (!menuDoc.items) menuDoc.items = [];
+        menuDoc.items.push({
+          item: addExistingItem,
+          item_name: newItem.item_name,
+          course: resolvedCourse,
+          rate: parseFloat(newItem.rate),
+          image: sanitizedImage || undefined,
+          special_dish: newItem.special_dish ? 1 : 0,
+          disabled: newItem.disabled ? 1 : 0,
+          sold_out: newItem.sold_out ? 1 : 0,
+        });
+        await call('frappe.client.save', { doc: menuDoc });
       } else {
         if (!defaultItemGroup) {
           showToast.error('Nenhum grupo de itens cadastrado no sistema');
@@ -1075,6 +1099,32 @@ export const MenuPage: React.FC = () => {
             </div>
           )}
 
+          {creatingItemForRowIndex === null && !editingItem && (
+            <div>
+              <label className="block font-semibold text-gray-700 mb-1.5">Vincular item já existente (opcional)</label>
+              <SearchableSelect
+                id="existing-item"
+                value={addExistingItem}
+                placeholder="Buscar ingrediente ou item composto..."
+                options={[
+                  { value: '', label: 'Nenhum - criar item novo' },
+                  ...allItems
+                    .filter((i) => !items.some((existing) => existing.item === i.name))
+                    .map((i) => ({ value: i.name, label: i.item_name || i.name })),
+                ]}
+                onChange={(_, value) => {
+                  setAddExistingItem(value);
+                  const picked = allItems.find((i) => i.name === value);
+                  setNewItem((prev) => ({
+                    ...prev,
+                    item_name: picked ? (picked.item_name || picked.name) : '',
+                    rate: picked?.standard_rate != null ? String(picked.standard_rate) : prev.rate,
+                  }));
+                }}
+              />
+            </div>
+          )}
+
           {/* Item Name & Upload Image Row */}
           <div className="flex items-end gap-3">
             <div className="flex-1">
@@ -1085,6 +1135,7 @@ export const MenuPage: React.FC = () => {
                 value={newItem.item_name}
                 onChange={(e) => setNewItem({ ...newItem, item_name: e.target.value })}
                 required
+                disabled={!!addExistingItem}
                 className="font-medium w-full"
               />
             </div>
