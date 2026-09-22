@@ -14,7 +14,6 @@ import { syncOrder } from '../lib/order-api';
 import { useRootStore } from '../store/root-store';
 import type { RootState } from '../store/root-store';
 import { showToast } from '@ury/ui';
-import { DINE_IN } from '../data/order-types';
 import { t } from '../i18n';
 
 const OrderPanel = () => {
@@ -32,7 +31,6 @@ const OrderPanel = () => {
     selectedTable,
     selectedRoom,
     selectedCustomer,
-    selectedAggregator,
     resetOrderState,
     paymentModes,
     orderId,
@@ -85,20 +83,8 @@ const OrderPanel = () => {
         throw new Error(t('errors.user_not_logged_in'));
       }
 
-      // Validate customer/aggregator details
-      if (selectedOrderType === 'Aggregators') {
-        if (!selectedAggregator?.customer) {
-          showToast.error(t('errors.select_aggregator'));
-          return;
-        }
-      } else if (!selectedCustomer?.name) {
+      if (!selectedCustomer?.name) {
         showToast.error(t('errors.select_customer'));
-        return;
-      }
-
-      // Validate table selection for dine-in orders
-      if (selectedOrderType === DINE_IN && !selectedTable) {
-        showToast.error(t('errors.select_table', { order_type: DINE_IN }));
         return;
       }
 
@@ -117,8 +103,7 @@ const OrderPanel = () => {
         order_type: selectedOrderType,
         table: selectedTable || undefined,
         room: selectedRoom || undefined,
-        customer: selectedOrderType === 'Aggregators' ? selectedAggregator?.customer : selectedCustomer?.name,
-        aggregator_id: selectedOrderType === 'Aggregators' ? selectedAggregator?.customer : undefined,
+        customer: selectedCustomer?.name,
         cashier: posProfile.cashier,
         owner: posProfile.owner,
         mode_of_payment: paymentModes[0],

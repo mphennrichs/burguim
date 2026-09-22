@@ -7,15 +7,12 @@ import { SidebarContainer, SidebarActiveIndicator, sidebarItemVariants, cn } fro
 import {
   LayoutDashboard,
   UtensilsCrossed,
-  Grid3X3,
-  Map,
   Building2,
   SlidersHorizontal,
   Users,
   ChevronDown,
   FileText,
   Settings,
-  Store,
   BarChart3,
   ArrowLeft,
   Grid,
@@ -41,8 +38,6 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'menu', label: 'Cardápio', path: '/menu', icon: UtensilsCrossed },
   { key: 'stock', label: 'Meu Estoque', path: '/stock', icon: Package },
   { key: 'bom', label: 'Receitas (BOM)', path: '/bom', icon: ChefHat },
-  { key: 'table', label: 'Mesa', path: '/table', icon: Grid3X3 },
-  { key: 'room', label: 'Sala', path: '/room', icon: Map },
   { key: 'branch', label: 'Filial', path: '/branch', icon: Building2 },
 ];
 
@@ -50,7 +45,6 @@ const SETTINGS_ITEMS: NavItem[] = [
   { key: 'branding', label: 'Identidade Visual', path: '/branding', icon: Image },
   { key: 'pos-profile', label: 'Perfil POS', path: '/pos-profile', icon: SlidersHorizontal },
   { key: 'user', label: 'Usuário', path: '/user', icon: Users },
-  { key: 'aggregator', label: 'Agregadores', path: '/aggregator', icon: Store },
   { key: 'report-settings', label: 'Configurações de DRE Diária', path: '/report-settings', icon: FileText },
   { key: 'production-unit', label: 'Unidade de Produção', path: '/production-unit', icon: Grid },
   // Never hideable - it's the only way to undo hiding anything else here.

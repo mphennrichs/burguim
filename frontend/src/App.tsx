@@ -9,15 +9,12 @@ import { DeliveryOrdersPage } from './pages/DeliveryOrders/DeliveryOrdersPage';
 import { StockOverviewPage } from './pages/Stock/StockOverviewPage';
 import { BomPage } from './pages/Stock/BomPage';
 import { MenuPage } from './pages/Dashboard/MenuPage';
-import { TablePage } from './pages/Dashboard/TablePage';
-import { RoomPage } from './pages/Dashboard/RoomPage';
 import { PosProfilePage } from './pages/Dashboard/PosProfilePage';
 import { UserPage } from './pages/Dashboard/UserPage';
 import { BranchPage } from './pages/Dashboard/BranchPage';
 import { ReportSettingsPage } from './pages/Dashboard/ReportSettingsPage';
 import ProductionUnitPage from './pages/Dashboard/ProductionUnitPage';
 import BrandingPage from './pages/Dashboard/BrandingPage';
-import AggregatorPage from './pages/Dashboard/AggregatorPage';
 import SidebarSettingsPage from './pages/Dashboard/SidebarSettingsPage';
 import { RoleGuard } from './components/RoleGuard';
 import { AuthGuard } from './components/AuthGuard';
@@ -131,15 +128,12 @@ function App() {
           <Route path="stock" element={<StockOverviewPage />} />
           <Route path="bom" element={<BomPage />} />
           <Route path="menu" element={<MenuPage />} />
-          <Route path="table" element={<TablePage />} />
-          <Route path="room" element={<RoomPage />} />
           <Route path="pos-profile" element={<PosProfilePage />} />
           <Route path="user" element={<UserPage />} />
           <Route path="branch" element={<BranchPage />} />
           <Route path="report-settings" element={<ReportSettingsPage />} />
           <Route path="production-unit" element={<ProductionUnitPage />} />
           <Route path="branding" element={<BrandingPage />} />
-          <Route path="aggregator" element={<AggregatorPage />} />
           <Route path="sidebar-settings" element={<SidebarSettingsPage />} />
 
           <Route

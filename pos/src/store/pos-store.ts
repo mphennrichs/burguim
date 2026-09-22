@@ -611,9 +611,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       });
     }
     
-    if (type !== 'Aggregators') {
-      fetchMenuItems();
-    }
+    fetchMenuItems();
   },
   setQuickFilter: (filter) => set({ quickFilter: filter }),
   setSelectedItem: (item) => set({ selectedItem: item }),

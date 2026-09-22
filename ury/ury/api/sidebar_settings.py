@@ -1,8 +1,7 @@
 # Copyright (c) 2026, Tridz Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 #
-# Which sidebar nav items are hidden site-wide (e.g. "Mesa"/"Sala" for a
-# delivery-only restaurant with no dine-in). One global setting, not
+# Which sidebar nav items are hidden site-wide. One global setting, not
 # per-branch or per-user — matches how this app's business model is
 # configured once at the company level, not per staff member.
 
@@ -22,13 +21,10 @@ HIDEABLE_ITEMS = {
     "menu",
     "stock",
     "bom",
-    "table",
-    "room",
     "branch",
     "branding",
     "pos-profile",
     "user",
-    "aggregator",
     "report-settings",
     "production-unit",
 }

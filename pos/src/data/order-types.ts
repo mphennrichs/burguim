@@ -1,6 +1,8 @@
-import { Globe, Phone, ShoppingBag, Truck, Utensils } from "lucide-react";
+import { Phone, ShoppingBag, Truck } from "lucide-react";
 
-export type OrderType = "Dine In" | "Take Away" | "Delivery" | "Phone In" | "Aggregators";
+// Só Retirada e Entrega (CONTEXT.md) - sem salão/mesa (Dine In) nem
+// agregador externo (Aggregators), ver docs/adr/0001.
+export type OrderType = "Take Away" | "Delivery" | "Phone In";
 
 export type OrderTypes= {
     label: string;
@@ -9,11 +11,6 @@ export type OrderTypes= {
 }
 
 export const ORDER_TYPES: OrderTypes[] = [
-    {
-        label: "Dine In",
-        value: "Dine In",
-        icon: Utensils
-    },
     {
         label: "Take Away",
         value: "Take Away",
@@ -28,15 +25,9 @@ export const ORDER_TYPES: OrderTypes[] = [
         label: "Phone In",
         value: "Phone In",
         icon: Phone
-    },
-    {
-        label: "Aggregators",
-        value: "Aggregators",
-        icon: Globe
     }
 ]
 
-export const DINE_IN="Dine In"
 export const DEFAULT_ORDER_TYPE="Take Away"
 export const DEFAULT_PAYMENT_MODE="Cash"
 
