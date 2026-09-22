@@ -11,7 +11,7 @@ import { Sidebar } from './Sidebar';
 // (see pos-store.ts's fetchCurrencySymbol); `frontend` never did, so every
 // currency display here silently fell back to formatCurrency's hardcoded
 // '₹' default regardless of the site's actual currency (confirmed live -
-// same root cause self_ordering.py and delivery_orders.py already patched
+// same root cause self_ordering.py and kitchen.py already patched
 // per-page). This is the app-wide fix those two deferred: seed it once,
 // for the whole dashboard, from the site's actual default currency.
 async function seedCurrencySymbol() {

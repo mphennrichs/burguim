@@ -423,6 +423,7 @@ fixtures = [
                     "Price List-restaurant_menu",
                     "POS Profile-custom_enable_discount",
                     "POS Invoice-custom_comments",
+                    "POS Invoice-custom_kitchen_status",
                     "POS Profile-custom_multiple_cashier_configuration",
                     "POS Profile-custom_enable_multiple_cashier",
                     "POS Profile User-custom_main_cashier",

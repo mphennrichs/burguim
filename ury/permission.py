@@ -10,7 +10,7 @@ def check_app_permission():
 # Branch-level access control (permission_query_conditions / has_permission
 # hooks, registered in hooks.py).
 #
-# Several staff-facing endpoints (ury/ury/api/delivery_orders.py,
+# Several staff-facing endpoints (ury/ury/api/kitchen.py,
 # stock_overview.py, ...) already assume a logged-in user only ever needs
 # their own branch's data, and filter accordingly. That assumption held only
 # as long as every caller went through those endpoints — a security review

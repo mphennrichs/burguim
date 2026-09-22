@@ -16,7 +16,7 @@ import {
   BarChart3,
   ArrowLeft,
   Grid,
-  Bike,
+  Flame,
   Package,
   Image,
   PanelLeft,
@@ -30,11 +30,15 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ElementType;
+  // Tela de Cozinha (CONTEXT.md) is meant to be opened in its own tab,
+  // never inside this SPA's own layout - a plain <a target="_blank">
+  // instead of a router NavLink.
+  openInNewTab?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
-  { key: 'delivery-orders', label: 'Pedidos de Delivery', path: '/delivery-orders', icon: Bike },
+  { key: 'kitchen', label: 'Tela de Cozinha', path: '/kitchen', icon: Flame, openInNewTab: true },
   { key: 'menu', label: 'Cardápio', path: '/menu', icon: UtensilsCrossed },
   { key: 'stock', label: 'Meu Estoque', path: '/stock', icon: Package },
   { key: 'bom', label: 'Receitas (BOM)', path: '/bom', icon: ChefHat },
@@ -42,10 +46,8 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 // Caixa's menu is reduced to Painel plus these keys (Configurações is
-// Dono-only, hidden outright rather than filtered item-by-item). Today
-// that's just the order queue; Fase 4 replaces 'delivery-orders' with
-// the Tela de Cozinha entry and this set moves with it.
-const CASHIER_VISIBLE_KEYS = new Set<string>(['delivery-orders']);
+// Dono-only, hidden outright rather than filtered item-by-item).
+const CASHIER_VISIBLE_KEYS = new Set<string>(['kitchen']);
 
 const SETTINGS_ITEMS: NavItem[] = [
   { key: 'branding', label: 'Identidade Visual', path: '/branding', icon: Image },
@@ -161,6 +163,24 @@ const MainPanel: React.FC<{ isManager: boolean; isCashier: boolean }> = ({ isMan
 
       {visibleNavItems.map((item) => {
         const Icon = item.icon;
+
+        if (item.openInNewTab) {
+          return (
+            <a
+              key={item.path}
+              href={item.path}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={sidebarItemVariants({ active: false })}
+            >
+              <div className="flex items-center gap-3 ms-1">
+                <Icon className="w-4 h-4 text-gray-500 shrink-0" />
+                <span>{item.label}</span>
+              </div>
+            </a>
+          );
+        }
+
         return (
           <NavLink
             key={item.path}

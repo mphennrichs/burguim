@@ -17,7 +17,7 @@ _MANAGER_ROLES = {"URY Manager", "URY Admin", "System Manager"}
 
 def _resolve_company(branch=None):
     """Resolves the logo's owning Company from `branch` (via that branch's
-    POS Profile, same lookup delivery_orders._resolve_branch_currency_symbol
+    POS Profile, same lookup kitchen._resolve_branch_currency_symbol
     already uses) when given one. Without a branch, falls back to the
     global default Company — the only option self_ordering.py's guest
     context has today, and the previous, branch-blind behavior for staff

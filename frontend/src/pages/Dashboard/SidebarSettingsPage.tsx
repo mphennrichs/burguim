@@ -8,12 +8,10 @@ import { Switch } from '../../components/ui/switch';
 // intentionally absent: always visible, so nobody can hide their way into
 // losing access to this screen.
 const MAIN_ITEMS = [
-  { key: 'delivery-orders', label: 'Pedidos de Delivery' },
+  { key: 'kitchen', label: 'Tela de Cozinha' },
   { key: 'menu', label: 'Cardápio' },
   { key: 'stock', label: 'Meu Estoque' },
   { key: 'bom', label: 'Receitas (BOM)' },
-  { key: 'table', label: 'Mesa' },
-  { key: 'room', label: 'Sala' },
   { key: 'branch', label: 'Filial' },
 ];
 
@@ -21,7 +19,6 @@ const SETTINGS_ITEMS = [
   { key: 'branding', label: 'Identidade Visual' },
   { key: 'pos-profile', label: 'Perfil POS' },
   { key: 'user', label: 'Usuário' },
-  { key: 'aggregator', label: 'Agregadores' },
   { key: 'report-settings', label: 'Configurações de DRE Diária' },
   { key: 'production-unit', label: 'Unidade de Produção' },
 ];
@@ -100,7 +97,7 @@ export default function SidebarSettingsPage() {
         <h1 className="text-lg font-semibold text-foreground">Menu Lateral</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Escolha quais seções aparecem no menu para todo mundo — útil pra esconder o que seu
-          restaurante não usa (ex.: Mesa e Sala, se você só trabalha com delivery).
+          restaurante não usa.
         </p>
       </div>
 

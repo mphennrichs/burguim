@@ -8,9 +8,9 @@ interface OrderTypeSelectProps {
   disabled?: boolean;
 }
 
-// Just Retirada (Take Away)/Entrega (Delivery)/Phone In now - Dine In and
-// its table-selection dialog were removed (docs/adr/0001, no salão/mesa
-// in this business).
+// Just Retirada (Take Away)/Entrega (Delivery) now - Dine In and its
+// table-selection dialog were removed (docs/adr/0001, no salão/mesa in
+// this business), and Phone In isn't a Modalidade of its own (CONTEXT.md).
 const OrderTypeSelect = ({ disabled }: OrderTypeSelectProps) => {
   const { selectedOrderType, setSelectedOrderType, posProfile, isUpdatingOrder } = usePOSStore();
 

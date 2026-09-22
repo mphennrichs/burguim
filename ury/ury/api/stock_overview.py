@@ -13,7 +13,7 @@ import frappe
 from frappe.utils import add_days, cint, getdate, nowdate
 
 from ury.ury_pos.api import getBranch
-from ury.ury.api.delivery_orders import _resolve_branch_currency_symbol
+from ury.ury.api.kitchen import _resolve_branch_currency_symbol
 from ury.ury.doctype.ury_daily_p_and_l.ury_daily_p_and_l import inner_bom_process
 
 

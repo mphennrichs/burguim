@@ -5,7 +5,7 @@ import SetupPage from './pages/Setup/SetupPage';
 import ConfigurePage from './pages/Setup/ConfigurePage';
 import DashboardLayout from './components/layout/DashboardLayout';
 import { DashboardPage } from './pages/Dashboard/DashboardPage';
-import { DeliveryOrdersPage } from './pages/DeliveryOrders/DeliveryOrdersPage';
+import { KitchenScreenPage } from './pages/Kitchen/KitchenScreenPage';
 import { StockOverviewPage } from './pages/Stock/StockOverviewPage';
 import { BomPage } from './pages/Stock/BomPage';
 import { MenuPage } from './pages/Dashboard/MenuPage';
@@ -114,6 +114,18 @@ function App() {
         <Route path="setup-wizard/0" element={<SetupPage />} />
         <Route path="setup-wizard/1" element={<ConfigurePage />} />
 
+        {/* Tela de Cozinha (CONTEXT.md): its own tab, no sidebar/topbar -
+            deliberately outside the DashboardLayout route group below,
+            gated only by RoleGuard (Dono ou Caixa). */}
+        <Route
+          path="kitchen"
+          element={
+            <RoleGuard>
+              <KitchenScreenPage />
+            </RoleGuard>
+          }
+        />
+
         <Route
           path="/"
           element={
@@ -124,7 +136,6 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="delivery-orders" element={<DeliveryOrdersPage />} />
           <Route path="stock" element={<StockOverviewPage />} />
           <Route path="bom" element={<BomPage />} />
           <Route path="menu" element={<MenuPage />} />

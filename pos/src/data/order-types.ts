@@ -1,8 +1,10 @@
-import { Phone, ShoppingBag, Truck } from "lucide-react";
+import { ShoppingBag, Truck } from "lucide-react";
 
 // Só Retirada e Entrega (CONTEXT.md) - sem salão/mesa (Dine In) nem
-// agregador externo (Aggregators), ver docs/adr/0001.
-export type OrderType = "Take Away" | "Delivery" | "Phone In";
+// agregador externo (Aggregators), ver docs/adr/0001. "Phone In" também
+// saiu - não é uma Modalidade própria, é só "como" o Cliente pediu; o
+// Caixa escolhe Retirada ou Entrega do mesmo jeito ao lançar esse pedido.
+export type OrderType = "Take Away" | "Delivery";
 
 export type OrderTypes= {
     label: string;
@@ -20,11 +22,6 @@ export const ORDER_TYPES: OrderTypes[] = [
         label: "Delivery",
         value: "Delivery",
         icon: Truck
-    },
-    {
-        label: "Phone In",
-        value: "Phone In",
-        icon: Phone
     }
 ]
 

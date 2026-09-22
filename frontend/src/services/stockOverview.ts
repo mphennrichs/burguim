@@ -126,7 +126,7 @@ export const stockOverviewService = {
   async menuCosts(): Promise<MenuCostOverviewResponse> {
     const res = await call<MenuCostOverviewResponse>('ury.ury.api.stock_overview.get_menu_cost_overview');
     const data = unwrap<MenuCostOverviewResponse>(res, { items: [], currency_symbol: null, buying_price_list: '' });
-    // Same currencySymbol bootstrap gap as deliveryOrdersService — frontend
+    // Same currencySymbol bootstrap gap as kitchenService — frontend
     // never populates it on its own, so piggyback the fix here too.
     if (data.currency_symbol) {
       storage.setItem('currencySymbol', data.currency_symbol);
