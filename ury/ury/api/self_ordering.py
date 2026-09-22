@@ -14,7 +14,6 @@
 #   - resolve_restaurant_menu()        (ury/ury_pos/api.py)
 #   - price_items_for_invoice()        (ury/ury/doctype/ury_order/ury_order.py)
 #   - _resolve_or_create_pos_invoice() (ury/ury/doctype/ury_order/ury_order.py)
-#   - kot_execute()                    (ury/ury/api/ury_kot_generate.py)
 #
 # Privileged internal reads/writes (loading/saving a POS Invoice, creating a
 # service request) run under a brief `frappe.set_user("Administrator")`
@@ -36,7 +35,6 @@ from ury.ury.doctype.ury_order.ury_order import (
     _resolve_or_create_pos_invoice,
     price_items_for_invoice,
 )
-from ury.ury.api.ury_kot_generate import kot_execute
 from ury.ury.api.branding import get_logo_url
 from ury.ury.api.cupom import validar_e_resolver_cupom, resolve_discount_percentage
 from frappe.rate_limiter import rate_limit
@@ -788,32 +786,6 @@ def add_customer_items(session, items, notes=None):
         if notes is not None:
             invoice.custom_comments = (notes or "").strip()[:MAX_NOTES_LEN]
 
-        # Aggregated by item_code, same as current_items_for_kot below (built
-        # after the append). This symmetry matters: add_customer_items()
-        # always appends a NEW row rather than merging into an existing
-        # same-item_code row (simpler, safer for concurrent requests), so a
-        # table's invoice routinely ends up with multiple separate rows for
-        # the same item_code after a few rounds of ordering. kot_execute's
-        # compare_two_array() does an exact-match-then-delta comparison
-        # assuming ONE row per item_code on each side — if `previous_items`
-        # were left as raw per-row entries while `current_items` was
-        # aggregated (as an earlier version of this function had it), a
-        # repeat item_code's several qty=1 previous rows would never
-        # exact-match the aggregated current total, and
-        # compare_two_array's delta loop overwrites (not accumulates)
-        # across multiple matching previous rows -- producing a bogus
-        # cancellation KOT for an item nobody cancelled. Confirmed live via
-        # a real second-order-on-a-multi-round-invoice test.
-        past_qty_by_item = {}
-        past_name_by_item = {}
-        for row in invoice.items:
-            past_qty_by_item[row.item_code] = past_qty_by_item.get(row.item_code, 0) + row.qty
-            past_name_by_item[row.item_code] = row.item_name
-        past_item = [
-            {"item_code": code, "item_name": past_name_by_item[code], "qty": past_qty_by_item[code], "comments": ""}
-            for code in past_qty_by_item
-        ]
-
         menu = frappe.db.get_value("URY Menu", {"branch": invoice.branch}, "name")
         priced_items = price_items_for_invoice(
             clean_items, invoice.selling_price_list, profile.pos_profile, invoice.branch, menu,
@@ -864,34 +836,6 @@ def add_customer_items(session, items, notes=None):
                 "URY Table", invoice.restaurant_table,
                 {"occupied": 1, "latest_invoice_time": invoice.creation},
             )
-
-        try:
-            # kot_execute()'s diff (compare_two_array) expects `current_items`
-            # to be the COMPLETE desired per-item-code quantity state, one
-            # row per item_code — not just the newly-added rows. Passing
-            # clean_items alone here made every pre-existing item look
-            # "removed" (present in previous_items, absent from current),
-            # generating spurious cancellation KOTs for food nobody
-            # cancelled. Aggregate invoice.items (which now includes both
-            # the untouched old rows and the just-appended new ones) by
-            # item_code to build the correct current-state view.
-            qty_by_item = {}
-            name_by_item = {}
-            for row in invoice.items:
-                qty_by_item[row.item_code] = qty_by_item.get(row.item_code, 0) + row.qty
-                name_by_item[row.item_code] = row.item_name
-            current_items_for_kot = [
-                {"item_code": code, "item_name": name_by_item[code], "qty": qty_by_item[code], "comments": ""}
-                for code in qty_by_item
-            ]
-            kot_execute(invoice.name, invoice.customer, invoice.restaurant_table, current_items_for_kot, past_item, None)
-        except Exception as e:
-            # frappe.log_error's real signature is (title, message) — title
-            # hits the Error Log's 140-char `method` field, so an unbounded
-            # exception message must go in `message`, never `title`, or
-            # log_error itself can throw CharacterLengthExceededError and
-            # turn a should-be-silent failure into a 500 for the customer.
-            frappe.log_error(title="Self-Order KOT Error", message=f"Self-order KOT creation failed: {e}")
 
     return _sanitize_invoice_for_customer(invoice)
 
@@ -1111,42 +1055,6 @@ def apply_coupon(session, code):
             frappe.throw(_("Error while applying coupon: {0}").format(e))
 
     return _sanitize_invoice_for_customer(invoice)
-
-
-# ---------------------------------------------------------------------------
-# Request bill
-# ---------------------------------------------------------------------------
-
-@frappe.whitelist(allow_guest=True, methods=["POST"])
-def request_bill(session):
-    session = _resolve_session(session)
-    profile = frappe.get_doc("URY Self Ordering Profile", session.ordering_profile)
-
-    if not profile.enable_request_bill:
-        frappe.throw(_("Requesting the bill is not enabled"), frappe.ValidationError)
-    if not session.table or not session.invoice:
-        frappe.throw(_("No active order for this table"), frappe.ValidationError)
-
-    with _elevated():
-        existing = frappe.db.exists(
-            "URY Service Request",
-            {"table": session.table, "invoice": session.invoice, "request_type": "Bill", "status": ["!=", "Resolved"]},
-        )
-        if existing:
-            return {"status": "Already Requested", "request": existing}
-
-        req = frappe.get_doc({
-            "doctype": "URY Service Request",
-            "request_type": "Bill",
-            "table": session.table,
-            "invoice": session.invoice,
-            "session": session.name,
-            "status": "Open",
-            "requested_at": now_datetime(),
-        })
-        req.insert(ignore_permissions=True)
-
-    return {"status": "Requested", "request": req.name}
 
 
 # ---------------------------------------------------------------------------

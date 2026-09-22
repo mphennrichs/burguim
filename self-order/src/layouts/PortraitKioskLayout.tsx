@@ -40,12 +40,10 @@ function PortraitKioskLayout({ initialContext }: LayoutProps) {
     loading,
     submitting,
     error,
-    billRequested,
     payingOnline,
     addToCart,
     decrementCart,
     submitCart,
-    handleRequestBill,
     payOnline,
     resetSession,
     cartItems,
@@ -157,15 +155,6 @@ function PortraitKioskLayout({ initialContext }: LayoutProps) {
               onClick={payOnline}
             >
               {payingOnline ? t('common.starting_payment') : t('common.pay_online')}
-            </button>
-          )}
-          {context?.capabilities.request_bill_enabled && !order.billed && (
-            <button
-              className="mt-3 w-full rounded-md border py-3 text-sm font-medium disabled:opacity-50"
-              disabled={billRequested}
-              onClick={handleRequestBill}
-            >
-              {billRequested ? t('common.bill_requested') : t('common.request_bill')}
             </button>
           )}
         </section>

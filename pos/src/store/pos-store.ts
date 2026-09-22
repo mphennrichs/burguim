@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '@ury/core';
-import { getRestaurantMenu, getAggregatorMenu, MenuItem as APIMenuItem } from '../lib/menu-api';
+import { getRestaurantMenu, MenuItem as APIMenuItem } from '../lib/menu-api';
 import { getCurrencyInfo, PosProfileCombined, getCombinedPosProfile } from '../lib/pos-profile-api';
 import { getMenuCourses } from '../lib/menu-course-api';
 import { getCustomerGroups, getCustomerTerritories } from '../lib/customer-api';
@@ -152,7 +152,6 @@ interface POSState {
 
 interface POSStore extends POSState {
   fetchMenuItems: () => Promise<void>;
-  fetchAggregatorMenu: (aggregator: string) => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchPaymentModes: () => Promise<void>;
   addToOrder: (item: OrderItem) => Promise<void>;
@@ -436,27 +435,6 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       console.error('Error loading menu items:', error);
     } finally {
       set({ menuLoading: false });
-    }
-  },
-
-  fetchAggregatorMenu: async (aggregator: string) => {
-    try {
-      set({ menuLoading: true, error: null });
-      const items = await getAggregatorMenu(aggregator);
-      
-      const menuItems: MenuItem[] = items.map((item: any) => ({
-        ...item,
-        id: item.item,
-        name: item.item_name,
-        image: item.item_image || null,
-        price: typeof item.rate === 'string' ? parseFloat(item.rate) : item.rate || 0,
-        category: item.course
-      }));
-
-      set({ menuItems, menuLoading: false });
-    } catch (error) {
-      set({ error: 'Failed to load aggregator menu', menuLoading: false });
-      console.error('Error loading aggregator menu:', error);
     }
   },
 

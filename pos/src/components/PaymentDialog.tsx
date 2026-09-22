@@ -176,8 +176,16 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     setIsProcessing(true);
     setError(null);
     try {
+      // make_invoice's additionalDiscount is a PERCENTAGE (it validates
+      // 0-100 and stores it straight into additional_discount_percentage)
+      // - appliedDiscount here is a money amount, so it must be converted
+      // back before sending. Sending appliedDiscount directly used to
+      // apply a much smaller discount than the one shown on screen (e.g.
+      // entering "20" on a R$50 order set appliedDiscount to R$10, which
+      // the backend then read as a 10% discount instead of 20%).
+      const manualDiscountPercentage = baseTotal > 0 ? (appliedDiscount / baseTotal) * 100 : 0;
       await call.post('ury.ury.doctype.ury_order.ury_order.make_invoice', {
-        additionalDiscount: appliedCupom ? null : (appliedDiscount > 0 ? appliedDiscount : null),
+        additionalDiscount: appliedCupom ? null : (appliedDiscount > 0 ? manualDiscountPercentage : null),
         cupom: appliedCupom ? appliedCupom.codigo : null,
         cashier,
         customer,

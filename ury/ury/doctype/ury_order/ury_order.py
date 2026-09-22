@@ -8,8 +8,6 @@ from frappe.model.document import Document
 from frappe.utils import flt
 from erpnext.controllers.queries import item_query
 from ury.ury_pos.api import getBranch, getBranchRoom, getRoom, posOpening
-from ury.ury.api.ury_kot_generate import kot_execute
-from ury.ury.api.ury_kot_generate import process_items_for_cancel_kot
 from ury.ury.api.cupom import validar_e_resolver_cupom, resolve_discount_percentage
 
 from frappe import cache
@@ -1582,19 +1580,7 @@ def sync_order(
     try:
         invoice.save()
     except Exception as e:
-        frappe.throw(f"Error while updating order: {e}")   
-
-
-    try:
-        kot_execute(invoice.name, customer, table, items, past_item, comments)
-
-    except Exception as e:
-        # If an exception occurs (e.g., "kot" app not found), it will be caught here without affect the code execution.
-        # frappe.log_error's real signature is (title, message) — the
-        # unbounded exception string must go in `message`, never `title`
-        # (Error Log's title field caps at 140 chars).
-        error_msg = f"KOT Creation Failes {str(e)}"
-        frappe.log_error(title="KOT Error", message=error_msg)
+        frappe.throw(f"Error while updating order: {e}")
 
     # table status
     if invoice.invoice_printed == 0:
@@ -1925,13 +1911,6 @@ def cancel_order(invoice_id, reason):
     if pos_invoice.restaurant_table:
         release_merge_cluster_tables(pos_invoice.restaurant_table)
 
-    try:
-        cancel_kot(invoice_id)
-
-    except Exception as e:
-        # If an exception occurs (e.g., "kot" app not found), it will be caught here without effecting execution
-        pass
-
     # Use standard Frappe cancel workflow instead of raw SQL
     pos_invoice.db_set("cancel_reason", reason)
     pos_invoice.cancel()
@@ -2130,60 +2109,6 @@ def make_invoice(customer, payments, cashier, pos_profile,owner, additionalDisco
         )
         
         
-
-# Cancel KOT Doc Creation
-def cancel_kot(invoice_id):
-
-    pos_invoice = frappe.get_doc("POS Invoice", invoice_id)
-    pos_profile_id = pos_invoice.pos_profile
-    pos_profile = frappe.get_doc("POS Profile", pos_profile_id)
-    kot_naming_series = pos_profile.custom_kot_naming_series
-    cancel_kot_naming_series = "CNCL-" + kot_naming_series
-
-    items = []
-    # Create a list of items for the canceled KOT
-    for item in pos_invoice.items:
-        order_item = {
-            "item_code": item.get("item", item.get("item_code")),
-            "qty": item.qty,
-            "item_name": item.item_name,
-        }
-        items.append(order_item)
-
-    if pos_invoice.restaurant_table:
-        restaurant_table = pos_invoice.restaurant_table
-    else:
-        restaurant_table = None
-
-    # Process items for a canceled KOT
-    process_items_for_cancel_kot(
-        invoice_id,
-        pos_invoice.customer,
-        restaurant_table,
-        items,
-        "",
-        pos_profile_id,
-        cancel_kot_naming_series,
-        "Cancelled",
-        items,
-    )
-
-    # Set the KOTs associated with the invoice as canceled
-    kot_list = frappe.db.get_list(
-        "URY KOT",
-        filters={
-            "invoice": invoice_id,
-            "type": ("in", ("New Order", "Order Modified")),
-            "docstatus": 1,
-        },
-        fields=("*"),
-    )
-
-    for item in kot_list:
-        kot_doc = frappe.get_doc("URY KOT", item.name)
-        kot_doc.docstatus = 2
-        kot_doc.save()
-
 
 def change_table_in_kot(invoice, new_table, branch):
     # Get a list of KOTs associated with the POS Invoice

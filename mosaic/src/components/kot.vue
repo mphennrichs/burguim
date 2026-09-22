@@ -410,22 +410,6 @@ export default {
         .catch((error) => console.error(error));
     },
 
-    async orderDelayNotify(kot) {
-      const now = new Date();
-      this.currentTime = now.toLocaleTimeString();
-
-      this.call
-        .post(
-          "ury.ury.api.ury_kot_notification.order_delay_notification",
-          {
-            id: kot.name,
-          }
-        )
-        .then((result) => {
-          // console.log("call backed ", result);
-        })
-        .catch((error) => console.error(error));
-    },
     toggleItemStrikeThrough(kotitem, kot) {
       kotitem.striked = !kotitem.striked;
       localStorage.setItem(
@@ -518,13 +502,6 @@ export default {
         const minutes =
           parseInt(timeRemaining[0]) * 60 + parseInt(timeRemaining[1]);
 
-        if (
-          minutes === this.kot_alert_time &&
-          kot.type !== "Cancelled" &&
-          kot.type !== "Partially cancelled"
-        ) {
-          this.orderDelayNotify(kot);
-        }
         if (minutes >= this.kot_alert_time) {
           kot.timecolor = "text-[#DC0000]";
         } else {

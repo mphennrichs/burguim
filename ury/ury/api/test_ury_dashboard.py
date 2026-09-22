@@ -6,7 +6,6 @@ from ury.ury.api.ury_dashboard import (
     get_needs_attention,
     get_shift_metrics,
     get_baseline,
-    get_floor_load,
 )
 
 
@@ -24,36 +23,30 @@ class TestGetDashboardStats(FrappeTestCase):
         self.assertEqual(result, cached_data)
         mock_cache_instance.get_value.assert_called_once_with("ury_dashboard_stats:URY Branch")
 
-    @patch("ury.ury.api.ury_dashboard.frappe.db.count")
     @patch("ury.ury.api.ury_dashboard.frappe.db.sql")
     @patch("ury.ury.api.ury_dashboard.frappe.cache")
-    def test_cache_miss_with_branch(self, mock_cache_obj, mock_sql, mock_count):
+    def test_cache_miss_with_branch(self, mock_cache_obj, mock_sql):
         mock_cache_instance = MagicMock()
         mock_cache_obj.return_value = mock_cache_instance
         mock_cache_instance.get_value.return_value = None
 
         mock_sql.return_value = [frappe._dict({"total_invoices": 10, "grand_total": 1000.0})]
-        mock_count.side_effect = [5, 10]
 
         result = get_dashboard_stats(branch="URY Branch")
 
         self.assertEqual(result["todays_sales"], 1000.0)
         self.assertEqual(result["orders_today"], 10)
         self.assertEqual(result["avg_order_value"], 100.0)
-        self.assertEqual(result["active_tables"], 5)
-        self.assertEqual(result["total_tables"], 10)
         mock_cache_instance.set_value.assert_called_once()
 
-    @patch("ury.ury.api.ury_dashboard.frappe.db.count")
     @patch("ury.ury.api.ury_dashboard.frappe.db.sql")
     @patch("ury.ury.api.ury_dashboard.frappe.cache")
-    def test_cache_miss_zero_invoices_no_division_error(self, mock_cache_obj, mock_sql, mock_count):
+    def test_cache_miss_zero_invoices_no_division_error(self, mock_cache_obj, mock_sql):
         mock_cache_instance = MagicMock()
         mock_cache_obj.return_value = mock_cache_instance
         mock_cache_instance.get_value.return_value = None
 
         mock_sql.return_value = [frappe._dict({"total_invoices": 0, "grand_total": None})]
-        mock_count.side_effect = [2, 5]
 
         result = get_dashboard_stats(branch="URY Branch")
 
@@ -61,22 +54,19 @@ class TestGetDashboardStats(FrappeTestCase):
         self.assertEqual(result["orders_today"], 0)
         self.assertEqual(result["avg_order_value"], 0)
 
-    @patch("ury.ury.api.ury_dashboard.frappe.db.count")
     @patch("ury.ury.api.ury_dashboard.frappe.db.sql")
     @patch("ury.ury.api.ury_dashboard.frappe.cache")
-    def test_cache_miss_no_branch(self, mock_cache_obj, mock_sql, mock_count):
+    def test_cache_miss_no_branch(self, mock_cache_obj, mock_sql):
         mock_cache_instance = MagicMock()
         mock_cache_obj.return_value = mock_cache_instance
         mock_cache_instance.get_value.return_value = None
 
         mock_sql.return_value = [frappe._dict({"total_invoices": 5, "grand_total": 500.0})]
-        mock_count.side_effect = [3, 8]
 
         result = get_dashboard_stats(branch=None)
 
         self.assertEqual(result["todays_sales"], 500.0)
         self.assertEqual(result["orders_today"], 5)
-        self.assertIn("active_tables", result)
         mock_sql.assert_called_once()
 
 
@@ -110,7 +100,7 @@ class TestGetNeedsAttention(FrappeTestCase):
         mock_add_to_date.return_value = "2026-08-19 09:45:00"
 
         mock_sql.return_value = [{"name": "INV-001", "creation": "2026-08-19 09:00:00"}]
-        mock_get_all.side_effect = [[], [], []]
+        mock_get_all.return_value = []
 
         result = get_needs_attention(branch="URY Branch")
 
@@ -135,7 +125,7 @@ class TestGetNeedsAttention(FrappeTestCase):
         mock_add_to_date.return_value = "2026-08-19 09:45:00"
 
         mock_sql.return_value = []
-        mock_get_all.side_effect = [[], [], []]
+        mock_get_all.return_value = []
 
         result = get_needs_attention(branch=None)
 
@@ -166,17 +156,13 @@ class TestGetShiftMetrics(FrappeTestCase):
 
         mock_get_value.return_value = None
 
-        mock_sql.side_effect = [
-            [frappe._dict({"invoice_count": 5, "sales": 500.0, "covers": 10})],
-            [frappe._dict({"avg_ticket_minutes": 12.5})],
-        ]
+        mock_sql.return_value = [frappe._dict({"invoice_count": 5, "sales": 500.0, "covers": 10})]
 
         result = get_shift_metrics(branch="URY Branch")
 
         self.assertEqual(result["sales"], 500.0)
         self.assertEqual(result["covers"], 10)
         self.assertEqual(result["avg_per_cover"], 50.0)
-        self.assertEqual(result["avg_ticket_minutes"], 12.5)
 
     @patch("ury.ury.api.ury_dashboard.frappe.cache")
     @patch("ury.ury.api.ury_dashboard.frappe.db.sql")
@@ -188,10 +174,7 @@ class TestGetShiftMetrics(FrappeTestCase):
 
         mock_get_value.return_value = None
 
-        mock_sql.side_effect = [
-            [frappe._dict({"invoice_count": 0, "sales": 0, "covers": 0})],
-            [frappe._dict({"avg_ticket_minutes": None})],
-        ]
+        mock_sql.return_value = [frappe._dict({"invoice_count": 0, "sales": 0, "covers": 0})]
 
         result = get_shift_metrics(branch=None)
 
@@ -269,36 +252,3 @@ class TestGetBaseline(FrappeTestCase):
         self.assertEqual(result["median_covers"], 10.0)
 
 
-class TestGetFloorLoad(FrappeTestCase):
-
-    @patch("ury.ury.api.ury_dashboard.frappe.cache")
-    @patch("ury.ury.api.ury_dashboard.frappe.db.sql")
-    def test_floor_load_returns_waiter_data(self, mock_sql, mock_cache_obj):
-        mock_cache_instance = MagicMock()
-        mock_cache_obj.return_value = mock_cache_instance
-        mock_cache_instance.get_value.return_value = None
-
-        mock_sql.return_value = [
-            {"waiter": "John", "table_count": 3},
-            {"waiter": "Jane", "table_count": 1},
-        ]
-
-        result = get_floor_load(branch="URY Branch")
-
-        self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]["waiter"], "John")
-        self.assertEqual(result[0]["table_count"], 3)
-        mock_cache_instance.set_value.assert_called_once()
-
-    @patch("ury.ury.api.ury_dashboard.frappe.cache")
-    @patch("ury.ury.api.ury_dashboard.frappe.db.sql")
-    def test_floor_load_cache_hit(self, mock_sql, mock_cache_obj):
-        mock_cache_instance = MagicMock()
-        mock_cache_obj.return_value = mock_cache_instance
-        cached_data = [{"waiter": "Alice", "table_count": 2}]
-        mock_cache_instance.get_value.return_value = cached_data
-
-        result = get_floor_load(branch="URY Branch")
-
-        self.assertEqual(result, cached_data)
-        mock_sql.assert_not_called()

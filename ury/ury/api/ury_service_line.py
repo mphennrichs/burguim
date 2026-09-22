@@ -14,69 +14,6 @@ def _resolve_scoped_branch(branch):
 
 
 @frappe.whitelist(methods=["GET"])
-def get_service_line(branch=None):
-	branch = _resolve_scoped_branch(branch)
-	cache_key = f"ury_dashboard_service_line:{branch}"
-	cached = frappe.cache().get_value(cache_key)
-	if cached:
-		return cached
-
-	table_filters = {"branch": branch} if branch else {}
-	tables = frappe.get_all(
-		"URY Table",
-		filters=table_filters,
-		fields=["name", "occupied", "latest_invoice_time", "is_take_away"],
-		order_by="name",
-	)
-
-	now = get_datetime()
-	result = []
-	for t in tables:
-		if t.is_take_away:
-			continue
-
-		if not t.occupied:
-			result.append({"table": t.name, "stage": "open", "minutes": None})
-			continue
-
-		minutes = None
-		if t.latest_invoice_time:
-			minutes = int((now - get_datetime(str(t.latest_invoice_time))).total_seconds() // 60)
-
-		invoice = frappe.db.sql(
-			"""
-			SELECT name FROM `tabPOS Invoice`
-			WHERE restaurant_table = %(table)s AND docstatus = 0
-			ORDER BY creation DESC LIMIT 1
-			""",
-			{"table": t.name},
-			as_dict=True,
-		)
-
-		stage = "seated"
-		if invoice:
-			kot = frappe.db.sql(
-				"""
-				SELECT order_status FROM `tabURY KOT`
-				WHERE invoice = %(invoice)s
-				ORDER BY creation DESC LIMIT 1
-				""",
-				{"invoice": invoice[0].name},
-				as_dict=True,
-			)
-			if kot:
-				stage = "served" if kot[0].order_status == "Served" else "fired"
-
-		if minutes is not None and minutes > 75:
-			stage = "over"
-
-		result.append({"table": t.name, "stage": stage, "minutes": minutes})
-
-	frappe.cache().set_value(cache_key, result, expires_in_sec=15)
-	return result
-
-
-@frappe.whitelist(methods=["GET"])
 def get_running_low(branch=None):
 	branch = _resolve_scoped_branch(branch)
 	cache_key = f"ury_dashboard_running_low:{branch}"

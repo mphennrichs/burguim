@@ -54,14 +54,9 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, loading }) => {
 export const KPIGrid: React.FC<KPIGridProps> = ({ summary, loading }) => {
   const todaySales = summary?.today_sales ?? 0;
   const ordersToday = summary?.today_orders ?? 0;
-  const occupiedTables = summary?.occupied_tables ?? 0;
-  const totalTables = summary?.total_tables ?? 0;
   const aov = summary?.avg_order_value ?? 0;
   const activeCashiers = summary?.active_cashiers ?? 0;
-  const pendingOrders = summary?.pending_kitchen_orders ?? 0;
   const totalMenuItems = summary?.total_menu_items ?? 0;
-
-  const occupancyRate = totalTables > 0 ? Math.round((occupiedTables / totalTables) * 100) : 0;
 
   return (
     <section className="w-full">
@@ -91,26 +86,8 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ summary, loading }) => {
         />
 
         <KPICard
-          title="Ocupação de Mesas"
-          value={`${occupancyRate}%`}
-          loading={loading}
-        />
-
-        <KPICard
-          title="Mesas Ocupadas"
-          value={`${occupiedTables} / ${totalTables}`}
-          loading={loading}
-        />
-
-        <KPICard
           title="Ticket Médio"
           value={formatCurrency(aov)}
-          loading={loading}
-        />
-
-        <KPICard
-          title="Pedidos Pendentes na Cozinha"
-          value={`${pendingOrders} KOTs`}
           loading={loading}
         />
       </div>

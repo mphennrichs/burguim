@@ -3,11 +3,8 @@ import { call } from '@ury/core';
 export interface DashboardSummary {
   today_sales: number;
   today_orders: number;
-  occupied_tables: number;
-  total_tables: number;
   avg_order_value: number;
   active_cashiers: number;
-  pending_kitchen_orders: number;
   total_menu_items: number;
 }
 
@@ -78,22 +75,16 @@ export const dashboardService = {
       return res || {
         today_sales: 0,
         today_orders: 0,
-        occupied_tables: 0,
-        total_tables: 0,
         avg_order_value: 0,
         active_cashiers: 0,
-        pending_kitchen_orders: 0,
         total_menu_items: 0,
       };
     } catch {
       return {
         today_sales: 0,
         today_orders: 0,
-        occupied_tables: 0,
-        total_tables: 0,
         avg_order_value: 0,
         active_cashiers: 0,
-        pending_kitchen_orders: 0,
         total_menu_items: 0,
       };
     }

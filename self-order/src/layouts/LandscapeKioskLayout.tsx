@@ -31,12 +31,10 @@ function LandscapeKioskLayout({ initialContext }: LayoutProps) {
     loading,
     submitting,
     error,
-    billRequested,
     payingOnline,
     addToCart,
     decrementCart,
     submitCart,
-    handleRequestBill,
     payOnline,
     resetSession,
     cartItems,
@@ -127,12 +125,10 @@ function LandscapeKioskLayout({ initialContext }: LayoutProps) {
           cartCount={cartCount}
           cartTotal={cartTotal}
           submitting={submitting}
-          billRequested={billRequested}
           payingOnline={payingOnline}
           onIncrement={addToCart}
           onDecrement={decrementCart}
           onSubmit={submitCart}
-          onRequestBill={handleRequestBill}
           onPayOnline={payOnline}
           className="flex w-[420px] shrink-0 flex-col overflow-hidden border-l bg-background p-6 text-base"
         />

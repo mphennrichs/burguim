@@ -26,8 +26,7 @@ app_include_js = [
     "/assets/ury/js/setup_redirect.js",
     "/assets/ury/js/quick_entry.js",
     "/assets/ury/js/pos_print.js",
-    "/assets/ury/js/restrict_qty_edit_pos.js",
-    "/assets/ury/js/ury_pos_kot.js"
+    "/assets/ury/js/restrict_qty_edit_pos.js"
 ]
 
 # include js, css files in header of web template
@@ -225,11 +224,6 @@ doc_events = {
 # ---------------
 
 scheduler_events = {
-    "cron":{
-		"* * * * *":[
-			"ury.ury.api.ury_kot_validation.kotValidationThread"
-		]
-	}
 # 	"all": [
 # 		"ury.tasks.all"
 # 	],

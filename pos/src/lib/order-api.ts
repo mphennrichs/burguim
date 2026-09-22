@@ -148,14 +148,3 @@ export async function captainTransfer(
   });
 }
 
-/**
- * Reprints the KOT for an invoice via the hardened `reprint_kot` endpoint
- * (`ury/ury/api/ury_kot_reprint.py`), which already enforces branch and
- * Captain-ownership/elevated-access authorization server-side — this is a
- * thin wrapper only, no reprint logic lives on the frontend.
- */
-export async function reprintKot(invoiceNumber: string): Promise<void> {
-  await call.post('ury.ury.api.ury_kot_reprint.reprint_kot', {
-    invoice_number: invoiceNumber,
-  });
-}

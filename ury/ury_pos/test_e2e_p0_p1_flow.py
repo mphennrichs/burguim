@@ -24,7 +24,6 @@ from ury.ury_pos.api import (
     get_open_pos_opening_entries,
     submit_checklist,
 )
-from ury.ury.api.ury_kot_validation import get_kot_errors
 from ury.ury.doctype.sub_pos_closing.sub_pos_closing import get_pos_invoices
 
 TEST_COMPANY = "URY"
@@ -323,12 +322,6 @@ class TestP0P1EndToEndFlow(FrappeTestCase):
             "Regression: get_checklist must report the log's true status "
             "('Complete'), not just 'In Progress' or None.",
         )
-
-        # 9. get_kot_errors: branch-scoping must not crash for this profile,
-        # and it must return a list (empty is fine, no KOTs were created).
-        kot_errors = get_kot_errors(pos_profile)
-        self.assertIsInstance(kot_errors, list)
-        self.assertEqual(kot_errors, [])
 
         # 10. sub_pos_closing.get_pos_invoices: core data-fetch call for the
         # multi-cashier closing path. Empty result is fine; it must not

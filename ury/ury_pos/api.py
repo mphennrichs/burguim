@@ -218,15 +218,6 @@ def getModeOfPayment():
     return modeOfPayments
 
 
-def format_merged_table_label(primary, merged_tables=None):
-    if not primary:
-        return ""
-    partners = [p.strip() for p in (merged_tables or "").split(",") if p.strip()]
-    if not partners:
-        return primary
-    return " + ".join([primary] + sorted(partners))
-
-
 def _backfill_split_groups(invoices):
     parent_names = [
         inv["custom_split_from"]
@@ -698,28 +689,6 @@ def fav_items(customer):
     return favorite_items
 
 @frappe.whitelist()
-def getCashier(room):
-    branch = getBranch()
-    cashier = None
-    pos_opening_list = frappe.db.sql("""
-        SELECT DISTINCT `tabPOS Opening Entry`.name 
-        FROM `tabPOS Opening Entry`
-        INNER JOIN `tabMultiple Rooms` 
-        ON `tabMultiple Rooms`.parent = `tabPOS Opening Entry`.name
-        WHERE `tabPOS Opening Entry`.branch = %s
-        AND `tabPOS Opening Entry`.status = 'Open'
-        AND `tabPOS Opening Entry`.docstatus = 1
-        AND `tabMultiple Rooms`.room = %s
-    """, (branch, room), as_dict=True)
-    if pos_opening_list:
-        cashier = frappe.db.get_value(
-            "POS Opening Entry",
-            {"name": pos_opening_list[0].name},
-            "user",)
-    return cashier       
-    
-
-@frappe.whitelist()
 def getPosProfile():
     branchName = getBranch()
     waiter = frappe.session.user
@@ -885,58 +854,6 @@ def posOpening():
     return flag
 
 
-@frappe.whitelist()
-def getAggregator():
-    branchName = getBranch()
-    aggregatorList = frappe.get_all(
-        "Aggregator Settings",
-        fields=["customer"],
-        filters={"parent": branchName, "parenttype": "Branch"},
-    )
-    return aggregatorList
-
-
-@frappe.whitelist()
-def getAggregatorItem(aggregator):
-    branchName = getBranch()
-    aggregatorItem = []
-    aggregatorItemList = []
-    priceList = frappe.db.get_value(
-        "Aggregator Settings",
-        {"customer": aggregator, "parent": branchName, "parenttype": "Branch"},
-        "price_list",
-    )
-    aggregatorItem = frappe.get_all(
-        "Item Price",
-        fields=["item_code", "item_name", "price_list_rate"],
-        filters={"selling": 1, "price_list": priceList},
-    )
-    aggregatorItemList = [
-        {
-            "item": item.item_code,
-            "item_name": item.item_name,
-            "rate": item.price_list_rate,
-            "item_image": frappe.db.get_value("Item", item.item, "image"),
-        }
-        for item in aggregatorItem
-        if not frappe.db.get_value("Item", item.item_code, "disabled")
-    ]
-    return aggregatorItemList
-
-@frappe.whitelist()
-def getAggregatorMOP(aggregator):
-    branchName = getBranch()
-    
-    modeOfPayment = frappe.db.get_value(
-        "Aggregator Settings",
-        {"customer": aggregator, "parent": branchName, "parenttype": "Branch"},
-        "mode_of_payments",
-    )
-    modeOfPaymentsList = []
-    modeOfPaymentsList.append(
-            {"mode_of_payment": modeOfPayment, "opening_amount": float(0)}
-    )
-    return modeOfPaymentsList
 @frappe.whitelist(methods=["POST"])
 def create_customer(customer_name, mobile_number=None, customer_group="Individual", territory="India"):
     if not frappe.has_permission("Customer", "create"):

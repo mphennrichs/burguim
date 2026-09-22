@@ -22,7 +22,6 @@ function MobileQRLayout({ initialContext }: LayoutProps) {
     loading,
     submitting,
     error,
-    billRequested,
     paymentRequest,
     payingOnline,
     savingDelivery,
@@ -31,7 +30,6 @@ function MobileQRLayout({ initialContext }: LayoutProps) {
     addToCart,
     decrementCart,
     submitCart,
-    handleRequestBill,
     payOnline,
     submitDeliveryDetails,
     applyCoupon,
@@ -265,15 +263,6 @@ function MobileQRLayout({ initialContext }: LayoutProps) {
                 currency: paymentRequest.currency,
               })}
             </p>
-          )}
-          {!isPickup && context?.capabilities.request_bill_enabled && !order.billed && (
-            <button
-              className="mt-3 w-full rounded-md border py-2 text-sm font-medium disabled:opacity-50"
-              disabled={billRequested}
-              onClick={handleRequestBill}
-            >
-              {billRequested ? t('common.bill_requested') : t('common.request_bill')}
-            </button>
           )}
         </section>
       )}

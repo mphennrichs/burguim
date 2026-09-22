@@ -7,7 +7,6 @@ import {
   getCurrentOrder,
   getMenu,
   getStoredContext,
-  requestBill,
   setDeliveryDetails,
   type CustomerOrder,
   type MenuItem,
@@ -50,7 +49,6 @@ export function useOrderingSession(initialContext?: OrderingContext) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [billRequested, setBillRequested] = useState(false)
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequestResult | null>(null)
   const [payingOnline, setPayingOnline] = useState(false)
   const [savingDelivery, setSavingDelivery] = useState(false)
@@ -126,7 +124,6 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     sessionStorage.removeItem(CONTEXT_KEY)
     setCart({})
     setOrder(null)
-    setBillRequested(false)
     setPaymentRequest(null)
     setPayingOnline(false)
     setSavingDelivery(false)
@@ -207,16 +204,6 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     }
   }
 
-  async function handleRequestBill() {
-    if (!context) return
-    try {
-      await requestBill(context.session)
-      setBillRequested(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors.bill_request_failed'))
-    }
-  }
-
   async function payOnline() {
     if (!context) return
     setPayingOnline(true)
@@ -244,7 +231,6 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     loading,
     submitting,
     error,
-    billRequested,
     paymentRequest,
     payingOnline,
     savingDelivery,
@@ -253,7 +239,6 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     addToCart,
     decrementCart,
     submitCart,
-    handleRequestBill,
     payOnline,
     submitDeliveryDetails,
     applyCoupon,

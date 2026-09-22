@@ -22,7 +22,6 @@ from ury.ury.api.self_ordering import (
     add_customer_items,
     assign_device_table,
     get_customer_order,
-    request_bill,
     create_payment_request,
     get_payment_status,
     share_payment_link,
@@ -88,7 +87,6 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
         session.ordering_profile = "Profile A"
         return session
 
-    @patch(f"{MOD}.kot_execute")
     @patch(f"{MOD}.price_items_for_invoice")
     @patch(f"{MOD}._resolve_or_create_pos_invoice")
     @patch(f"{MOD}.resolve_restaurant_menu")
@@ -100,7 +98,7 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
     @patch(f"{MOD}.frappe.set_user")
     def test_add_customer_items_appends_without_clearing_existing(
         self, mock_set_user, mock_db_get_value, mock_db_set_value, mock_db_exists, mock_resolve_session, mock_get_doc,
-        mock_resolve_menu, mock_resolve_invoice, mock_price_items, mock_kot,
+        mock_resolve_menu, mock_resolve_invoice, mock_price_items,
     ):
         mock_db_exists.return_value = True  # Administrator already mapped to the branch
         session = self._session_doc(invoice="POS-INV-100")
@@ -140,10 +138,8 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
         invoice.name = "POS-INV-100"
 
         # Real Frappe Document.append() mutates the child table list —
-        # mirror that here so the post-append aggregation this test exists
-        # to verify (current_items_for_kot) actually sees the new row,
-        # instead of silently no-op'ing the way a bare MagicMock().append
-        # would.
+        # mirror that here instead of silently no-op'ing the way a bare
+        # MagicMock().append would.
         def append_side_effect(fieldname, row_dict):
             if fieldname == "items":
                 invoice.items.append(MagicMock(item_code=row_dict["item_code"], item_name=row_dict["item_name"], qty=row_dict["qty"]))
@@ -168,21 +164,8 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
         mock_price_items.assert_called_once()
         called_items = mock_price_items.call_args[0][0]
         self.assertEqual(called_items, [{"item": "Sandwich", "item_name": "Sandwich", "qty": 1.0, "comment": ""}])
-        # KOT still invoked (existing kitchen pipeline untouched) — and
-        # crucially, current_items passed to it is the FULL aggregated
-        # per-item state (old Biryani row + new Sandwich row), not just the
-        # newly-added items. kot_execute's own diff (compare_two_array)
-        # treats anything present in previous_items but absent from
-        # current_items as removed/cancelled — passing only the new items
-        # would make it think the pre-existing Biryani was cancelled.
-        mock_kot.assert_called_once()
-        kot_args = mock_kot.call_args[0]
-        current_items_arg = kot_args[3]
-        current_by_item = {row["item_code"]: row["qty"] for row in current_items_arg}
-        self.assertEqual(current_by_item, {"Biryani": 2, "Sandwich": 1})
         invoice.save.assert_called_once_with(ignore_permissions=True)
 
-    @patch(f"{MOD}.kot_execute")
     @patch(f"{MOD}.price_items_for_invoice")
     @patch(f"{MOD}._resolve_or_create_pos_invoice")
     @patch(f"{MOD}.resolve_restaurant_menu")
@@ -194,7 +177,7 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
     @patch(f"{MOD}.frappe.set_user")
     def test_add_customer_items_sets_restaurant_table_on_new_invoice(
         self, mock_set_user, mock_db_get_value, mock_db_set_value, mock_db_exists, mock_resolve_session, mock_get_doc,
-        mock_resolve_menu, mock_resolve_invoice, mock_price_items, mock_kot,
+        mock_resolve_menu, mock_resolve_invoice, mock_price_items,
     ):
         """_resolve_or_create_pos_invoice() never sets restaurant_table on a
         brand-new invoice (that's the caller's job, same as sync_order()
@@ -249,98 +232,6 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
         add_customer_items("session-token", [{"item": "Biryani", "qty": 1}])
 
         self.assertEqual(new_invoice.restaurant_table, "Table 9")
-
-    @patch(f"{MOD}.kot_execute")
-    @patch(f"{MOD}.price_items_for_invoice")
-    @patch(f"{MOD}._resolve_or_create_pos_invoice")
-    @patch(f"{MOD}.resolve_restaurant_menu")
-    @patch(f"{MOD}.frappe.get_doc")
-    @patch(f"{MOD}._resolve_session")
-    @patch(f"{MOD}.frappe.db.exists")
-    @patch(f"{MOD}.frappe.db.set_value")
-    @patch(f"{MOD}.frappe.db.get_value")
-    @patch(f"{MOD}.frappe.set_user")
-    def test_add_customer_items_aggregates_past_item_for_repeated_item_code(
-        self, mock_set_user, mock_db_get_value, mock_db_set_value, mock_db_exists, mock_resolve_session, mock_get_doc,
-        mock_resolve_menu, mock_resolve_invoice, mock_price_items, mock_kot,
-    ):
-        """Live-testing finding: add_customer_items() always appends a NEW
-        row rather than merging into an existing same-item_code row, so an
-        invoice routinely ends up with MULTIPLE separate rows for the same
-        item_code after a few rounds. past_item (previous_items for
-        kot_execute) must aggregate those by item_code, the same way
-        current_items_for_kot already does -- otherwise kot_execute's
-        compare_two_array(), which assumes one row per item_code on each
-        side, generates a bogus cancellation KOT for an item nobody
-        cancelled. Confirmed live: ordering a second, different item on an
-        invoice that already had two separate Biryani rows produced a
-        spurious "Partially cancelled" KOT referencing Biryani."""
-        mock_db_exists.return_value = True
-        session = self._session_doc(invoice="POS-INV-100")
-        mock_resolve_session.return_value = session
-
-        profile = MagicMock()
-        profile.enabled = 1
-        profile.allow_add_to_running_table = 1
-        profile.branch = "Branch A"
-        profile.pos_profile = "POS Profile A"
-        profile.default_customer = "Walk-in Customer"
-
-        pos_profile_doc = MagicMock()
-        pos_profile_doc.payments = [MagicMock(mode_of_payment="Cash")]
-
-        def get_doc_side_effect(doctype, name=None, **kwargs):
-            if doctype == "URY Self Ordering Profile":
-                return profile
-            if doctype == "POS Profile":
-                return pos_profile_doc
-            return MagicMock()
-
-        mock_get_doc.side_effect = get_doc_side_effect
-        mock_resolve_menu.return_value = {"items": [{"item": "Biryani"}, {"item": "Sandwich"}]}
-
-        # Two SEPARATE Biryani rows already on the invoice (from two earlier
-        # add_customer_items() calls) -- this is the realistic pre-existing
-        # state that exposed the bug.
-        existing_row_1 = MagicMock(item_code="Biryani", item_name="Biryani", qty=1)
-        existing_row_2 = MagicMock(item_code="Biryani", item_name="Biryani", qty=1)
-        invoice = MagicMock()
-        invoice.customer = "Walk-in Customer"
-        invoice.items = [existing_row_1, existing_row_2]
-        invoice.invoice_created = 1
-        invoice.invoice_printed = 0
-        invoice.restaurant_table = "Table 7"
-        invoice.branch = "Branch A"
-        invoice.selling_price_list = "Standard Selling"
-        invoice.grand_total = 300
-        invoice.name = "POS-INV-100"
-
-        def append_side_effect(fieldname, row_dict):
-            if fieldname == "items":
-                invoice.items.append(MagicMock(item_code=row_dict["item_code"], item_name=row_dict["item_name"], qty=row_dict["qty"]))
-        invoice.append.side_effect = append_side_effect
-
-        mock_resolve_invoice.return_value = (invoice, "POS-INV-100")
-
-        priced_sandwich = {"item_code": "Sandwich", "item_name": "Sandwich", "qty": 1, "comment": "",
-                            "rate": 120, "price_list_rate": 120, "base_price_list_rate": 120, "cost_center": "CC"}
-        mock_price_items.return_value = [priced_sandwich]
-        mock_db_get_value.return_value = "Menu A"
-
-        add_customer_items("session-token", [{"item": "Sandwich", "qty": 1}])
-
-        kot_args = mock_kot.call_args[0]
-        current_items_arg = kot_args[3]
-        previous_items_arg = kot_args[4]
-
-        # Both current and previous must show ONE aggregated Biryani entry
-        # (qty=2), not two separate qty=1 entries -- symmetry is the fix.
-        current_by_item = {row["item_code"]: row["qty"] for row in current_items_arg}
-        previous_by_item = {row["item_code"]: row["qty"] for row in previous_items_arg}
-        self.assertEqual(current_by_item, {"Biryani": 2, "Sandwich": 1})
-        self.assertEqual(previous_by_item, {"Biryani": 2})
-        # Exactly one entry per item_code on each side -- not two Biryani rows.
-        self.assertEqual(len(previous_items_arg), 1)
 
     @patch(f"{MOD}._resolve_session")
     def test_add_customer_items_rejects_item_not_on_menu(self, mock_resolve_session):
@@ -430,61 +321,6 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
             with self.assertRaises(Exception) as ctx:
                 add_customer_items("session-token", [{"item": "Biryani", "qty": 1}])
             self.assertNotIn("already has an order in progress", str(ctx.exception))
-
-
-class TestRequestBill(unittest.TestCase):
-    @patch(f"{MOD}.now_datetime")
-    @patch(f"{MOD}.frappe.get_doc")
-    @patch(f"{MOD}.frappe.db.exists")
-    @patch(f"{MOD}._resolve_session")
-    @patch(f"{MOD}.frappe.set_user")
-    def test_request_bill_creates_service_request(self, mock_set_user, mock_resolve_session, mock_exists, mock_get_doc, mock_now):
-        session = MagicMock()
-        session.table = "Table 7"
-        session.invoice = "POS-INV-100"
-        session.name = "SESSION-1"
-        session.ordering_profile = "Profile A"
-        mock_resolve_session.return_value = session
-
-        profile = MagicMock()
-        profile.enable_request_bill = 1
-
-        req = MagicMock()
-        req.name = "SR-001"
-
-        def get_doc_side_effect(arg, name=None):
-            if isinstance(arg, dict):
-                return req
-            return profile
-
-        mock_get_doc.side_effect = get_doc_side_effect
-        mock_exists.return_value = False
-
-        result = request_bill("session-token")
-
-        req.insert.assert_called_once_with(ignore_permissions=True)
-        self.assertEqual(result["status"], "Requested")
-
-    @patch(f"{MOD}.frappe.db.exists")
-    @patch(f"{MOD}.frappe.get_doc")
-    @patch(f"{MOD}._resolve_session")
-    @patch(f"{MOD}.frappe.set_user")
-    def test_request_bill_idempotent_when_already_open(self, mock_set_user, mock_resolve_session, mock_get_doc, mock_exists):
-        session = MagicMock()
-        session.table = "Table 7"
-        session.invoice = "POS-INV-100"
-        session.name = "SESSION-1"
-        session.ordering_profile = "Profile A"
-        mock_resolve_session.return_value = session
-
-        profile = MagicMock()
-        profile.enable_request_bill = 1
-        mock_get_doc.return_value = profile
-        mock_exists.return_value = "SR-EXISTING"
-
-        result = request_bill("session-token")
-        self.assertEqual(result["status"], "Already Requested")
-        self.assertEqual(result["request"], "SR-EXISTING")
 
 
 class TestCreatePaymentRequest(unittest.TestCase):
@@ -883,7 +719,6 @@ class TestQRPickup(unittest.TestCase):
         self.assertIsNone(table)
         self.assertEqual(source, "QR Pickup")
 
-    @patch(f"{MOD}.kot_execute")
     @patch(f"{MOD}.price_items_for_invoice")
     @patch(f"{MOD}._resolve_or_create_pos_invoice")
     @patch(f"{MOD}.resolve_restaurant_menu")
@@ -895,7 +730,7 @@ class TestQRPickup(unittest.TestCase):
     @patch(f"{MOD}.frappe.set_user")
     def test_add_customer_items_works_without_table_for_pickup(
         self, mock_set_user, mock_db_get_value, mock_db_set_value, mock_db_exists, mock_resolve_session, mock_get_doc,
-        mock_resolve_menu, mock_resolve_invoice, mock_price_items, mock_kot,
+        mock_resolve_menu, mock_resolve_invoice, mock_price_items,
     ):
         mock_db_exists.return_value = True
 

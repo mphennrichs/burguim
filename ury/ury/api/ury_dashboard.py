@@ -70,19 +70,10 @@ def get_dashboard_stats(branch=None):
 	total_invoices = result.total_invoices or 0
 	avg_order_value = round(grand_total / total_invoices, 2) if total_invoices else 0
 
-	if branch:
-		occupied_count = frappe.db.count("URY Table", {"branch": branch, "occupied": 1})
-		total_count = frappe.db.count("URY Table", {"branch": branch})
-	else:
-		occupied_count = frappe.db.count("URY Table", {"occupied": 1})
-		total_count = frappe.db.count("URY Table", {})
-
 	result_dict = {
 		"todays_sales": grand_total,
 		"orders_today": total_invoices,
 		"avg_order_value": avg_order_value,
-		"active_tables": occupied_count,
-		"total_tables": total_count,
 	}
 
 	frappe.cache().set_value(cache_key, result_dict, expires_in_sec=30)
@@ -112,32 +103,6 @@ def get_needs_attention(branch=None):
 		items.append({
 			"type": "pending_payment",
 			"message": f"{len(pending)} order(s) pending payment for over 15 minutes",
-			"severity": "high",
-			"reference": None,
-		})
-
-	tables = frappe.get_all(
-		"URY Table",
-		filters={"occupied": 1, "latest_invoice_time": ["<", add_to_date(get_datetime(), minutes=-60)], **({"branch": branch} if branch else {})},
-		fields=["name"],
-	)
-	if tables:
-		items.append({
-			"type": "table_occupied_long",
-			"message": f"{len(tables)} table(s) occupied for over 60 minutes",
-			"severity": "medium",
-			"reference": None,
-		})
-
-	kot_errors = frappe.get_all(
-		"URY KOT Error Log",
-		filters={"creation": [">", add_to_date(get_datetime(), minutes=-60)]},
-		fields=["name"],
-	)
-	if kot_errors:
-		items.append({
-			"type": "kot_errors",
-			"message": f"{len(kot_errors)} KOT generation issue(s) in the last hour",
 			"severity": "high",
 			"reference": None,
 		})
@@ -209,27 +174,10 @@ def get_shift_metrics(branch=None):
 	covers = row.covers or 0
 	avg_per_cover = round(sales / covers, 2) if covers else 0
 
-	kot_conditions = "k.`start_time_prep` IS NOT NULL AND k.`start_time_serv` IS NOT NULL AND k.`creation` BETWEEN %(start)s AND %(end)s"
-	kot_params = {"start": start, "end": end}
-	if branch:
-		kot_conditions += " AND k.`branch` = %(branch)s"
-		kot_params["branch"] = branch
-
-	ticket_row = frappe.db.sql(
-		f"""
-		SELECT AVG(TIMESTAMPDIFF(MINUTE, k.`start_time_prep`, k.`start_time_serv`)) AS avg_ticket_minutes
-		FROM `tabURY KOT` k
-		WHERE {kot_conditions}
-		""",
-		kot_params,
-		as_dict=True,
-	)[0]
-
 	result = {
 		"sales": sales,
 		"covers": covers,
 		"avg_per_cover": avg_per_cover,
-		"avg_ticket_minutes": round(ticket_row.avg_ticket_minutes, 1) if ticket_row.avg_ticket_minutes else None,
 	}
 
 	frappe.cache().set_value(cache_key, result, expires_in_sec=60)
@@ -296,41 +244,3 @@ def get_baseline(branch=None, weeks=6):
 
 	frappe.cache().set_value(cache_key, result, expires_in_sec=300)
 	return result
-
-
-@frappe.whitelist(methods=["GET"])
-def get_floor_load(branch=None):
-	branch = _resolve_scoped_branch(branch)
-	cache_key = f"ury_dashboard_floor_load:{branch}"
-	cached = frappe.cache().get_value(cache_key)
-	if cached:
-		return cached
-
-	conditions = "t.`occupied` = 1 AND i.`waiter` IS NOT NULL AND i.`waiter` != ''"
-	params = {}
-	if branch:
-		conditions += " AND t.`branch` = %(branch)s"
-		params["branch"] = branch
-
-	rows = frappe.db.sql(
-		f"""
-		SELECT i.`waiter` AS waiter, COUNT(DISTINCT t.`name`) AS table_count
-		FROM `tabURY Table` t
-		JOIN `tabPOS Invoice` i ON (
-			i.`restaurant_table` = t.`name`
-			AND i.`docstatus` = 0
-			AND i.`creation` = (
-				SELECT MAX(i2.`creation`) FROM `tabPOS Invoice` i2
-				WHERE i2.`restaurant_table` = t.`name` AND i2.`docstatus` = 0
-			)
-		)
-		WHERE {conditions}
-		GROUP BY i.`waiter`
-		ORDER BY table_count DESC
-		""",
-		params,
-		as_dict=True,
-	)
-
-	frappe.cache().set_value(cache_key, rows, expires_in_sec=30)
-	return rows

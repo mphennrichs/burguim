@@ -10,11 +10,8 @@ def get_dashboard_summary(branch=None):
     return {
         "today_sales": 0,
         "today_orders": 0,
-        "occupied_tables": 0,
-        "total_tables": frappe.db.count("URY Table") if frappe.db.exists("DocType", "URY Table") else 0,
         "avg_order_value": 0,
         "active_cashiers": frappe.db.count("User", {"enabled": 1}),
-        "pending_kitchen_orders": 0,
         "total_menu_items": frappe.db.count("Item") if frappe.db.exists("DocType", "Item") else 0,
     }
 
@@ -48,7 +45,7 @@ def get_recent_transactions(branch=None, limit=10):
                 if not inv.get("status"):
                     inv["status"] = "Draft" if inv.get("docstatus") == 0 else "Paid"
                 if not inv.get("order_type"):
-                    inv["order_type"] = "Dine In"
+                    inv["order_type"] = "Take Away"
             return invoices
         except Exception as e:
             # frappe.log_error's real signature is (title, message) — an
@@ -85,7 +82,6 @@ ALLOWED_MODULE_DOCTYPES = {
     "URY Menu Course",
     "URY Production Unit",
     "URY Room",
-    "URY Table",
     "User",
 }
 
