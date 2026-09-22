@@ -27,6 +27,14 @@
     "heading": "Your order so far",
     "pickup_code": "Pickup code: {{code}}"
   },
+  "coupon": {
+    "heading": "Coupon",
+    "placeholder": "Coupon code",
+    "apply_button": "Apply",
+    "applying": "Applying...",
+    "applied": "Coupon {{code}} applied",
+    "remove": "Remove"
+  },
   "confirm": {
     "start_over": "Start over? Your current cart will be cleared.",
     "new_order": "Start a new order? Current cart will be cleared."
@@ -56,7 +64,8 @@
     "order_failed": "Could not place the order. Please try again.",
     "bill_request_failed": "Could not request the bill. Please ask staff for help.",
     "payment_start_failed": "Could not start online payment. Please pay at the counter.",
-    "delivery_details_failed": "Could not save your delivery details. Please try again."
+    "delivery_details_failed": "Could not save your delivery details. Please try again.",
+    "invalid_coupon": "Invalid coupon."
   },
   "delivery": {
     "heading": "Delivery details",

@@ -1,0 +1,151 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:codigo",
+ "creation": "2026-09-22 17:30:00.000000",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "codigo",
+  "tipo_desconto",
+  "valor",
+  "column_break_validade",
+  "valido_de",
+  "valido_ate",
+  "section_break_uso",
+  "limite_usos_total",
+  "usos",
+  "cliente"
+ ],
+ "fields": [
+  {
+   "fieldname": "codigo",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Código",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "tipo_desconto",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Tipo de desconto",
+   "options": "Percentual\nFixo",
+   "reqd": 1
+  },
+  {
+   "description": "Percentual: valor de 0 a 100. Fixo: valor em dinheiro.",
+   "fieldname": "valor",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Valor",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_validade",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "valido_de",
+   "fieldtype": "Date",
+   "label": "Válido de"
+  },
+  {
+   "fieldname": "valido_ate",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Válido até",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_uso",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "limite_usos_total",
+   "fieldtype": "Int",
+   "label": "Limite de usos totais",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Quantas vezes este Cupom já foi usado em Pedidos concluídos - atualizado automaticamente.",
+   "fieldname": "usos",
+   "fieldtype": "Int",
+   "label": "Usos",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "description": "Opcional. Se preenchido, só este Cliente pode usar o Cupom.",
+   "fieldname": "cliente",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Cliente",
+   "options": "Customer"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-22 17:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "URY",
+ "name": "URY Cupom",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "URY Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "URY Admin",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "URY Cashier",
+   "select": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

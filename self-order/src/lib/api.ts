@@ -76,6 +76,9 @@ export interface CustomerOrder {
   notes?: string | null
   items: OrderItem[]
   grand_total: number
+  // Cupom de Desconto (CONTEXT.md) currently applied to this order, if
+  // any — the discount itself is already baked into grand_total above.
+  coupon_code?: string | null
   billed: boolean
 }
 
@@ -205,6 +208,14 @@ export async function setDeliveryDetails(
     address,
     phone,
     name,
+  })
+  return response.message
+}
+
+export async function applyCoupon(session: string, code: string): Promise<CustomerOrder> {
+  const response = await call.post<FrappeResponse<CustomerOrder>>(`${M}.apply_coupon`, {
+    session,
+    code,
   })
   return response.message
 }

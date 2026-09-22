@@ -10,6 +10,7 @@ from erpnext.controllers.queries import item_query
 from ury.ury_pos.api import getBranch, getBranchRoom, getRoom, posOpening
 from ury.ury.api.ury_kot_generate import kot_execute
 from ury.ury.api.ury_kot_generate import process_items_for_cancel_kot
+from ury.ury.api.cupom import validar_e_resolver_cupom, resolve_discount_percentage
 
 from frappe import cache
 
@@ -2008,9 +2009,7 @@ def _validate_additional_discount(additional_discount, pos_profile):
 
 # Method for URY POS
 @frappe.whitelist(methods=["POST"])
-def make_invoice(customer, payments, cashier, pos_profile,owner, additionalDiscount=None, table=None, invoice=None):
-    additionalDiscount = _validate_additional_discount(additionalDiscount, pos_profile)
-
+def make_invoice(customer, payments, cashier, pos_profile,owner, additionalDiscount=None, table=None, invoice=None, cupom=None):
     order_type =  invoice_name = frappe.get_value("POS Invoice",invoice , "order_type")
     invoice = get_order_invoice(table, invoice, order_type, "Payments")
 
@@ -2020,7 +2019,26 @@ def make_invoice(customer, payments, cashier, pos_profile,owner, additionalDisco
 
     invoice.customer = customer
     invoice.pos_profile = pos_profile
-    
+
+    # Cupom de Desconto (CONTEXT.md): a Caixa-entered code collapses to the
+    # same additional_discount_percentage the manual-discount path below
+    # already validates and applies - a Cupom doesn't get its own parallel
+    # discount mechanism, just a different way to arrive at the percentage.
+    # Zeroing any already-persisted discount before recalculating gives a
+    # clean pre-discount grand_total to resolve a "Fixo" Cupom against,
+    # even on a retry where a previous attempt already set one.
+    if cupom:
+        invoice.additional_discount_percentage = 0
+        invoice.calculate_taxes_and_totals()
+        resolved_cupom = validar_e_resolver_cupom(cupom, customer)
+        additionalDiscount = resolve_discount_percentage(resolved_cupom, invoice.grand_total)
+        # ury.ury.api.cupom.on_pos_invoice_submit (hooks.py doc_events)
+        # registers the usage once this invoice actually submits below -
+        # not here, so an order that never gets paid never counts.
+        invoice.custom_cupom_aplicado = resolved_cupom.name
+
+    additionalDiscount = _validate_additional_discount(additionalDiscount, pos_profile)
+
     if additionalDiscount:
         discount_val = frappe.utils.flt(additionalDiscount)
         if discount_val < 0 or discount_val > 100:

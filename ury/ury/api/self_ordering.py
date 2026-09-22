@@ -38,6 +38,7 @@ from ury.ury.doctype.ury_order.ury_order import (
 )
 from ury.ury.api.ury_kot_generate import kot_execute
 from ury.ury.api.branding import get_logo_url
+from ury.ury.api.cupom import validar_e_resolver_cupom, resolve_discount_percentage
 from frappe.rate_limiter import rate_limit
 
 SESSION_TOKEN_BYTES_HASH_LEN = 64  # frappe.generate_hash(length=..)
@@ -646,6 +647,10 @@ def _sanitize_invoice_for_customer(invoice):
             for row in invoice.items
         ],
         "grand_total": invoice.grand_total,
+        # Echoed back so a resumed session shows the Cupom is already
+        # applied instead of re-asking - the discount itself is already
+        # baked into grand_total above, nothing else to surface.
+        "coupon_code": invoice.custom_cupom_aplicado or None,
         "billed": bool(invoice.invoice_printed),
     }
 
@@ -665,6 +670,7 @@ def _pending_order_response(session):
         "notes": None,
         "items": [],
         "grand_total": 0,
+        "coupon_code": None,
         "billed": False,
     }
 
@@ -1057,6 +1063,52 @@ def set_delivery_details(session, address, phone, name):
             invoice.save(ignore_permissions=True)
         except Exception as e:
             frappe.throw(_("Error while saving delivery details: {0}").format(e))
+
+    return _sanitize_invoice_for_customer(invoice)
+
+
+# ---------------------------------------------------------------------------
+# Cupom de Desconto
+# ---------------------------------------------------------------------------
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def apply_coupon(session, code):
+    """Cupom de Desconto (CONTEXT.md), self-ordering side - mirrors what
+    the Caixa's make_invoice() does for a manually-entered code (see
+    ury.ury.doctype.ury_order.ury_order), but against this session's own
+    running invoice instead of a POS-entered one.
+
+    Requires items already in the cart: an empty invoice can't be saved
+    (ERPNext's total-calculation controller throws on a zero-item invoice
+    - see set_delivery_details()'s docstring on the same constraint), so
+    there's always a real Cliente + total to validate the code against.
+    """
+    session = _resolve_session(session)
+    if not session.invoice:
+        frappe.throw(_("Add at least one item before applying a coupon"), frappe.ValidationError)
+
+    with _elevated():
+        invoice = frappe.get_doc("POS Invoice", session.invoice)
+
+        # Zero any already-applied discount before recalculating, so a
+        # retry (different code, or the same one again) always resolves a
+        # "Fixo" Cupom against a clean pre-discount total.
+        invoice.additional_discount_percentage = 0
+        invoice.calculate_taxes_and_totals()
+
+        cupom = validar_e_resolver_cupom(code, invoice.customer)
+        invoice.additional_discount_percentage = resolve_discount_percentage(cupom, invoice.grand_total)
+        # ury.ury.api.cupom.on_pos_invoice_submit (hooks.py doc_events)
+        # registers the usage once this invoice actually submits - not
+        # here, so an abandoned session never counts against the Cupom's
+        # limite_usos_total.
+        invoice.custom_cupom_aplicado = cupom.name
+        invoice.calculate_taxes_and_totals()
+
+        try:
+            invoice.save(ignore_permissions=True)
+        except Exception as e:
+            frappe.throw(_("Error while applying coupon: {0}").format(e))
 
     return _sanitize_invoice_for_customer(invoice)
 

@@ -194,6 +194,7 @@ doc_events = {
         "on_submit": [
             "ury.ury.hooks.ury_pos_invoice.on_submit",
             "ury.ury.api.stock_deduction.deduct_stock_on_sale",
+            "ury.ury.api.cupom.on_pos_invoice_submit",
         ],
         "on_update": "ury.ury.hooks.ury_pos_invoice.on_update",
         "on_cancel": "ury.ury.hooks.ury_pos_invoice.on_trash",
@@ -424,6 +425,7 @@ fixtures = [
                     "POS Profile-custom_enable_discount",
                     "POS Invoice-custom_comments",
                     "POS Invoice-custom_kitchen_status",
+                    "POS Invoice-custom_cupom_aplicado",
                     "POS Profile-custom_multiple_cashier_configuration",
                     "POS Profile-custom_enable_multiple_cashier",
                     "POS Profile User-custom_main_cashier",

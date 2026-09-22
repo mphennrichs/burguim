@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   addItems,
+  applyCoupon as applyCouponRequest,
   bootstrap,
   createPaymentRequest,
   getCurrentOrder,
@@ -53,6 +54,8 @@ export function useOrderingSession(initialContext?: OrderingContext) {
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequestResult | null>(null)
   const [payingOnline, setPayingOnline] = useState(false)
   const [savingDelivery, setSavingDelivery] = useState(false)
+  const [applyingCoupon, setApplyingCoupon] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
 
   const loadOrder = useCallback(async (session: string) => {
     const current = await getCurrentOrder(session)
@@ -128,6 +131,8 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     setPayingOnline(false)
     setSavingDelivery(false)
     setSubmitting(false)
+    setApplyingCoupon(false)
+    setCouponError(null)
     setError(null)
     setContext(null)
     setMenu([])
@@ -188,6 +193,20 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     }
   }
 
+  async function applyCoupon(code: string) {
+    if (!context || !order?.invoice) return
+    setApplyingCoupon(true)
+    setCouponError(null)
+    try {
+      const updated = await applyCouponRequest(context.session, code)
+      setOrder(updated)
+    } catch (err) {
+      setCouponError(err instanceof Error ? err.message : t('errors.invalid_coupon'))
+    } finally {
+      setApplyingCoupon(false)
+    }
+  }
+
   async function handleRequestBill() {
     if (!context) return
     try {
@@ -229,12 +248,15 @@ export function useOrderingSession(initialContext?: OrderingContext) {
     paymentRequest,
     payingOnline,
     savingDelivery,
+    applyingCoupon,
+    couponError,
     addToCart,
     decrementCart,
     submitCart,
     handleRequestBill,
     payOnline,
     submitDeliveryDetails,
+    applyCoupon,
     resetSession,
     cartItems,
     cartCount,

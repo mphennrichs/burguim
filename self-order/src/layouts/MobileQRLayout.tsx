@@ -26,18 +26,22 @@ function MobileQRLayout({ initialContext }: LayoutProps) {
     paymentRequest,
     payingOnline,
     savingDelivery,
+    applyingCoupon,
+    couponError,
     addToCart,
     decrementCart,
     submitCart,
     handleRequestBill,
     payOnline,
     submitDeliveryDetails,
+    applyCoupon,
     resetSession,
     cartItems,
     cartCount,
     cartTotal,
   } = useOrderingSession(initialContext)
 
+  const [couponCode, setCouponCode] = useState('')
   const [deliveryName, setDeliveryName] = useState('')
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [deliveryPhone, setDeliveryPhone] = useState('')
@@ -217,6 +221,34 @@ function MobileQRLayout({ initialContext }: LayoutProps) {
             <span>{t('common.total')}</span>
             <span>{order.grand_total}</span>
           </div>
+          {!order.billed && (
+            <div className="mt-3">
+              {order.coupon_code ? (
+                <div className="flex items-center justify-between rounded-md bg-muted p-2 text-sm">
+                  <span className="font-medium">{t('coupon.applied', { code: order.coupon_code })}</span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(event) => setCouponCode(event.target.value)}
+                    placeholder={t('coupon.placeholder')}
+                    className="flex-1 rounded-md border px-3 py-2 text-sm text-foreground"
+                    disabled={applyingCoupon}
+                  />
+                  <button
+                    onClick={() => applyCoupon(couponCode.trim())}
+                    disabled={applyingCoupon || !couponCode.trim()}
+                    className="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50"
+                  >
+                    {applyingCoupon ? t('coupon.applying') : t('coupon.apply_button')}
+                  </button>
+                </div>
+              )}
+              {couponError && <p className="mt-1 text-xs text-destructive">{couponError}</p>}
+            </div>
+          )}
           {context?.capabilities.customer_payment_enabled && !order.billed && (
             <button
               className="mt-3 w-full rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"

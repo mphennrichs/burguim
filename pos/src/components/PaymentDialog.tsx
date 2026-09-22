@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Percent, Coins } from 'lucide-react';
+import { X, Percent, Coins, Tag } from 'lucide-react';
 import { usePOSStore } from '../store/pos-store';
 import { formatCurrency, call, parseFrappeError } from '@ury/core';
 import { Button, Input, Dialog, DialogContent, showToast } from '@ury/ui';
@@ -56,6 +56,17 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   const [appliedDiscount, setAppliedDiscount] = useState<number>(discountAmount || 0); // Only tracking transaction discount!
   const [paymentInputs, setPaymentInputs] = useState<{ [mode: string]: string }>({});
 
+  // Cupom de Desconto (CONTEXT.md) - a code resolves server-side to the
+  // same appliedDiscount amount the manual % field above sets, but the
+  // actual invoice-level discount is recomputed authoritatively by
+  // make_invoice() from the code itself at payment time (never from this
+  // preview), so the two never conflict - applying a Cupom just replaces
+  // whatever the manual field had set, and vice versa.
+  const [cupomCode, setCupomCode] = useState('');
+  const [appliedCupom, setAppliedCupom] = useState<{ codigo: string; discountAmount: number } | null>(null);
+  const [applyingCupom, setApplyingCupom] = useState(false);
+  const [cupomError, setCupomError] = useState<string | null>(null);
+
   useEffect(() => {
     fetchPaymentModes();
   }, [fetchPaymentModes]);
@@ -75,7 +86,31 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     }
     const calculatedDiscount = (baseTotal * value) / 100;
     setAppliedDiscount(calculatedDiscount);
+    setAppliedCupom(null);
     setError(null);
+  };
+
+  const handleApplyCupom = async () => {
+    const codigo = cupomCode.trim();
+    if (!codigo) return;
+    setApplyingCupom(true);
+    setCupomError(null);
+    try {
+      const res = await call('ury.ury.api.cupom.preview_cupom', {
+        codigo,
+        customer,
+        base_total: baseTotal,
+      });
+      const data = (res as any)?.message ?? res;
+      setAppliedCupom({ codigo: data.codigo, discountAmount: data.discount_amount });
+      setAppliedDiscount(data.discount_amount);
+      setDiscountValue('');
+    } catch (err) {
+      setCupomError(parseFrappeError(err, t('errors.invalid_coupon')));
+      setAppliedCupom(null);
+    } finally {
+      setApplyingCupom(false);
+    }
   };
 
   // Order summary logic
@@ -142,7 +177,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     setError(null);
     try {
       await call.post('ury.ury.doctype.ury_order.ury_order.make_invoice', {
-        additionalDiscount: appliedDiscount > 0 ? appliedDiscount : null,
+        additionalDiscount: appliedCupom ? null : (appliedDiscount > 0 ? appliedDiscount : null),
+        cupom: appliedCupom ? appliedCupom.codigo : null,
         cashier,
         customer,
         invoice,
@@ -205,6 +241,48 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                   {t('common.apply')}
                 </Button>
               </div>
+
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Tag className="w-5 h-5" />
+                {t('payment.apply_coupon')}
+              </h3>
+              {appliedCupom ? (
+                <div className="flex items-center justify-between rounded-md bg-green-50 border border-green-200 px-3 py-2 text-sm">
+                  <span className="font-medium text-green-800">{appliedCupom.codigo}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedCupom(null);
+                      setAppliedDiscount(0);
+                      setCupomCode('');
+                    }}
+                    className="text-green-700 hover:text-green-900 text-xs font-medium"
+                  >
+                    {t('common.remove')}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={cupomCode}
+                    onChange={(e) => setCupomCode(e.target.value)}
+                    placeholder={t('payment.coupon_placeholder')}
+                    size="sm"
+                    className="flex-1"
+                    disabled={applyingCupom}
+                  />
+                  <Button
+                    onClick={handleApplyCupom}
+                    variant="default"
+                    size="sm"
+                    disabled={applyingCupom || !cupomCode.trim()}
+                  >
+                    {applyingCupom ? t('common.applying') : t('common.apply')}
+                  </Button>
+                </div>
+              )}
+              {cupomError && <p className="text-sm text-destructive">{cupomError}</p>}
             </div>
           )}
 
