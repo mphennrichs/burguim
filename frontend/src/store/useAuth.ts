@@ -8,6 +8,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   isManager: boolean;
+  isCashier: boolean;
 }
 
 export function useAuth(): AuthState {
@@ -69,6 +70,10 @@ export function useAuth(): AuthState {
     [roles]
   );
 
+  // Dono (isManager) implies full access - isCashier only matters to callers
+  // that treat it as "Caixa's reduced menu", checked as `!isManager && isCashier`.
+  const isCashier = useMemo(() => roles.includes('URY Cashier'), [roles]);
+
   return {
     user,
     roles,
@@ -76,5 +81,6 @@ export function useAuth(): AuthState {
     isLoading,
     error,
     isManager,
+    isCashier,
   };
 }

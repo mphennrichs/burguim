@@ -41,6 +41,12 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'branch', label: 'Filial', path: '/branch', icon: Building2 },
 ];
 
+// Caixa's menu is reduced to Painel plus these keys (Configurações is
+// Dono-only, hidden outright rather than filtered item-by-item). Today
+// that's just the order queue; Fase 4 replaces 'delivery-orders' with
+// the Tela de Cozinha entry and this set moves with it.
+const CASHIER_VISIBLE_KEYS = new Set<string>(['delivery-orders']);
+
 const SETTINGS_ITEMS: NavItem[] = [
   { key: 'branding', label: 'Identidade Visual', path: '/branding', icon: Image },
   { key: 'pos-profile', label: 'Perfil POS', path: '/pos-profile', icon: SlidersHorizontal },
@@ -100,7 +106,7 @@ const ReportsPanel: React.FC = () => (
   </nav>
 );
 
-const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
+const MainPanel: React.FC<{ isManager: boolean; isCashier: boolean }> = ({ isManager, isCashier }) => {
   const location = useLocation();
   const isSettingsPath = SETTINGS_ITEMS.some((item) => location.pathname.startsWith(item.path));
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(isSettingsPath);
@@ -124,8 +130,15 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
       .finally(() => setHiddenKeysLoaded(true));
   }, []);
 
-  const visibleNavItems = hiddenKeysLoaded ? NAV_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key)) : [];
-  const visibleSettingsItems = hiddenKeysLoaded ? SETTINGS_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key)) : [];
+  let visibleNavItems = hiddenKeysLoaded ? NAV_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key)) : [];
+  let visibleSettingsItems = hiddenKeysLoaded ? SETTINGS_ITEMS.filter((item) => !item.key || !hiddenKeys.has(item.key)) : [];
+
+  // Caixa never sees Configurações, and only sees the nav items called out
+  // above (Painel always shows - it has no `key`, so it's exempt here too).
+  if (!isManager && isCashier) {
+    visibleNavItems = visibleNavItems.filter((item) => !item.key || CASHIER_VISIBLE_KEYS.has(item.key));
+    visibleSettingsItems = [];
+  }
 
   return (
     <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
@@ -167,6 +180,7 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
         );
       })}
 
+      {visibleSettingsItems.length > 0 && (
       <div>
         <button
           onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -212,18 +226,19 @@ const MainPanel: React.FC<{ isManager: boolean }> = ({ isManager }) => {
           </div>
         )}
       </div>
+      )}
     </nav>
   );
 };
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { isManager } = useAuth();
+  const { isManager, isCashier } = useAuth();
   const inReports = location.pathname.startsWith('/reports');
 
   return (
     <SidebarContainer>
-      {inReports ? <ReportsPanel /> : <MainPanel isManager={isManager} />}
+      {inReports ? <ReportsPanel /> : <MainPanel isManager={isManager} isCashier={isCashier} />}
     </SidebarContainer>
   );
 };
