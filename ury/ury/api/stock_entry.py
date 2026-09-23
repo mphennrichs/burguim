@@ -71,6 +71,17 @@ def record_purchase(item_code, qty, rate, purchase_date=None, expiry_date=None):
     if not item.has_batch_no:
         frappe.throw(_("Item {0} não controla lote/validade").format(item_code))
 
+    # Stock Entry's own validate_item() requires is_stock_item=1 - an item
+    # created before rastreio_lote existed as a concept (or through a path
+    # that predates it, e.g. the old Cardápio/setup-wizard item creation)
+    # can have has_batch_no=1 without it, since nothing used to guarantee
+    # the two travel together. Same self-heal bom.py's _new_bom() already
+    # does for the same root cause, applied here instead of surfacing the
+    # inconsistency as a checkout-blocking error the owner can't fix
+    # without opening Frappe Desk.
+    if not item.is_stock_item:
+        frappe.db.set_value("Item", item_code, "is_stock_item", 1)
+
     warehouse = _resolve_warehouse(item_code, branch)
     if not warehouse:
         frappe.throw(_("Nenhum depósito configurado para esta filial"))
