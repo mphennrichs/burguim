@@ -263,3 +263,62 @@ def record_production(item_code, qty, purchase_date=None, expiry_date=None):
         "qty": qty,
         "expiry_date": expiry_date,
     }
+
+
+@frappe.whitelist(methods=["POST"])
+def update_batch_expiry(batch_no, expiry_date):
+    """Corrects a batch's expiry date after the fact. Safe to edit
+    in-place (unlike qty/cost - see cancel_entry() below) because it
+    carries no stock ledger/valuation impact, just a date on the Batch
+    record itself."""
+    getBranch()
+    if not frappe.db.exists("Batch", batch_no):
+        frappe.throw(_("Lote {0} não encontrado").format(batch_no))
+    frappe.db.set_value("Batch", batch_no, "expiry_date", getdate(expiry_date) if expiry_date else None)
+    return {"batch_no": batch_no, "expiry_date": expiry_date}
+
+
+@frappe.whitelist()
+def get_batch_source_entry(batch_no):
+    """The Stock Entry that originally created this batch (a Material
+    Receipt from record_purchase or a Manufacture from record_production)
+    - resolved lazily, only when the owner wants to cancel and redo a
+    mistaken entry, rather than joined into every batch list load."""
+    getBranch()
+    row = frappe.db.sql(
+        """
+        SELECT sbb.voucher_no
+        FROM `tabSerial and Batch Entry` sbe
+        JOIN `tabSerial and Batch Bundle` sbb ON sbb.name = sbe.parent
+        WHERE sbe.batch_no = %(batch_no)s
+            AND sbe.qty > 0
+            AND sbb.voucher_type = 'Stock Entry'
+            AND sbb.docstatus = 1
+            AND sbb.is_cancelled = 0
+        ORDER BY sbb.creation ASC
+        LIMIT 1
+        """,
+        {"batch_no": batch_no},
+        as_dict=True,
+    )
+    if not row:
+        frappe.throw(_("Não foi possível localizar o lançamento de origem deste lote"))
+    return {"stock_entry": row[0].voucher_no}
+
+
+@frappe.whitelist(methods=["POST"])
+def cancel_entry(stock_entry):
+    """Undoes a record_purchase()/record_production() entry by cancelling
+    the Stock Entry (reversing its stock ledger/valuation impact) rather
+    than editing a submitted financial record in place - qty/cost/produced
+    quantity corrections go through "cancel, then register again with the
+    right numbers" instead. The Batch it created is left as an inert
+    historical record (no quantity remains once cancelled), not deleted -
+    Frappe would refuse to delete it anyway since the cancelled entry's
+    own rows still reference it."""
+    getBranch()
+    entry = frappe.get_doc("Stock Entry", stock_entry)
+    if entry.docstatus != 1:
+        frappe.throw(_("Este lançamento já não está mais ativo"))
+    entry.cancel()
+    return {"status": "Cancelled", "stock_entry": entry.name}

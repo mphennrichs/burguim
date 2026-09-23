@@ -185,6 +185,20 @@ export const stockOverviewService = {
     return unwrap<RecordedPurchase>(res, { stock_entry: '', batch_no: '', qty: 0, expiry_date: null });
   },
 
+  async updateBatchExpiry(batchNo: string, expiryDate: string | null): Promise<void> {
+    await call('ury.ury.api.stock_entry.update_batch_expiry', { batch_no: batchNo, expiry_date: expiryDate });
+  },
+
+  async getBatchSourceEntry(batchNo: string): Promise<string> {
+    const res = await call<{ stock_entry: string }>('ury.ury.api.stock_entry.get_batch_source_entry', { batch_no: batchNo });
+    const data = unwrap<{ stock_entry: string }>(res, { stock_entry: '' });
+    return data.stock_entry;
+  },
+
+  async cancelStockEntry(stockEntry: string): Promise<void> {
+    await call('ury.ury.api.stock_entry.cancel_entry', { stock_entry: stockEntry });
+  },
+
   async bomCandidates(): Promise<BomCandidateItem[]> {
     const res = await call<{ items: BomCandidateItem[] }>('ury.ury.api.bom.get_bom_candidates');
     const data = unwrap<{ items: BomCandidateItem[] }>(res, { items: [] });

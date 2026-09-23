@@ -125,6 +125,16 @@ export const StockOverviewPage: React.FC = () => {
   const [blockOnInsufficientStock, setBlockOnInsufficientStock] = useState(false);
   const [savingStockSettings, setSavingStockSettings] = useState(false);
 
+  // Corrigir validade / cancelar lançamento (batch table) - CONTEXT.md's
+  // model has no in-place edit for a submitted Stock Entry (qty/custo
+  // affect stock valuation), so those are fixed by cancelling and
+  // re-registering; only expiry_date is safe to edit directly.
+  const [editingExpiryBatch, setEditingExpiryBatch] = useState<string | null>(null);
+  const [expiryEditValue, setExpiryEditValue] = useState('');
+  const [savingExpiryBatch, setSavingExpiryBatch] = useState<string | null>(null);
+  const [cancellingBatch, setCancellingBatch] = useState<string | null>(null);
+  const [confirmingCancelBatch, setConfirmingCancelBatch] = useState<string | null>(null);
+
   function reloadAll() {
     setLoading(true);
     return Promise.all([
@@ -327,6 +337,44 @@ export const StockOverviewPage: React.FC = () => {
     }
   }
 
+  function handleStartEditExpiry(batch: ExpiringBatch) {
+    setEditingExpiryBatch(batch.batch_no);
+    setExpiryEditValue(batch.expiry_date ?? '');
+  }
+
+  async function handleSaveExpiry(batchNo: string) {
+    setSavingExpiryBatch(batchNo);
+    try {
+      await stockOverviewService.updateBatchExpiry(batchNo, expiryEditValue || null);
+      showToast.success('Validade atualizada.');
+      setEditingExpiryBatch(null);
+      await reloadAll();
+    } catch {
+      showToast.error('Não foi possível atualizar a validade.');
+    } finally {
+      setSavingExpiryBatch(null);
+    }
+  }
+
+  async function handleCancelEntry(batch: ExpiringBatch) {
+    if (confirmingCancelBatch !== batch.batch_no) {
+      setConfirmingCancelBatch(batch.batch_no);
+      return;
+    }
+    setConfirmingCancelBatch(null);
+    setCancellingBatch(batch.batch_no);
+    try {
+      const stockEntry = await stockOverviewService.getBatchSourceEntry(batch.batch_no);
+      await stockOverviewService.cancelStockEntry(stockEntry);
+      showToast.success('Lançamento cancelado. Registre de novo com os valores corretos.');
+      await reloadAll();
+    } catch {
+      showToast.error('Não foi possível cancelar este lançamento.');
+    } finally {
+      setCancellingBatch(null);
+    }
+  }
+
   const itemsMissingCost = useMemo(
     () => menuItems.filter((item) => item.cost === null),
     [menuItems],
@@ -407,7 +455,38 @@ export const StockOverviewPage: React.FC = () => {
       {
         key: 'expiry_date',
         header: 'Validade',
-        render: (b) => <span className="whitespace-nowrap">{formatDaysLeft(b.days_left)}</span>,
+        render: (b) =>
+          editingExpiryBatch === b.batch_no ? (
+            <div className="flex items-center gap-1">
+              <Input
+                type="date"
+                size="sm"
+                value={expiryEditValue}
+                onChange={(e) => setExpiryEditValue(e.target.value)}
+                className="w-36"
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={savingExpiryBatch === b.batch_no}
+                onClick={() => handleSaveExpiry(b.batch_no)}
+              >
+                {savingExpiryBatch === b.batch_no ? '...' : 'Salvar'}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setEditingExpiryBatch(null)}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="whitespace-nowrap text-left hover:underline"
+              onClick={() => handleStartEditExpiry(b)}
+              title="Editar validade"
+            >
+              {formatDaysLeft(b.days_left)}
+            </button>
+          ),
       },
       {
         key: 'status',
@@ -419,8 +498,29 @@ export const StockOverviewPage: React.FC = () => {
           </Badge>
         ),
       },
+      {
+        key: 'actions',
+        header: '',
+        align: 'right',
+        render: (b) => (
+          <Button
+            type="button"
+            size="sm"
+            variant={confirmingCancelBatch === b.batch_no ? 'danger' : 'ghost'}
+            disabled={cancellingBatch === b.batch_no}
+            onClick={() => handleCancelEntry(b)}
+            title="Cancela o lançamento (compra ou produção) que criou este lote, pra você registrar de novo com os valores certos"
+          >
+            {cancellingBatch === b.batch_no
+              ? 'Cancelando...'
+              : confirmingCancelBatch === b.batch_no
+                ? 'Confirmar?'
+                : 'Cancelar lançamento'}
+          </Button>
+        ),
+      },
     ],
-    [],
+    [editingExpiryBatch, expiryEditValue, savingExpiryBatch, cancellingBatch, confirmingCancelBatch],
   );
 
   const consolidatedColumns = useMemo<DataTableColumn<ConsolidatedStockItem>[]>(

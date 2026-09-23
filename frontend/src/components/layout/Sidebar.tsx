@@ -168,7 +168,12 @@ const MainPanel: React.FC<{ isManager: boolean; isCashier: boolean }> = ({ isMan
           return (
             <a
               key={item.path}
-              href={item.path}
+              // Plain <a href> bypasses React Router, which is what a new
+              // tab needs - but that also means it never gets the
+              // BrowserRouter basename="/ury" a NavLink adds for free.
+              // Without prefixing it by hand, this opened the un-prefixed
+              // root path (e.g. /kitchen), which the server 404s.
+              href={`/ury${item.path}`}
               target="_blank"
               rel="noopener noreferrer"
               className={sidebarItemVariants({ active: false })}

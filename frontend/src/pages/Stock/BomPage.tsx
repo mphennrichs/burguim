@@ -522,16 +522,18 @@ export const BomPage: React.FC = () => {
                 { id: 'receitas' as const, label: 'Receitas cadastradas' },
                 { id: 'ingredientes' as const, label: 'Ingredientes' },
                 { id: 'produtos' as const, label: 'Produtos' },
-                { id: 'nova' as const, label: editingBom ? 'Editar receita' : 'Nova receita' },
               ]
             ).map((item) => (
               <Button
                 key={item.id}
                 variant="tab"
                 size="sm"
-                data-selected={tab === item.id}
+                // 'nova' is a sub-view of 'receitas' (the create/edit form),
+                // not a peer tab - it never gets its own pill, but stays
+                // selected here so the row doesn't go blank while it's open.
+                data-selected={tab === item.id || (item.id === 'receitas' && tab === 'nova')}
                 onClick={() => {
-                  if (item.id !== 'nova') resetForm();
+                  resetForm();
                   setTab(item.id);
                 }}
               >
@@ -541,10 +543,23 @@ export const BomPage: React.FC = () => {
           </div>
 
           {tab === 'receitas' && (
-            boms.length === 0 ? (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    resetForm();
+                    setTab('nova');
+                  }}
+                >
+                  + Nova receita
+                </Button>
+              </div>
+            {boms.length === 0 ? (
               <Card>
                 <CardContent className="py-10 text-center text-muted-foreground">
-                  Nenhuma receita cadastrada ainda. Crie uma na aba &quot;Nova receita&quot;.
+                  Nenhuma receita cadastrada ainda. Crie uma no botão &quot;+ Nova receita&quot; acima.
                 </CardContent>
               </Card>
             ) : (
@@ -598,7 +613,8 @@ export const BomPage: React.FC = () => {
                   </Card>
                 ))}
               </div>
-            )
+            )}
+            </div>
           )}
 
           {tab === 'ingredientes' && (
@@ -765,19 +781,17 @@ export const BomPage: React.FC = () => {
                       <Button type="submit" disabled={submitting} className="flex-1">
                         {submitting ? 'Salvando...' : editingBom ? 'Salvar alterações' : 'Cadastrar receita'}
                       </Button>
-                      {editingBom && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={submitting}
-                          onClick={() => {
-                            resetForm();
-                            setTab('receitas');
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={submitting}
+                        onClick={() => {
+                          resetForm();
+                          setTab('receitas');
+                        }}
+                      >
+                        Cancelar
+                      </Button>
                     </div>
                   </form>
                 </CardContent>
