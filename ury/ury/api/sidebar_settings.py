@@ -17,6 +17,7 @@ _MANAGER_ROLES = {"URY Manager", "URY Admin", "System Manager"}
 # an unknown key is silently ignored rather than trusted, so a stale/bogus
 # value saved here can never hide something this list doesn't expect.
 HIDEABLE_ITEMS = {
+    "caixa",
     "kitchen",
     "menu",
     "stock",

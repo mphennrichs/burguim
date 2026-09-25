@@ -69,7 +69,7 @@ Acesso total ao sistema — cardápio, estoque, relatórios, configurações.
 _Avoid_: Admin, gerente
 
 **Caixa**:
-Vê a fila de Pedidos e cria Pedidos novos manualmente (quando o Cliente pede por telefone, por exemplo). Sem acesso a cardápio/estoque/configurações.
+Vê a fila de Pedidos e cria Pedidos novos manualmente (quando o Cliente pede por telefone, por exemplo), além de consultar o histórico de Pedidos já concluídos (Retirados/Entregues) de dias anteriores. Sem acesso a cardápio/estoque/configurações.
 _Avoid_: Cashier
 
 **Tela de Cozinha**:
