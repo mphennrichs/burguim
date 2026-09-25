@@ -60,19 +60,30 @@ export const PosProfilePage: React.FC = () => {
   });
   const [options, setOptions] = useState<any>({ companies: [], warehouses: [], users: [], payments: [] });
 
+  // Resolves which branch the Add form should default to: the branch
+  // filter selected at the top, or - when that's "Todas" (all) - the
+  // single branch this business has, so a Cashier/Owner who never touched
+  // the branch filter still gets a POS Profile that actually links to a
+  // branch. Leaving it blank here was the real bug behind "Access Denied"
+  // on /pos: the profile got created with no `branch`, so getPosProfile()'s
+  // `frappe.db.exists("POS Profile", {"branch": branchName})` lookup never
+  // matched it.
+  const defaultAddBranch = () =>
+    activeBranchId !== 'all' ? activeBranchId : (branches.length === 1 ? branches[0].id : '');
+
   useEffect(() => {
     setAddForm(prev => ({
       ...prev,
-      branch: activeBranchId === 'all' ? '' : activeBranchId
+      branch: defaultAddBranch()
     }));
-  }, [activeBranchId]);
+  }, [activeBranchId, branches]);
 
   const openAddDrawer = () => {
     setAddForm({
       name: '',
       company: options.companies[0]?.name || '',
       warehouse: options.warehouses[0]?.name || '',
-      branch: activeBranchId === 'all' ? '' : activeBranchId,
+      branch: defaultAddBranch(),
       custom_kot_naming_series: '',
       selling_price_list: '',
       print_format: '',
@@ -114,6 +125,10 @@ export const PosProfilePage: React.FC = () => {
 
   const handleAddProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addForm.branch) {
+      showToast.error('Selecione uma filial para o Perfil de PDV');
+      return;
+    }
     setSaving(true);
     try {
       // Safety net for the pre-fill in openAddDrawer, in case it hadn't
@@ -211,6 +226,7 @@ export const PosProfilePage: React.FC = () => {
       const profile = res.message || res;
       setSelectedProfile(profile);
       const initialForm = {
+        branch: profile.branch || '',
         company: profile.company || '',
         warehouse: profile.warehouse || '',
         selling_price_list: profile.selling_price_list || '',
@@ -258,6 +274,7 @@ export const PosProfilePage: React.FC = () => {
 
     const getNormalizedProfileData = (form: Record<string, any>) => {
       return {
+        branch: form.branch || '',
         company: form.company || '',
         warehouse: form.warehouse || '',
         selling_price_list: form.selling_price_list || '',
@@ -287,12 +304,18 @@ export const PosProfilePage: React.FC = () => {
       return;
     }
 
+    if (!profileForm.branch) {
+      showToast.error('Selecione uma filial para o Perfil de PDV');
+      return;
+    }
+
     setSaving(true);
     try {
       await call('frappe.client.set_value', {
         doctype: 'POS Profile',
         name: selectedProfile.name,
         fieldname: {
+          branch: profileForm.branch,
           company: profileForm.company,
           warehouse: profileForm.warehouse,
           selling_price_list: profileForm.selling_price_list,
@@ -426,6 +449,20 @@ export const PosProfilePage: React.FC = () => {
                     Configurações Gerais
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1.5">Filial <span className="text-red-500">*</span></label>
+                      <SearchableSelect
+                        id="profile_branch"
+                        disabled={!isEditMode}
+                        value={profileForm.branch || ''}
+                        onChange={(_, val) => setProfileForm(p => ({ ...p, branch: val }))}
+                        options={[
+                          { value: '', label: 'Selecione a Filial' },
+                          ...branches.map((b: any) => ({ value: b.id, label: b.name }))
+                        ]}
+                        placeholder="Selecione a Filial"
+                      />
+                    </div>
                     <div>
                       <label className="block font-semibold text-gray-700 mb-1.5">Empresa</label>
                       <SearchableSelect
@@ -821,7 +858,7 @@ export const PosProfilePage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5">Filial</label>
+              <label className="block font-semibold text-gray-700 mb-1.5">Filial <span className="text-red-500">*</span></label>
               {activeBranchId === 'all' ? (
                 <SearchableSelect
                   id="add_profile_branch"
@@ -829,7 +866,7 @@ export const PosProfilePage: React.FC = () => {
                   onChange={(_, val) => setAddForm({...addForm, branch: val})}
                   options={[
                     { value: '', label: 'Selecione a Filial' },
-                    ...branches.map((b: any) => ({ value: b.name, label: b.name }))
+                    ...branches.map((b: any) => ({ value: b.id, label: b.name }))
                   ]}
                   placeholder="Selecione a Filial"
                 />
