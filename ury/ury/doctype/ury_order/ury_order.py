@@ -821,7 +821,25 @@ def _resolve_or_create_pos_invoice(table, invoiceNo, order_type, is_payment, che
         else:
             invoice = frappe.new_doc("POS Invoice")
             invoice.is_pos = 1
-            invoice.update_stock = 1
+            # Unlike the table (Dine In) path above, a Retirada/Entrega
+            # Pedido never has its own stock deducted at sale time in this
+            # business's model - CONTEXT.md is explicit that a Produto like
+            # Burguim Clássico is "produzido e montado na hora, sem lote
+            # próprio" (no stock of its own to hold), and raw-material
+            # stock only ever moves through explicit Stock Entries
+            # (record_purchase/record_production in stock_entry.py), never
+            # through a sales invoice. Left at ERPNext's default
+            # update_stock=1 here, ERPNext's own validate_stock_availablility()
+            # unconditionally rejects submitting ANY stock item with zero
+            # on-hand qty in its warehouse - which every made-to-order
+            # Produto always has, since nothing ever stocks it ahead of a
+            # sale. Confirmed live: advance_kitchen_status()'s submit() at
+            # the terminal Kitchen state failing with exactly that error
+            # for Burguim Clássico - this is the actual, shared root cause
+            # (both self_ordering.py and caixa.py build their invoice
+            # through this same no-table branch), not something specific
+            # to either caller.
+            invoice.update_stock = 0
 
         branch = override_branch or getBranch()
         restaurant = frappe.db.get_value("URY Restaurant", {"branch": branch}, "name")
