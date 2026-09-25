@@ -159,6 +159,16 @@ def advance_kitchen_status(invoice, new_status):
         # session than whoever created it (e.g. a shift change).
         if doc.pos_profile:
             ensure_pos_opening_entry(doc.pos_profile)
+        # Self-heal for a draft saved before ury_order.py's
+        # _resolve_or_create_pos_invoice() stopped defaulting new
+        # Retirada/Entrega invoices to update_stock=1 - without this, a
+        # Pedido created before that fix deployed still submits with the
+        # old value baked in and hits the same "Item has no stock" wall
+        # this was meant to fix, since draft rows don't retroactively pick
+        # up a code change. No made-to-order Produto in this business
+        # tracks its own stock (CONTEXT.md) - see that fix's own comment
+        # in ury_order.py for the full reasoning.
+        doc.update_stock = 0
         doc.submit()
     else:
         doc.save()
