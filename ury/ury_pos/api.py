@@ -1148,6 +1148,16 @@ def ensure_pos_opening_entry(pos_profile):
         return existing[0].name
 
     pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+    if not pos_profile_doc.restaurant:
+        # Same self-heal POS Profile's own validate() hook now does
+        # (ury.ury.hooks.ury_pos_profile.set_restaurant_from_branch) -
+        # repeated here via frappe.db.set_value (no re-save) since a
+        # profile saved before that hook existed won't get it applied
+        # again on its own.
+        restaurant = frappe.db.get_value("URY Restaurant", {"branch": pos_profile_doc.branch}, "name")
+        if restaurant:
+            frappe.db.set_value("POS Profile", pos_profile, "restaurant", restaurant)
+            pos_profile_doc.restaurant = restaurant
     balance_details = [
         {"mode_of_payment": p.mode_of_payment, "opening_amount": 0}
         for p in pos_profile_doc.payments
