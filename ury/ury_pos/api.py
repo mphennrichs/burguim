@@ -1121,6 +1121,41 @@ def create_pos_opening_entry(pos_profile: str, company: str, balance_details) ->
     return opening.as_dict()
 
 
+def ensure_pos_opening_entry(pos_profile):
+    """Auto-opens the till for `pos_profile` under the current session user
+    if nothing is already open, and returns its name either way.
+
+    ERPNext's own POS Invoice requires an open POS Opening Entry before it
+    can be submitted ("No open POS Opening Entry found for POS Profile
+    ..."). CONTEXT.md's Caixa/Tela de Cozinha flow has no "abrir/fechar
+    caixa" concept of its own (unlike the ORI native app's own
+    POSOpeningDialog, or the legacy pos/ app) - actual cash reconciliation
+    isn't a workflow this business tracks (see CONTEXT.md's Pagamento
+    entry). So this makes that requirement transparent - a zero opening
+    balance declared automatically - instead of surfacing it as a
+    checkout-blocking error the Caixa can't self-serve. Called both when a
+    manual order is created (ury.ury.api.caixa) and right before a Pedido
+    is actually submitted (ury.ury.api.kitchen.advance_kitchen_status),
+    since those can happen in different sessions (e.g. a shift change).
+    """
+    user = frappe.session.user
+    existing = frappe.get_all(
+        "POS Opening Entry",
+        filters={"pos_profile": pos_profile, "user": user, "docstatus": 1, "status": "Open"},
+        limit=1,
+    )
+    if existing:
+        return existing[0].name
+
+    pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+    balance_details = [
+        {"mode_of_payment": p.mode_of_payment, "opening_amount": 0}
+        for p in pos_profile_doc.payments
+    ]
+    opening = create_pos_opening_entry(pos_profile, pos_profile_doc.company, balance_details)
+    return opening["name"]
+
+
 @frappe.whitelist()
 def get_pos_opening_screen_data() -> dict:
     """Return the full context needed by the ORI native POS Opening screen.

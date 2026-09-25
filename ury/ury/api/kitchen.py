@@ -13,7 +13,7 @@
 import frappe
 from frappe import _
 
-from ury.ury_pos.api import getBranch
+from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
 
 # Estados do Pedido (CONTEXT.md) - shared "Na Fila"/"Preparando" prefix,
 # then the flow diverges by Modalidade. Order in each list matters:
@@ -152,6 +152,13 @@ def advance_kitchen_status(invoice, new_status):
 
     doc.custom_kitchen_status = new_status
     if new_status in _TERMINAL_STATES:
+        # ERPNext's own POS Invoice submit requires an open POS Opening
+        # Entry for the invoice's pos_profile - self-heal it here too
+        # (not just in caixa.py's create_manual_order), since whoever
+        # advances this order to its terminal state may be a different
+        # session than whoever created it (e.g. a shift change).
+        if doc.pos_profile:
+            ensure_pos_opening_entry(doc.pos_profile)
         doc.submit()
     else:
         doc.save()

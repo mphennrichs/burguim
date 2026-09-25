@@ -25,7 +25,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, getdate, nowdate
 
-from ury.ury_pos.api import getBranch, resolve_restaurant_menu
+from ury.ury_pos.api import getBranch, resolve_restaurant_menu, ensure_pos_opening_entry
 from ury.ury.doctype.ury_order.ury_order import (
     _resolve_or_create_pos_invoice,
     price_items_for_invoice,
@@ -82,6 +82,7 @@ def create_manual_order(items, order_type, customer_phone, customer_name=None, d
     pos_profile = frappe.db.exists("POS Profile", {"branch": branch})
     if not pos_profile:
         frappe.throw(_("Nenhum Perfil de PDV configurado para esta filial"))
+    ensure_pos_opening_entry(pos_profile)
 
     if order_type not in _ORDER_TYPES:
         frappe.throw(_("Modalidade inválida"))
