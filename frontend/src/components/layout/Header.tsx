@@ -138,7 +138,7 @@ export const Header: React.FC = () => {
     } catch {
       // Ignore logout errors
     } finally {
-      window.location.href = '/login?redirect-to=%2Fpos';
+      window.location.href = '/login?redirect-to=%2Fury%2Fdashboard';
     }
   };
 

@@ -2,7 +2,6 @@ import React from 'react';
 import { formatCurrency } from '@ury/core';
 import { Card, Spinner } from '@ury/ui';
 import { DashboardSummary } from '../../services/dashboard';
-import uryPosLogo from '../../../../pos/public/ury_pos.png';
 import uryMosaicLogo from '../../../../mosaic/src/assets/logos/mosaic.jpg';
 
 interface LinkCardProps {
@@ -61,12 +60,6 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ summary, loading }) => {
   return (
     <section className="w-full">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <LinkCard
-          logoSrc={uryPosLogo}
-          label="URY POS"
-          href="/pos"
-        />
-
         <LinkCard
           logoSrc={uryMosaicLogo}
           label="URY MOSAIC"
