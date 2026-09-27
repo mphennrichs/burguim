@@ -16,12 +16,13 @@ from frappe.utils import nowdate
 
 from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
 
-# Estados do Pedido (CONTEXT.md) - shared "Na Fila"/"Preparando" prefix,
-# then the flow diverges by Modalidade. Order in each list matters:
+# Estados do Pedido (CONTEXT.md) - shared "Na Fila"/"Preparando"/"Pronto"
+# prefix (the kitchen finished montando, regardless of Modalidade), then
+# the flow diverges only after that. Order in each list matters:
 # advance_kitchen_status() only allows moving to the very next entry.
-_COMMON_STATES = ["Na Fila", "Preparando"]
+_COMMON_STATES = ["Na Fila", "Preparando", "Pronto"]
 _FLOWS = {
-    "Take Away": _COMMON_STATES + ["Pronto", "Retirado"],
+    "Take Away": _COMMON_STATES + ["Retirado"],
     "Delivery": _COMMON_STATES + ["Saiu para Entrega", "Entregue"],
 }
 _TERMINAL_STATES = {"Retirado", "Entregue"}

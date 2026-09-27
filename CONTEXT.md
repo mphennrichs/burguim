@@ -10,13 +10,13 @@ _Avoid_: Order
 
 ### Estados do Pedido
 
-Todo Pedido começa em **Na fila** (aguardando início do preparo) e passa para **Preparando** (a cozinha está montando). Depois disso, os estados divergem por Modalidade:
+Todo Pedido começa em **Na fila** (aguardando início do preparo), passa para **Preparando** (a cozinha está montando) e depois para **Pronto** (a cozinha terminou) — esses três estados são comuns às duas Modalidades. A partir de **Pronto**, o fluxo diverge:
 
-**Pronto** → **Retirado**:
-Estados exclusivos de um Pedido de Retirada — primeiro fica pronto aguardando o Cliente, depois é marcado como retirado quando ele busca.
+**Retirado** (exclusivo de Retirada):
+Marcado quando o Cliente busca o Pedido já pronto.
 
-**Saiu para entrega** → **Entregue**:
-Estados exclusivos de um Pedido de Entrega — primeiro é despachado, depois marcado como entregue ao chegar no Cliente.
+**Saiu para entrega** → **Entregue** (exclusivos de Entrega):
+Primeiro é despachado, depois marcado como entregue ao chegar no Cliente.
 
 **Cliente**:
 Uma pessoa que faz Pedidos, identificada pelo telefone — sem conta ou login. Nome, endereço e telefone ficam salvos e são reconhecidos automaticamente a cada novo Pedido com o mesmo telefone, o que forma o histórico (frequência, itens pedidos, dia da semana) usado pra identificar clientes recorrentes.

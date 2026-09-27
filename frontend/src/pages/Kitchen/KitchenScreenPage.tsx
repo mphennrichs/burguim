@@ -31,7 +31,7 @@ const STATUS_BADGE_VARIANT: Record<string, 'pending' | 'info' | 'warning' | 'com
 };
 
 // One kanban column per Estado (CONTEXT.md) - mirrors kitchen.py's own
-// _COMMON_STATES + _FLOWS shape (Na Fila/Preparando shared by both
+// _COMMON_STATES + _FLOWS shape (Na Fila/Preparando/Pronto shared by both
 // Modalidades, then diverging) rather than re-deriving it. Retirado has no
 // column of its own (not asked for) even though Entregue does - the same
 // shape as Entregue's would cover it if that changes; get_kitchen_queue()
