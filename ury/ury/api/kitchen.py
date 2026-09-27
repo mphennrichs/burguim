@@ -15,6 +15,7 @@ from frappe import _
 from frappe.utils import nowdate
 
 from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
+from ury.ury.api.stock_deduction import compute_deduction_rows_and_shortfalls
 
 # Estados do Pedido (CONTEXT.md) - shared "Na Fila"/"Preparando"/"Pronto"
 # prefix (the kitchen finished montando, regardless of Modalidade), then
@@ -199,3 +200,96 @@ def advance_kitchen_status(invoice, new_status):
         doc.save()
 
     return {"invoice": doc.name, "kitchen_status": new_status, "completed": new_status in _TERMINAL_STATES}
+
+
+def _item_needs_prep(item_code):
+    """True for an item that's actually assembled to order (Preparo/
+    Produto com Receita, has_batch_no=0) - false for one that's just sold
+    as-is (has_batch_no=1, e.g. a Refrigerante bought pronto e revendido:
+    it's never "preparado", so cancelling never loses anything real,
+    regardless of Estado). Same has_batch_no distinction
+    stock_deduction._resolve_deductible_ingredients already keys off."""
+    return not frappe.db.get_value("Item", item_code, "has_batch_no")
+
+
+def _finalize_cancelled_order(doc, restock):
+    """Submits a Cancelado Pedido - always submitted (not left a draft
+    forever) so it lands permanently in Histórico de Vendas/Cliente, same
+    as a normal completed order, just flagged Cancelado instead. When
+    `restock` is False, records the real ingredient loss first (the same
+    aggregated FEFO computation a real sale's on_submit would run) as a
+    Material Issue - CONTEXT.md has no advance payment, so a cancelled
+    Pedido that already consumed ingredients is pure loss with zero
+    revenue ("venda negativa"), not a real sale. Shortfalls are ignored
+    here (never blocks resolving the cancellation over a stock
+    discrepancy that's a pre-existing problem, not this action's fault).
+    """
+    if not restock:
+        rows, _shortfalls = compute_deduction_rows_and_shortfalls(doc.items, doc.branch)
+        if rows:
+            entry = frappe.get_doc({
+                "doctype": "Stock Entry",
+                "stock_entry_type": "Material Issue",
+                "purpose": "Material Issue",
+                "items": rows,
+            })
+            entry.insert(ignore_permissions=True)
+            entry.submit()
+
+    if doc.pos_profile:
+        ensure_pos_opening_entry(doc.pos_profile)
+    # Same reasoning as advance_kitchen_status's terminal-state branch -
+    # no made-to-order Produto tracks its own stock, and the real
+    # ingredient loss (if any) was already handled explicitly above.
+    doc.update_stock = 0
+    doc.submit()
+
+
+@frappe.whitelist(methods=["POST"])
+def cancel_kitchen_order(invoice):
+    """Cancels a still-in-progress Pedido. Auto-resolves (no stock
+    impact, submits immediately) when nothing could have been physically
+    consumed yet: still Na Fila, or every item on it is sold as-is
+    (_item_needs_prep is False for all of them). Otherwise - at least one
+    prepared item, past Na Fila - the owner can't know from here whether
+    real ingredients were already used, so it's parked in the Cancelados
+    column (custom_kitchen_status="Cancelado", still docstatus=0) for a
+    manual decision via resolve_cancelled_order()."""
+    branch = getBranch()
+    doc = frappe.get_doc("POS Invoice", invoice)
+
+    if doc.branch != branch:
+        frappe.throw(_("Not permitted to update orders outside your branch"), frappe.PermissionError)
+    if doc.docstatus != 0:
+        frappe.throw(_("This order was already completed"), frappe.ValidationError)
+
+    current_status = doc.custom_kitchen_status or _COMMON_STATES[0]
+    needs_decision = current_status != _COMMON_STATES[0] and any(
+        _item_needs_prep(row.item_code) for row in doc.items
+    )
+
+    doc.custom_kitchen_status = "Cancelado"
+
+    if needs_decision:
+        doc.save()
+        return {"invoice": doc.name, "status": "pending_decision"}
+
+    _finalize_cancelled_order(doc, restock=True)
+    return {"invoice": doc.name, "status": "cancelled"}
+
+
+@frappe.whitelist(methods=["POST"])
+def resolve_cancelled_order(invoice, restock):
+    """Resolves a Pedido sitting in Cancelados awaiting the devolver-ao-
+    estoque decision (see cancel_kitchen_order)."""
+    branch = getBranch()
+    doc = frappe.get_doc("POS Invoice", invoice)
+
+    if doc.branch != branch:
+        frappe.throw(_("Not permitted to update orders outside your branch"), frappe.PermissionError)
+    if doc.docstatus != 0 or doc.custom_kitchen_status != "Cancelado":
+        frappe.throw(_("This order is not awaiting a cancellation decision"), frappe.ValidationError)
+
+    restock = str(restock).lower() in ("1", "true", "yes")
+    _finalize_cancelled_order(doc, restock=restock)
+    return {"invoice": doc.name}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Badge, Spinner } from '@ury/ui';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Badge, Spinner, showToast } from '@ury/ui';
 import { formatCurrency } from '@ury/core';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { kitchenService, type KitchenOrder } from '../../services/kitchen';
@@ -23,12 +23,13 @@ const ORDER_TYPE_LABEL: Record<string, string> = {
   Delivery: 'Entrega',
 };
 
-const STATUS_BADGE_VARIANT: Record<string, 'pending' | 'info' | 'warning' | 'completed'> = {
+const STATUS_BADGE_VARIANT: Record<string, 'pending' | 'info' | 'warning' | 'completed' | 'danger'> = {
   'Na Fila': 'pending',
   Preparando: 'info',
   Pronto: 'warning',
   'Saiu para Entrega': 'warning',
   Entregue: 'completed',
+  Cancelado: 'danger',
 };
 
 // One kanban column per Estado (CONTEXT.md) - mirrors kitchen.py's own
@@ -38,12 +39,18 @@ const STATUS_BADGE_VARIANT: Record<string, 'pending' | 'info' | 'warning' | 'com
 // shape as Entregue's would cover it if that changes; get_kitchen_queue()
 // only ever returns today's already-Entregue Pedidos (bounded, see its own
 // docstring), everything else here is still in-progress (docstatus=0).
+// Cancelado isn't part of kitchen.py's _FLOWS at all (it's a side branch
+// reachable from any active state, not a sequential step) but still gets
+// its own column here - a Pedido sits there, still docstatus=0, only
+// while awaiting the devolver-ao-estoque decision; once resolved it's
+// submitted and drops out, same as Retirado/Entregue.
 const COLUMNS = [
   { status: 'Na Fila', label: 'Na Fila' },
   { status: 'Preparando', label: 'Preparando' },
   { status: 'Pronto', label: 'Pronto' },
   { status: 'Saiu para Entrega', label: 'Saiu para Entrega' },
   { status: 'Entregue', label: 'Entregue' },
+  { status: 'Cancelado', label: 'Cancelados' },
 ] as const;
 
 function loadHiddenColumns(): Record<string, boolean> {
@@ -74,47 +81,103 @@ interface OrderCardProps {
   order: KitchenOrder;
   advancing: boolean;
   onAdvance: (order: KitchenOrder) => void;
+  resolving: boolean;
+  onResolveCancel: (order: KitchenOrder, restock: boolean) => void;
+  cancelling: boolean;
+  confirmingCancel: boolean;
+  onCancel: (order: KitchenOrder) => void;
 }
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, advancing, onAdvance }) => (
-  <Card>
-    <CardHeader>
-      <div className="flex items-center justify-between gap-2">
-        <CardTitle className="truncate text-base">{order.customer_name}</CardTitle>
-        <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(order.created_at)}</span>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant="outline">{ORDER_TYPE_LABEL[order.order_type] ?? order.order_type}</Badge>
-      </div>
-      {order.order_type === 'Delivery' && order.delivery_phone && (
-        <p className="text-sm text-muted-foreground">{order.delivery_phone}</p>
-      )}
-    </CardHeader>
-    <CardContent className="space-y-2">
-      {order.order_type === 'Delivery' && order.delivery_address && (
-        <p className="text-sm">{order.delivery_address}</p>
-      )}
-      {order.notes && (
-        <p className="rounded-md bg-muted p-2 text-sm italic text-muted-foreground">Obs: {order.notes}</p>
-      )}
-      <p className="text-sm text-muted-foreground">{itemsSummary(order)}</p>
-      <div className="flex justify-between border-t pt-2 text-sm font-semibold">
-        <span>Total</span>
-        <span className="tabular-nums">{formatCurrency(order.grand_total)}</span>
-      </div>
-    </CardContent>
-    <CardFooter>
-      <Button className="w-full" disabled={!order.next_status || advancing} onClick={() => onAdvance(order)}>
-        {advancing ? 'Atualizando...' : order.next_status ? `Marcar como ${order.next_status}` : 'Sem próximo estado'}
-      </Button>
-    </CardFooter>
-  </Card>
-);
+const OrderCard: React.FC<OrderCardProps> = ({
+  order,
+  advancing,
+  onAdvance,
+  resolving,
+  onResolveCancel,
+  cancelling,
+  confirmingCancel,
+  onCancel,
+}) => {
+  const pendingCancelDecision = order.kitchen_status === 'Cancelado';
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="truncate text-base">{order.customer_name}</CardTitle>
+          <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(order.created_at)}</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline">{ORDER_TYPE_LABEL[order.order_type] ?? order.order_type}</Badge>
+        </div>
+        {order.order_type === 'Delivery' && order.delivery_phone && (
+          <p className="text-sm text-muted-foreground">{order.delivery_phone}</p>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {order.order_type === 'Delivery' && order.delivery_address && (
+          <p className="text-sm">{order.delivery_address}</p>
+        )}
+        {order.notes && (
+          <p className="rounded-md bg-muted p-2 text-sm italic text-muted-foreground">Obs: {order.notes}</p>
+        )}
+        <p className="text-sm text-muted-foreground">{itemsSummary(order)}</p>
+        <div className="flex justify-between border-t pt-2 text-sm font-semibold">
+          <span>Total</span>
+          <span className="tabular-nums">{formatCurrency(order.grand_total)}</span>
+        </div>
+      </CardContent>
+      <CardFooter className="flex-col items-stretch gap-2">
+        {pendingCancelDecision ? (
+          <>
+            <p className="text-xs text-muted-foreground text-center">
+              Este pedido já tinha item em preparo. Os ingredientes foram consumidos?
+            </p>
+            <div className="flex gap-2 w-full">
+              <Button
+                variant="outline"
+                className="flex-1"
+                disabled={resolving}
+                onClick={() => onResolveCancel(order, true)}
+              >
+                Devolver ao estoque
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={resolving}
+                onClick={() => onResolveCancel(order, false)}
+              >
+                Não devolver (perda)
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <Button className="w-full" disabled={!order.next_status || advancing} onClick={() => onAdvance(order)}>
+              {advancing ? 'Atualizando...' : order.next_status ? `Marcar como ${order.next_status}` : 'Sem próximo estado'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-destructive hover:text-destructive"
+              disabled={cancelling}
+              onClick={() => onCancel(order)}
+            >
+              {confirmingCancel ? 'Confirmar cancelamento?' : 'Cancelar Pedido'}
+            </Button>
+          </>
+        )}
+      </CardFooter>
+    </Card>
+  );
+};
 
 export const KitchenScreenPage: React.FC = () => {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [advancingInvoice, setAdvancingInvoice] = useState<string | null>(null);
+  const [cancellingInvoice, setCancellingInvoice] = useState<string | null>(null);
+  const [confirmingCancelInvoice, setConfirmingCancelInvoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [hiddenColumns, setHiddenColumns] = useState<Record<string, boolean>>(loadHiddenColumns);
@@ -180,6 +243,41 @@ export const KitchenScreenPage: React.FC = () => {
     }
   }
 
+  async function handleCancel(order: KitchenOrder) {
+    if (confirmingCancelInvoice !== order.invoice) {
+      setConfirmingCancelInvoice(order.invoice);
+      return;
+    }
+    setConfirmingCancelInvoice(null);
+    setCancellingInvoice(order.invoice);
+    try {
+      const result = await kitchenService.cancel(order.invoice);
+      showToast.success(
+        result.status === 'pending_decision'
+          ? 'Pedido movido para Cancelados — decida se devolve os ingredientes.'
+          : 'Pedido cancelado.',
+      );
+      loadOrders();
+    } catch {
+      showToast.error('Não foi possível cancelar o pedido. Tente novamente.');
+    } finally {
+      setCancellingInvoice(null);
+    }
+  }
+
+  async function handleResolveCancel(order: KitchenOrder, restock: boolean) {
+    setCancellingInvoice(order.invoice);
+    try {
+      await kitchenService.resolveCancelled(order.invoice, restock);
+      showToast.success(restock ? 'Estoque devolvido — pedido cancelado.' : 'Perda registrada — pedido cancelado.');
+      loadOrders();
+    } catch {
+      showToast.error('Não foi possível concluir o cancelamento. Tente novamente.');
+    } finally {
+      setCancellingInvoice(null);
+    }
+  }
+
   function toggleColumn(status: string) {
     setCollapsed((prev) => ({ ...prev, [status]: !prev[status] }));
   }
@@ -195,7 +293,9 @@ export const KitchenScreenPage: React.FC = () => {
 
   // Entregue is already-completed reference, not part of "how many
   // pedidos need attention right now" - excluded from the header count.
-  const activeOrdersCount = orders.filter((o) => o.kitchen_status !== 'Entregue').length;
+  const activeOrdersCount = orders.filter(
+    (o) => o.kitchen_status !== 'Entregue' && o.kitchen_status !== 'Cancelado',
+  ).length;
   const visibleColumns = COLUMNS.filter((column) => !hiddenColumns[column.status]);
 
   return (
@@ -281,6 +381,11 @@ export const KitchenScreenPage: React.FC = () => {
                             order={order}
                             advancing={advancingInvoice === order.invoice}
                             onAdvance={handleAdvance}
+                            resolving={cancellingInvoice === order.invoice}
+                            onResolveCancel={handleResolveCancel}
+                            cancelling={cancellingInvoice === order.invoice}
+                            confirmingCancel={confirmingCancelInvoice === order.invoice}
+                            onCancel={handleCancel}
                           />
                         ))
                       )}

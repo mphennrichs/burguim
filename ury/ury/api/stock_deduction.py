@@ -155,6 +155,14 @@ def format_shortfalls(shortfalls):
 
 
 def deduct_stock_on_sale(doc, method):
+    # A cancelled Pedido's stock impact (if any) is resolved explicitly by
+    # kitchen.cancel_kitchen_order()/resolve_cancelled_order() before this
+    # submit ever happens - never re-derived here from doc.items, which
+    # would double-count (or wrongly deduct a "devolver ao estoque"
+    # cancellation that should have zero stock impact).
+    if getattr(doc, "custom_kitchen_status", None) == "Cancelado":
+        return
+
     branch = getattr(doc, "branch", None)
     block = _should_block_on_insufficient_stock()
 

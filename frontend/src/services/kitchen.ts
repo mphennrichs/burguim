@@ -49,4 +49,16 @@ export const kitchenService = {
   async advance(invoice: string, newStatus: string): Promise<void> {
     await call('ury.ury.api.kitchen.advance_kitchen_status', { invoice, new_status: newStatus });
   },
+
+  async cancel(invoice: string): Promise<{ status: 'pending_decision' | 'cancelled' }> {
+    const res = await call<{ status: 'pending_decision' | 'cancelled' }>(
+      'ury.ury.api.kitchen.cancel_kitchen_order',
+      { invoice },
+    );
+    return unwrap(res, { status: 'cancelled' });
+  },
+
+  async resolveCancelled(invoice: string, restock: boolean): Promise<void> {
+    await call('ury.ury.api.kitchen.resolve_cancelled_order', { invoice, restock });
+  },
 };

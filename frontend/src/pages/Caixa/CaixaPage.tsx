@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
   Button,
+  Badge,
   Input,
   Spinner,
   StatCard,
@@ -18,6 +19,7 @@ import {
   type SellableItem,
   type SalesHistoryOrder,
   type CaixaOrderType,
+  type SalesHistoryStatusFilter,
 } from '../../services/caixa';
 import { stockOverviewService } from '../../services/stockOverview';
 import { Switch } from '../../components/ui/switch';
@@ -66,6 +68,8 @@ export const CaixaPage: React.FC = () => {
 
   // Histórico de Vendas
   const [historyDays, setHistoryDays] = useState(7);
+  const [historyOrderType, setHistoryOrderType] = useState<CaixaOrderType | undefined>(undefined);
+  const [historyStatus, setHistoryStatus] = useState<SalesHistoryStatusFilter>(undefined);
   const [historyOrders, setHistoryOrders] = useState<SalesHistoryOrder[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -87,10 +91,10 @@ export const CaixaPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  function loadHistory(days: number) {
+  function loadHistory(days: number, orderTypeFilter?: CaixaOrderType, statusFilter?: SalesHistoryStatusFilter) {
     setLoadingHistory(true);
     caixaService
-      .salesHistory(days)
+      .salesHistory(days, orderTypeFilter, statusFilter)
       .then((res) => {
         setHistoryOrders(res.orders);
         setHistoryTotal(res.total);
@@ -100,9 +104,9 @@ export const CaixaPage: React.FC = () => {
   }
 
   useEffect(() => {
-    loadHistory(historyDays);
+    loadHistory(historyDays, historyOrderType, historyStatus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyDays]);
+  }, [historyDays, historyOrderType, historyStatus]);
 
   function toggleAutofill(checked: boolean) {
     setAutofillEnabled(checked);
@@ -209,7 +213,12 @@ export const CaixaPage: React.FC = () => {
       {
         key: 'order_type',
         header: 'Modalidade',
-        render: (o) => ORDER_TYPE_LABEL[o.order_type as CaixaOrderType] || o.order_type,
+        render: (o) => (
+          <div className="flex items-center gap-2">
+            <span>{ORDER_TYPE_LABEL[o.order_type as CaixaOrderType] || o.order_type}</span>
+            {o.custom_kitchen_status === 'Cancelado' && <Badge variant="danger" size="sm">Cancelado</Badge>}
+          </div>
+        ),
       },
       {
         key: 'grand_total',
@@ -425,7 +434,7 @@ export const CaixaPage: React.FC = () => {
 
       {tab === 'historico' && (
         <div className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {[
               { label: 'Hoje', days: 1 },
               { label: '7 dias', days: 7 },
@@ -441,6 +450,42 @@ export const CaixaPage: React.FC = () => {
                 {opt.label}
               </Button>
             ))}
+            <span className="w-px bg-gray-200 mx-1" />
+            {(
+              [
+                { label: 'Todas', value: undefined as CaixaOrderType | undefined },
+                { label: 'Retirada', value: 'Take Away' as CaixaOrderType },
+                { label: 'Entrega', value: 'Delivery' as CaixaOrderType },
+              ]
+            ).map((opt) => (
+              <Button
+                key={opt.label}
+                variant="tab"
+                size="sm"
+                data-selected={historyOrderType === opt.value}
+                onClick={() => setHistoryOrderType(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+            <span className="w-px bg-gray-200 mx-1" />
+            {(
+              [
+                { label: 'Todos', value: undefined as SalesHistoryStatusFilter },
+                { label: 'Concluídos', value: 'completed' as SalesHistoryStatusFilter },
+                { label: 'Cancelados', value: 'cancelled' as SalesHistoryStatusFilter },
+              ]
+            ).map((opt) => (
+              <Button
+                key={opt.label}
+                variant="tab"
+                size="sm"
+                data-selected={historyStatus === opt.value}
+                onClick={() => setHistoryStatus(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
           </div>
 
           {loadingHistory ? (
@@ -449,7 +494,7 @@ export const CaixaPage: React.FC = () => {
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <StatCard label="Total vendido no período" value={formatCurrency(historyTotal)} />
-                <StatCard label="Pedidos concluídos" value={historyOrders.length} />
+                <StatCard label="Pedidos no período" value={historyOrders.length} />
               </div>
 
               {historyOrders.length === 0 ? (

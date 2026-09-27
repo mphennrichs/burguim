@@ -23,7 +23,10 @@ export interface SalesHistoryOrder {
   posting_time: string;
   order_type: string;
   grand_total: number;
+  custom_kitchen_status: string;
 }
+
+export type SalesHistoryStatusFilter = 'completed' | 'cancelled' | undefined;
 
 export interface SalesHistoryResponse {
   orders: SalesHistoryOrder[];
@@ -103,8 +106,16 @@ export const caixaService = {
     return unwrap<CreateOrderResult>(res, { invoice: '', grand_total: 0 });
   },
 
-  async salesHistory(days = 30): Promise<SalesHistoryResponse> {
-    const res = await call<SalesHistoryResponse>('ury.ury.api.caixa.get_sales_history', { days });
+  async salesHistory(
+    days = 30,
+    orderType?: CaixaOrderType,
+    status?: SalesHistoryStatusFilter,
+  ): Promise<SalesHistoryResponse> {
+    const res = await call<SalesHistoryResponse>('ury.ury.api.caixa.get_sales_history', {
+      days,
+      order_type: orderType,
+      status,
+    });
     return unwrap<SalesHistoryResponse>(res, { orders: [], total: 0, count: 0 });
   },
 
@@ -140,8 +151,16 @@ export const caixaService = {
     return Array.isArray(data.customers) ? data.customers : [];
   },
 
-  async customerOrders(customer: string): Promise<SalesHistoryResponse> {
-    const res = await call<SalesHistoryResponse>('ury.ury.api.caixa.get_customer_orders', { customer });
+  async customerOrders(
+    customer: string,
+    orderType?: CaixaOrderType,
+    status?: SalesHistoryStatusFilter,
+  ): Promise<SalesHistoryResponse> {
+    const res = await call<SalesHistoryResponse>('ury.ury.api.caixa.get_customer_orders', {
+      customer,
+      order_type: orderType,
+      status,
+    });
     return unwrap<SalesHistoryResponse>(res, { orders: [], total: 0, count: 0 });
   },
 

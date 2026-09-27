@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Spinner, showToast } from '@ury/ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Badge, Spinner, showToast } from '@ury/ui';
 import { formatCurrency } from '@ury/core';
 import { caixaService, type OrderDetail, type CaixaOrderType } from '../../services/caixa';
 
@@ -63,6 +63,7 @@ export const OrderDetailDialog: React.FC<OrderDetailDialogProps> = ({ invoice, o
                 <span className="text-muted-foreground">
                   · {ORDER_TYPE_LABEL[detail.order_type as CaixaOrderType] || detail.order_type}
                 </span>
+                {detail.kitchen_status === 'Cancelado' && <Badge variant="danger">Cancelado</Badge>}
               </div>
               {detail.shipping_address && <p className="text-muted-foreground">{detail.shipping_address}</p>}
 

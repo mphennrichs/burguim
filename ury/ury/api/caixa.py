@@ -180,30 +180,52 @@ def create_manual_order(items, order_type, customer_phone, customer_name=None, d
     return {"invoice": invoice.name, "grand_total": invoice.grand_total}
 
 
+_SALES_HISTORY_FIELDS = ["name", "customer_name", "posting_date", "posting_time", "order_type", "grand_total", "custom_kitchen_status"]
+
+
+def _apply_history_filters(filters, order_type, status):
+    """Shared by get_sales_history/get_customer_orders. `status` is
+    "completed" (excludes Cancelado) or "cancelled" (only Cancelado) -
+    left unfiltered otherwise, showing both."""
+    if order_type:
+        filters["order_type"] = order_type
+    if status == "cancelled":
+        filters["custom_kitchen_status"] = "Cancelado"
+    elif status == "completed":
+        filters["custom_kitchen_status"] = ["!=", "Cancelado"]
+    return filters
+
+
+def _sum_completed(orders):
+    """A Cancelado Pedido is loss (see kitchen.py's _finalize_cancelled_
+    order), never revenue - excluded from every "total vendido"/"total
+    gasto" figure regardless of which status filter is active."""
+    return sum(o.grand_total or 0 for o in orders if o.custom_kitchen_status != "Cancelado")
+
+
 @frappe.whitelist()
-def get_sales_history(days=30):
+def get_sales_history(days=30, order_type=None, status=None):
     """Submitted Pedidos (docstatus=1 - completed the Tela de Cozinha's
-    flow to Retirado/Entregue) for the last `days` days, most recent
-    first. Doesn't reuse dashboard.py's get_recent_transactions - that's
-    an unfinished stub with no real branch filter and no docstatus
-    filter (would mix in still-in-progress drafts)."""
+    flow, whether Retirado/Entregue or Cancelado) for the last `days`
+    days, most recent first. Doesn't reuse dashboard.py's
+    get_recent_transactions - that's an unfinished stub with no real
+    branch filter and no docstatus filter (would mix in still-in-progress
+    drafts)."""
     branch = getBranch()
     days = cint(days) or 30
     start_date = add_days(getdate(nowdate()), -days)
 
+    filters = _apply_history_filters(
+        {"branch": branch, "docstatus": 1, "posting_date": [">=", start_date]}, order_type, status,
+    )
     orders = frappe.get_all(
         "POS Invoice",
-        filters={
-            "branch": branch,
-            "docstatus": 1,
-            "posting_date": [">=", start_date],
-        },
-        fields=["name", "customer_name", "posting_date", "posting_time", "order_type", "grand_total"],
+        filters=filters,
+        fields=_SALES_HISTORY_FIELDS,
         order_by="posting_date desc, posting_time desc",
         limit=500,
     )
-    total = sum(o.grand_total or 0 for o in orders)
-    return {"orders": orders, "total": total, "count": len(orders)}
+    return {"orders": orders, "total": _sum_completed(orders), "count": len(orders)}
 
 
 @frappe.whitelist()
@@ -303,20 +325,21 @@ def list_customers(query=None):
 
 
 @frappe.whitelist()
-def get_customer_orders(customer):
-    """Every completed Pedido (docstatus=1) for one Cliente, most recent
-    first - same shape as get_sales_history, filtered by the Customer
-    link instead of a date range, no day cap (a Cliente's full history)."""
+def get_customer_orders(customer, order_type=None, status=None):
+    """Every completed Pedido (docstatus=1, Retirado/Entregue/Cancelado)
+    for one Cliente, most recent first - same shape/filters as
+    get_sales_history, filtered by the Customer link instead of a date
+    range, no day cap (a Cliente's full history)."""
     getBranch()
+    filters = _apply_history_filters({"customer": customer, "docstatus": 1}, order_type, status)
     orders = frappe.get_all(
         "POS Invoice",
-        filters={"customer": customer, "docstatus": 1},
-        fields=["name", "customer_name", "posting_date", "posting_time", "order_type", "grand_total"],
+        filters=filters,
+        fields=_SALES_HISTORY_FIELDS,
         order_by="posting_date desc, posting_time desc",
         limit=500,
     )
-    total = sum(o.grand_total or 0 for o in orders)
-    return {"orders": orders, "total": total, "count": len(orders)}
+    return {"orders": orders, "total": _sum_completed(orders), "count": len(orders)}
 
 
 @frappe.whitelist(methods=["POST"])

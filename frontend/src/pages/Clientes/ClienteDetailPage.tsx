@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
   Button,
+  Badge,
   Input,
   Spinner,
   StatCard,
@@ -20,6 +21,7 @@ import {
   type CustomerRecord,
   type SalesHistoryOrder,
   type CaixaOrderType,
+  type SalesHistoryStatusFilter,
 } from '../../services/caixa';
 import { OrderDetailDialog } from '../../components/common/OrderDetailDialog';
 
@@ -43,6 +45,8 @@ export const ClienteDetailPage: React.FC = () => {
   const [orders, setOrders] = useState<SalesHistoryOrder[]>([]);
   const [ordersTotal, setOrdersTotal] = useState(0);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [orderTypeFilter, setOrderTypeFilter] = useState<CaixaOrderType | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<SalesHistoryStatusFilter>(undefined);
 
   const [editingAddress, setEditingAddress] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
@@ -60,17 +64,20 @@ export const ClienteDetailPage: React.FC = () => {
       })
       .catch(() => showToast.error('Não foi possível carregar o cliente.'))
       .finally(() => setLoadingCustomer(false));
+  }, [customerName]);
 
+  useEffect(() => {
+    if (!customerName) return;
     setLoadingOrders(true);
     caixaService
-      .customerOrders(customerName)
+      .customerOrders(customerName, orderTypeFilter, statusFilter)
       .then((res) => {
         setOrders(res.orders);
         setOrdersTotal(res.total);
       })
       .catch(() => showToast.error('Não foi possível carregar o histórico de pedidos.'))
       .finally(() => setLoadingOrders(false));
-  }, [customerName]);
+  }, [customerName, orderTypeFilter, statusFilter]);
 
   async function handleSaveAddress() {
     if (!customer) return;
@@ -104,7 +111,12 @@ export const ClienteDetailPage: React.FC = () => {
       {
         key: 'order_type',
         header: 'Modalidade',
-        render: (o) => ORDER_TYPE_LABEL[o.order_type as CaixaOrderType] || o.order_type,
+        render: (o) => (
+          <div className="flex items-center gap-2">
+            <span>{ORDER_TYPE_LABEL[o.order_type as CaixaOrderType] || o.order_type}</span>
+            {o.custom_kitchen_status === 'Cancelado' && <Badge variant="danger" size="sm">Cancelado</Badge>}
+          </div>
+        ),
       },
       {
         key: 'grand_total',
@@ -180,7 +192,46 @@ export const ClienteDetailPage: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="font-semibold text-gray-700 mb-2">Histórico de pedidos</h2>
+                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                  <h2 className="font-semibold text-gray-700">Histórico de pedidos</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        { label: 'Todas', value: undefined as CaixaOrderType | undefined },
+                        { label: 'Retirada', value: 'Take Away' as CaixaOrderType },
+                        { label: 'Entrega', value: 'Delivery' as CaixaOrderType },
+                      ]
+                    ).map((opt) => (
+                      <Button
+                        key={opt.label}
+                        variant="tab"
+                        size="sm"
+                        data-selected={orderTypeFilter === opt.value}
+                        onClick={() => setOrderTypeFilter(opt.value)}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                    <span className="w-px bg-gray-200 mx-1" />
+                    {(
+                      [
+                        { label: 'Todos', value: undefined as SalesHistoryStatusFilter },
+                        { label: 'Concluídos', value: 'completed' as SalesHistoryStatusFilter },
+                        { label: 'Cancelados', value: 'cancelled' as SalesHistoryStatusFilter },
+                      ]
+                    ).map((opt) => (
+                      <Button
+                        key={opt.label}
+                        variant="tab"
+                        size="sm"
+                        data-selected={statusFilter === opt.value}
+                        onClick={() => setStatusFilter(opt.value)}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
                 {orders.length === 0 ? (
                   <Card>
                     <CardContent className="py-10 text-center text-muted-foreground">
