@@ -21,7 +21,8 @@ import {
   Image,
   PanelLeft,
   ChefHat,
-  Wallet
+  Wallet,
+  Contact
 } from 'lucide-react';
 
 interface NavItem {
@@ -40,6 +41,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
   { key: 'caixa', label: 'Caixa', path: '/caixa', icon: Wallet },
+  { key: 'clientes', label: 'Clientes', path: '/clientes', icon: Contact },
   { key: 'kitchen', label: 'Tela de Cozinha', path: '/kitchen', icon: Flame, openInNewTab: true },
   { key: 'menu', label: 'Cardápio', path: '/menu', icon: UtensilsCrossed },
   { key: 'stock', label: 'Meu Estoque', path: '/stock', icon: Package },
@@ -49,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
 
 // Caixa's menu is reduced to Painel plus these keys (Configurações is
 // Dono-only, hidden outright rather than filtered item-by-item).
-const CASHIER_VISIBLE_KEYS = new Set<string>(['caixa', 'kitchen']);
+const CASHIER_VISIBLE_KEYS = new Set<string>(['caixa', 'clientes', 'kitchen']);
 
 const SETTINGS_ITEMS: NavItem[] = [
   { key: 'branding', label: 'Identidade Visual', path: '/branding', icon: Image },

@@ -9,10 +9,6 @@ import {
   Spinner,
   StatCard,
   DataTable,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
   showToast,
   type DataTableColumn,
 } from '@ury/ui';
@@ -22,13 +18,11 @@ import {
   type SellableItem,
   type SalesHistoryOrder,
   type CaixaOrderType,
-  type OrderDetail,
-  type CustomerRecord,
 } from '../../services/caixa';
 import { Switch } from '../../components/ui/switch';
-import SideDrawer from '../../components/layout/SideDrawer';
+import { OrderDetailDialog } from '../../components/common/OrderDetailDialog';
 
-type Tab = 'pedido' | 'historico' | 'clientes';
+type Tab = 'pedido' | 'historico';
 
 interface CartLine {
   item: string;
@@ -43,17 +37,6 @@ const ORDER_TYPE_LABEL: Record<CaixaOrderType, string> = {
 };
 
 const AUTOFILL_STORAGE_KEY = 'caixaAutofillEnabled';
-
-function formatDateTime(ts: string): string {
-  const then = new Date(ts.replace(' ', 'T'));
-  if (Number.isNaN(then.getTime())) return ts;
-  return then.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export const CaixaPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('pedido');
@@ -84,20 +67,7 @@ export const CaixaPage: React.FC = () => {
   const [historyOrders, setHistoryOrders] = useState<SalesHistoryOrder[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(true);
-
-  // Detalhe do pedido (compartilhado entre Histórico e Clientes)
-  const [selectedOrderDetail, setSelectedOrderDetail] = useState<OrderDetail | null>(null);
-  const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
-
-  // Clientes
-  const [customerQuery, setCustomerQuery] = useState('');
-  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(true);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
-  const [customerOrders, setCustomerOrders] = useState<SalesHistoryOrder[]>([]);
-  const [loadingCustomerOrders, setLoadingCustomerOrders] = useState(false);
-  const [editingAddress, setEditingAddress] = useState('');
-  const [savingAddress, setSavingAddress] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
   useEffect(() => {
     setLoadingItems(true);
@@ -146,59 +116,6 @@ export const CaixaPage: React.FC = () => {
       showToast.success(`Cliente reconhecido: ${result.customer_name || phone}`);
     } catch {
       // silent - autofill is a convenience, never blocks the order
-    }
-  }
-
-  async function openOrderDetail(invoice: string) {
-    setLoadingOrderDetail(true);
-    setSelectedOrderDetail(null);
-    try {
-      const detail = await caixaService.orderDetail(invoice);
-      setSelectedOrderDetail(detail);
-    } catch {
-      showToast.error('Não foi possível carregar o detalhe do pedido.');
-    } finally {
-      setLoadingOrderDetail(false);
-    }
-  }
-
-  useEffect(() => {
-    setLoadingCustomers(true);
-    const timeout = setTimeout(() => {
-      caixaService
-        .customers(customerQuery.trim() || undefined)
-        .then(setCustomers)
-        .catch(() => showToast.error('Não foi possível carregar os clientes.'))
-        .finally(() => setLoadingCustomers(false));
-    }, 250);
-    return () => clearTimeout(timeout);
-  }, [customerQuery]);
-
-  function openCustomerDrawer(customer: CustomerRecord) {
-    setSelectedCustomer(customer);
-    setEditingAddress(customer.delivery_address || '');
-    setLoadingCustomerOrders(true);
-    caixaService
-      .customerOrders(customer.name)
-      .then((res) => setCustomerOrders(res.orders))
-      .catch(() => showToast.error('Não foi possível carregar o histórico do cliente.'))
-      .finally(() => setLoadingCustomerOrders(false));
-  }
-
-  async function handleSaveAddress() {
-    if (!selectedCustomer) return;
-    setSavingAddress(true);
-    try {
-      await caixaService.updateCustomerAddress(selectedCustomer.name, editingAddress.trim());
-      showToast.success('Endereço atualizado');
-      setCustomers((prev) =>
-        prev.map((c) => (c.name === selectedCustomer.name ? { ...c, delivery_address: editingAddress.trim() } : c)),
-      );
-      setSelectedCustomer((prev) => (prev ? { ...prev, delivery_address: editingAddress.trim() } : prev));
-    } catch (err) {
-      showToast.error(parseFrappeError(err, 'Não foi possível atualizar o endereço.'));
-    } finally {
-      setSavingAddress(false);
     }
   }
 
@@ -295,19 +212,6 @@ export const CaixaPage: React.FC = () => {
     [],
   );
 
-  const customerColumns = useMemo<DataTableColumn<CustomerRecord>[]>(
-    () => [
-      { key: 'customer_name', header: 'Nome' },
-      { key: 'mobile_number', header: 'Telefone' },
-      {
-        key: 'delivery_address',
-        header: 'Endereço',
-        render: (c) => c.delivery_address || <span className="text-muted-foreground">—</span>,
-      },
-    ],
-    [],
-  );
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -319,7 +223,6 @@ export const CaixaPage: React.FC = () => {
           [
             { id: 'pedido' as const, label: 'Novo Pedido' },
             { id: 'historico' as const, label: 'Histórico de Vendas' },
-            { id: 'clientes' as const, label: 'Clientes' },
           ]
         ).map((t) => (
           <Button
@@ -537,164 +440,14 @@ export const CaixaPage: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <DataTable columns={historyColumns} rows={historyOrders} onRowClick={(o) => openOrderDetail(o.name)} />
+                <DataTable columns={historyColumns} rows={historyOrders} onRowClick={(o) => setSelectedInvoice(o.name)} />
               )}
             </>
           )}
         </div>
       )}
 
-      {tab === 'clientes' && (
-        <div className="space-y-4">
-          <Input
-            value={customerQuery}
-            onChange={(e) => setCustomerQuery(e.target.value)}
-            placeholder="Buscar por nome ou telefone"
-            className="max-w-sm"
-          />
-
-          {loadingCustomers ? (
-            <Spinner message="Carregando clientes..." />
-          ) : customers.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
-                Nenhum cliente encontrado.
-              </CardContent>
-            </Card>
-          ) : (
-            <DataTable columns={customerColumns} rows={customers} onRowClick={openCustomerDrawer} />
-          )}
-        </div>
-      )}
-
-      <SideDrawer
-        isOpen={!!selectedCustomer}
-        onClose={() => setSelectedCustomer(null)}
-        title={selectedCustomer?.customer_name || 'Cliente'}
-      >
-        {selectedCustomer && (
-          <div className="space-y-5 text-sm">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Telefone</label>
-              <Input value={selectedCustomer.mobile_number} disabled />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="cliente-address" className="text-sm font-medium">
-                Endereço
-              </label>
-              <Input
-                id="cliente-address"
-                value={editingAddress}
-                onChange={(e) => setEditingAddress(e.target.value)}
-                placeholder="Rua, número, bairro"
-              />
-              <Button
-                type="button"
-                size="sm"
-                disabled={savingAddress || editingAddress === (selectedCustomer.delivery_address || '')}
-                onClick={handleSaveAddress}
-              >
-                {savingAddress ? 'Salvando...' : 'Salvar endereço'}
-              </Button>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100">
-              <h3 className="font-semibold text-gray-700 mb-2">Histórico de pedidos</h3>
-              {loadingCustomerOrders ? (
-                <Spinner message="Carregando pedidos..." />
-              ) : customerOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum pedido concluído ainda.</p>
-              ) : (
-                <div className="space-y-2">
-                  {customerOrders.map((o) => (
-                    <button
-                      key={o.name}
-                      type="button"
-                      onClick={() => openOrderDetail(o.name)}
-                      className="w-full text-left rounded-md border border-gray-100 p-2.5 hover:border-primary hover:bg-primary/5"
-                    >
-                      <div className="flex items-center justify-between text-sm">
-                        <span>
-                          {o.posting_date} <span className="text-muted-foreground">{o.posting_time?.slice(0, 5)}</span>
-                        </span>
-                        <span className="tabular-nums font-medium">{formatCurrency(o.grand_total)}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {ORDER_TYPE_LABEL[o.order_type as CaixaOrderType] || o.order_type}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </SideDrawer>
-
-      <Dialog open={!!selectedOrderDetail || loadingOrderDetail} onOpenChange={(open) => !open && setSelectedOrderDetail(null)}>
-        <DialogContent size="lg" onClose={() => setSelectedOrderDetail(null)}>
-          <DialogHeader>
-            <DialogTitle>Pedido {selectedOrderDetail?.invoice}</DialogTitle>
-          </DialogHeader>
-          <div className="px-6 pb-6 space-y-4 text-sm overflow-y-auto max-h-[70vh]">
-            {loadingOrderDetail || !selectedOrderDetail ? (
-              <Spinner message="Carregando pedido..." />
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{selectedOrderDetail.customer_name}</span>
-                  {selectedOrderDetail.contact_mobile && (
-                    <span className="text-muted-foreground">{selectedOrderDetail.contact_mobile}</span>
-                  )}
-                  <span className="text-muted-foreground">
-                    · {ORDER_TYPE_LABEL[selectedOrderDetail.order_type as CaixaOrderType] || selectedOrderDetail.order_type}
-                  </span>
-                </div>
-                {selectedOrderDetail.shipping_address && (
-                  <p className="text-muted-foreground">{selectedOrderDetail.shipping_address}</p>
-                )}
-
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-1.5">Itens</h3>
-                  <div className="space-y-1">
-                    {selectedOrderDetail.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between">
-                        <span>
-                          {item.item_name} × {item.qty}
-                        </span>
-                        <span className="tabular-nums">{formatCurrency(item.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between border-t pt-2 mt-2 font-semibold">
-                    <span>Total</span>
-                    <span className="tabular-nums">{formatCurrency(selectedOrderDetail.grand_total)}</span>
-                  </div>
-                </div>
-
-                {selectedOrderDetail.notes && (
-                  <div>
-                    <h3 className="font-semibold text-gray-700 mb-1.5">Observações</h3>
-                    <p className="rounded-md bg-muted p-2 italic text-muted-foreground">{selectedOrderDetail.notes}</p>
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-1.5">Linha do tempo</h3>
-                  <div className="space-y-1">
-                    {selectedOrderDetail.status_history.map((entry, idx) => (
-                      <div key={idx} className="flex justify-between">
-                        <span>{entry.status}</span>
-                        <span className="text-muted-foreground tabular-nums">{formatDateTime(entry.changed_at)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <OrderDetailDialog invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
     </div>
   );
 };
