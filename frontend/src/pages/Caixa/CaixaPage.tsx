@@ -19,6 +19,7 @@ import {
   type SalesHistoryOrder,
   type CaixaOrderType,
 } from '../../services/caixa';
+import { stockOverviewService } from '../../services/stockOverview';
 import { Switch } from '../../components/ui/switch';
 import { OrderDetailDialog } from '../../components/common/OrderDetailDialog';
 
@@ -45,6 +46,7 @@ export const CaixaPage: React.FC = () => {
   const [orderType, setOrderType] = useState<CaixaOrderType>('Take Away');
   const [items, setItems] = useState<SellableItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [blockOnInsufficientStock, setBlockOnInsufficientStock] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -77,6 +79,13 @@ export const CaixaPage: React.FC = () => {
       .catch(() => showToast.error('Não foi possível carregar o cardápio.'))
       .finally(() => setLoadingItems(false));
   }, [orderType]);
+
+  useEffect(() => {
+    stockOverviewService
+      .getStockSettings()
+      .then((s) => setBlockOnInsufficientStock(s.block_sale_on_insufficient_stock))
+      .catch(() => {});
+  }, []);
 
   function loadHistory(days: number) {
     setLoadingHistory(true);
@@ -267,23 +276,33 @@ export const CaixaPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {items.map((item) => (
-                    <button
-                      key={item.item}
-                      type="button"
-                      disabled={!!item.sold_out}
-                      onClick={() => addToCart(item)}
-                      className="rounded-lg border border-gray-200 p-3 text-left hover:border-primary hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div className="font-medium text-sm">{item.item_name}</div>
-                      <div className="text-sm text-muted-foreground tabular-nums">
-                        {formatCurrency(item.rate)}
-                      </div>
-                      {!!item.sold_out && (
-                        <div className="text-xs text-destructive mt-1">Esgotado</div>
-                      )}
-                    </button>
-                  ))}
+                  {items.map((item) => {
+                    const outOfStock = !item.available;
+                    const blocked = !!item.sold_out || (outOfStock && blockOnInsufficientStock);
+                    return (
+                      <button
+                        key={item.item}
+                        type="button"
+                        disabled={blocked}
+                        onClick={() => addToCart(item)}
+                        title={outOfStock && item.missing_ingredient ? `Falta: ${item.missing_ingredient}` : undefined}
+                        className="rounded-lg border border-gray-200 p-3 text-left hover:border-primary hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <div className="font-medium text-sm">{item.item_name}</div>
+                        <div className="text-sm text-muted-foreground tabular-nums">
+                          {formatCurrency(item.rate)}
+                        </div>
+                        {!!item.sold_out && (
+                          <div className="text-xs text-destructive mt-1">Esgotado</div>
+                        )}
+                        {!item.sold_out && outOfStock && (
+                          <div className="text-xs text-destructive mt-1">
+                            Sem estoque{item.missing_ingredient ? `: falta ${item.missing_ingredient}` : ''}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

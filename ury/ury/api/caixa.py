@@ -30,6 +30,11 @@ from ury.ury.doctype.ury_order.ury_order import (
     _resolve_or_create_pos_invoice,
     price_items_for_invoice,
 )
+from ury.ury.api.stock_deduction import (
+    compute_deduction_rows_and_shortfalls,
+    format_shortfalls,
+    _should_block_on_insufficient_stock,
+)
 
 _ORDER_TYPES = ("Take Away", "Delivery")
 
@@ -39,10 +44,25 @@ def get_sellable_items(order_type=None):
     """Sellable menu items for the Caixa's item picker, already resolved
     for the given Modalidade (order_type_wise_menu, when configured) -
     reuses the same resolver self_ordering.py's customer-facing menu does,
-    rather than re-querying URY Menu directly."""
+    rather than re-querying URY Menu directly.
+
+    Each item also gets `available`/`missing_ingredient`: whether there's
+    real stock (stock_deduction's own FEFO/BOM-explosion check, for one
+    unit) to actually sell it right now - same computation
+    create_manual_order uses to block an order, surfaced here too so the
+    Caixa can grey the item out and see WHY before ever adding it to the
+    cart, instead of only discovering the shortage after building the
+    whole order (or worse, at the Tela de Cozinha's final submit)."""
     branch = getBranch()
     menu = resolve_restaurant_menu(branch=branch, room=None, order_type=order_type, cashier=True)
-    return {"items": menu["items"]}
+    items = menu["items"]
+    for item in items:
+        _, shortfalls = compute_deduction_rows_and_shortfalls(
+            [{"item_code": item["item"], "qty": 1}], branch
+        )
+        item["available"] = not shortfalls
+        item["missing_ingredient"] = shortfalls[0][0] if shortfalls else None
+    return {"items": items}
 
 
 def _resolve_customer(phone, name):
@@ -95,6 +115,17 @@ def create_manual_order(items, order_type, customer_phone, customer_name=None, d
         items = json.loads(items)
     if not items:
         frappe.throw(_("Nenhum item no pedido"))
+
+    # Same check deduct_stock_on_sale() runs at submit time, moved to
+    # before the invoice/batch even exist - catching an insufficient-
+    # stock item here means the Caixa never builds an order that would
+    # only fail later at the Tela de Cozinha's final submit (confirmed
+    # live: that's exactly what happened before this check existed).
+    if _should_block_on_insufficient_stock():
+        cart_items = [{"item_code": it.get("item"), "qty": it.get("qty")} for it in items]
+        _, shortfalls = compute_deduction_rows_and_shortfalls(cart_items, branch)
+        if shortfalls:
+            frappe.throw(format_shortfalls(shortfalls))
 
     invoice, _name = _resolve_or_create_pos_invoice(
         table=None, invoiceNo=None, order_type=order_type, is_payment=None,

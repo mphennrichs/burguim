@@ -6,10 +6,11 @@ import { kitchenService, type KitchenOrder } from '../../services/kitchen';
 
 // Tela de Cozinha (CONTEXT.md): a standalone screen with no sidebar/topbar,
 // opened in its own tab from an icon in Painel/Sidebar - not a route nested
-// under DashboardLayout. No socket/KDS infra in this app, so a 20s poll
-// (same interval the delivery-only queue it replaces used) is the
-// reasonable tradeoff against wiring up realtime here.
-const POLL_INTERVAL_MS = 20000;
+// under DashboardLayout. No socket/KDS infra in this app, so a short poll
+// is the reasonable tradeoff against wiring up realtime here - 5s (down
+// from the old delivery-only queue's 20s) keeps a new Pedido from Caixa
+// showing up here noticeably late.
+const POLL_INTERVAL_MS = 5000;
 
 // Which columns are visible is a per-device preference (this screen is
 // typically opened from a dedicated kitchen tablet, which should keep its

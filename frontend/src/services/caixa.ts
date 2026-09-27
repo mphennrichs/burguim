@@ -10,6 +10,10 @@ export interface SellableItem {
   disabled: number;
   special_dish: number;
   item_image: string | null;
+  // Real stock check (FEFO/BOM-explosion, for one unit) - false means
+  // there isn't enough of missing_ingredient right now to make it.
+  available: boolean;
+  missing_ingredient: string | null;
 }
 
 export interface SalesHistoryOrder {

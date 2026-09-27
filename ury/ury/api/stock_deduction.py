@@ -90,21 +90,30 @@ def _available_batches(item_code, warehouse):
     )
 
 
-def deduct_stock_on_sale(doc, method):
-    branch = getattr(doc, "branch", None)
-    block = _should_block_on_insufficient_stock()
+def compute_deduction_rows_and_shortfalls(cart_items, branch):
+    """Shared by deduct_stock_on_sale() (on_submit) and caixa.py's
+    pre-creation stock check - same "explode each sold line into real
+    ingredients, aggregate, then check FEFO availability" computation,
+    just without committing anything. `cart_items` is any iterable of
+    objects/dicts with `item_code`/`qty` (a saved POS Invoice Item row or
+    a plain {"item_code":..., "qty":...} dict from an unsaved cart both
+    work). Returns (rows, shortfalls) - `rows` is the Material Issue line
+    shape deduct_stock_on_sale inserts as-is; `shortfalls` is a list of
+    (item_code, missing_qty) pairs.
 
-    # Aggregated across every sold line first (rather than deducted line by
-    # line) so two products on the same invoice that share an ingredient -
-    # e.g. two different burgers both using Pão Brioche - draw from a
-    # single correctly-shrinking pool instead of each independently seeing
-    # the full pre-sale quantity as available.
+    Aggregated across every line first (rather than resolved line by
+    line) so two products sharing an ingredient - e.g. two different
+    burgers both using Pão Brioche - draw from a single correctly-
+    shrinking pool instead of each independently seeing the full
+    pre-sale quantity as available.
+    """
     needed = {}
-    for row in doc.items:
-        sold_qty = flt(row.qty)
+    for row in cart_items:
+        item_code = row.get("item_code") if isinstance(row, dict) else row.item_code
+        sold_qty = flt(row.get("qty") if isinstance(row, dict) else row.qty)
         if sold_qty <= 0:
             continue
-        for ingredient_code, ingredient_qty in _resolve_deductible_ingredients(row.item_code, sold_qty):
+        for ingredient_code, ingredient_qty in _resolve_deductible_ingredients(item_code, sold_qty):
             needed[ingredient_code] = needed.get(ingredient_code, 0) + ingredient_qty
 
     rows = []
@@ -134,11 +143,25 @@ def deduct_stock_on_sale(doc, method):
         if remaining > 0:
             shortfalls.append((item_code, remaining))
 
+    return rows, shortfalls
+
+
+def format_shortfalls(shortfalls):
+    details = ", ".join(f"{item_code} (faltam {flt(qty)})" for item_code, qty in shortfalls)
+    return frappe._(
+        "Estoque insuficiente para: {0}. Desative \"Bloquear venda sem estoque suficiente\" em "
+        "Configurações de Estoque se quiser vender mesmo assim."
+    ).format(details)
+
+
+def deduct_stock_on_sale(doc, method):
+    branch = getattr(doc, "branch", None)
+    block = _should_block_on_insufficient_stock()
+
+    rows, shortfalls = compute_deduction_rows_and_shortfalls(doc.items, branch)
+
     if shortfalls and block:
-        details = ", ".join(f"{item_code} (faltam {flt(qty)})" for item_code, qty in shortfalls)
-        frappe.throw(
-            frappe._("Estoque insuficiente para: {0}. Desative \"Bloquear venda sem estoque suficiente\" em Configurações de Estoque se quiser vender mesmo assim.").format(details)
-        )
+        frappe.throw(format_shortfalls(shortfalls))
 
     if not rows:
         return
