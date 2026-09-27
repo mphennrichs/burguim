@@ -6647,7 +6647,7 @@
 		"name": "POS Invoice-custom_kitchen_status",
 		"no_copy": 1,
 		"non_negative": 0,
-		"options": "Na Fila\nPreparando\nPronto para Retirada\nRetirado\nSaiu para Entrega\nEntregue",
+		"options": "Na Fila\nPreparando\nPronto\nRetirado\nSaiu para Entrega\nEntregue",
 		"permlevel": 0,
 		"placeholder": null,
 		"precision": "",

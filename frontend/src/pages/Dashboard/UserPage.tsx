@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useBranchContext } from '../../context/BranchContext';
-import { Users, Plus, ShieldCheck, Edit2 } from 'lucide-react';
+import { Users, Plus, ShieldCheck, Edit2, Trash2, KeyRound } from 'lucide-react';
 import { Card, Button, Badge, Input, Spinner, showToast } from '@ury/ui';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { Switch } from '../../components/ui/switch';
 import { dashboardService } from '../../services/dashboard';
-import { call } from '@ury/core';
+import { call, parseFrappeError } from '@ury/core';
+import { useAuth } from '../../store/useAuth';
 import SideDrawer from '../../components/layout/SideDrawer';
 
 interface UserRecord {
@@ -21,11 +22,18 @@ interface UserRecord {
 
 export const UserPage: React.FC = () => {
   const { activeBranchId } = useBranchContext();
+  const { user: loggedInUser } = useAuth();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [passwordUser, setPasswordUser] = useState<UserRecord | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const [newUser, setNewUser] = useState({
     first_name: '',
@@ -207,6 +215,52 @@ export const UserPage: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = async (user: UserRecord) => {
+    if (confirmingDelete !== user.name) {
+      setConfirmingDelete(user.name);
+      return;
+    }
+    setDeleting(user.name);
+    try {
+      await call('ury.ury.api.users.delete_user', { user: user.name });
+      showToast.success('Usuário excluído com sucesso');
+      setConfirmingDelete(null);
+      fetchUsers();
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível excluir o usuário.'));
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const openPasswordDrawer = (user: UserRecord) => {
+    setPasswordUser(user);
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordUser) return;
+    if (newPassword !== confirmPassword) {
+      showToast.error('As senhas não coincidem.');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await call('ury.ury.api.users.set_user_password', {
+        user: passwordUser.name,
+        new_password: newPassword,
+      });
+      showToast.success('Senha alterada com sucesso');
+      setPasswordUser(null);
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível alterar a senha.'));
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Toolbar — no title, partition style */}
@@ -249,11 +303,14 @@ export const UserPage: React.FC = () => {
                 <th className="px-6 py-4">Usuário</th>
                 <th className="px-6 py-4">ID do Usuário</th>
                 <th className="px-6 py-4">Função</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {users.map((user) => (
+              {users.map((user) => {
+                const isSelfOrAdmin = user.name === loggedInUser || user.name === 'Administrator';
+                return (
                 <tr key={user.name} className="hover:bg-primary/10 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -274,13 +331,36 @@ export const UserPage: React.FC = () => {
                       {getDisplayRole(user)}
                     </Badge>
                   </td>
+                  <td className="px-6 py-4">
+                    <Badge variant={user.enabled === 0 ? 'secondary' : 'success'} size="sm">
+                      {user.enabled === 0 ? 'Inativo' : 'Ativo'}
+                    </Badge>
+                  </td>
                   <td className="px-6 py-4 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => openEditDrawer(user)} className="text-gray-500 hover:text-primary">
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEditDrawer(user)} className="text-gray-500 hover:text-primary">
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => openPasswordDrawer(user)} className="text-gray-500 hover:text-primary">
+                        <KeyRound className="w-4 h-4" />
+                      </Button>
+                      {!isSelfOrAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={deleting === user.name}
+                          onClick={() => handleDeleteUser(user)}
+                          className={confirmingDelete === user.name ? 'text-destructive' : 'text-gray-500 hover:text-destructive'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          {confirmingDelete === user.name && <span className="ml-1 text-xs">Confirmar?</span>}
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -340,12 +420,60 @@ export const UserPage: React.FC = () => {
             />
           </div>
 
+          <div className="flex items-center gap-2 p-3 rounded-lg border border-gray-100 bg-gray-50/50">
+            <Switch
+              id="user-enabled"
+              checked={newUser.enabled}
+              onCheckedChange={(checked) => setNewUser({ ...newUser, enabled: checked })}
+            />
+            <label htmlFor="user-enabled" className="font-medium text-gray-700 cursor-pointer text-sm">
+              Usuário ativo (desmarque para revogar o acesso sem excluir)
+            </label>
+          </div>
+
           <div className="pt-6 flex justify-end gap-3 border-t mt-4 border-gray-100">
             <Button type="button" variant="outline" onClick={() => setIsDrawerOpen(false)} disabled={saving}>
               Cancelar
             </Button>
             <Button type="submit" className="bg-primary hover:bg-primary/90 text-white px-6 flex items-center gap-2" disabled={saving}>
               {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
+            </Button>
+          </div>
+        </form>
+      </SideDrawer>
+
+      <SideDrawer
+        isOpen={!!passwordUser}
+        onClose={() => setPasswordUser(null)}
+        title={`Trocar Senha — ${passwordUser?.first_name || passwordUser?.email || ''}`}
+      >
+        <form onSubmit={handleChangePassword} className="space-y-5 text-sm">
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1.5">Nova senha</label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1.5">Confirmar nova senha</label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <div className="pt-6 flex justify-end gap-3 border-t mt-4 border-gray-100">
+            <Button type="button" variant="outline" onClick={() => setPasswordUser(null)} disabled={changingPassword}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="bg-primary hover:bg-primary/90 text-white px-6 flex items-center gap-2" disabled={changingPassword}>
+              {changingPassword ? 'Salvando...' : 'Trocar Senha'}
             </Button>
           </div>
         </form>

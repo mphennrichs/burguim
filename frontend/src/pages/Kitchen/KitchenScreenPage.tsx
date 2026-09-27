@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Badge, Spinner } from '@ury/ui';
 import { formatCurrency } from '@ury/core';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { kitchenService, type KitchenOrder } from '../../services/kitchen';
 
 // Tela de Cozinha (CONTEXT.md): a standalone screen with no sidebar/topbar,
@@ -11,29 +11,49 @@ import { kitchenService, type KitchenOrder } from '../../services/kitchen';
 // reasonable tradeoff against wiring up realtime here.
 const POLL_INTERVAL_MS = 20000;
 
+// Which columns are visible is a per-device preference (this screen is
+// typically opened from a dedicated kitchen tablet, which should keep its
+// own layout independent of whoever configured it) - not a shared/global
+// URY setting like Sidebar's hidden-items feature.
+const HIDDEN_COLUMNS_STORAGE_KEY = 'kitchenHiddenColumns';
+
 const ORDER_TYPE_LABEL: Record<string, string> = {
   'Take Away': 'Retirada',
   Delivery: 'Entrega',
 };
 
-const STATUS_BADGE_VARIANT: Record<string, 'pending' | 'info' | 'warning'> = {
+const STATUS_BADGE_VARIANT: Record<string, 'pending' | 'info' | 'warning' | 'completed'> = {
   'Na Fila': 'pending',
   Preparando: 'info',
-  'Pronto para Retirada': 'warning',
+  Pronto: 'warning',
   'Saiu para Entrega': 'warning',
+  Entregue: 'completed',
 };
 
-// One kanban column per active (non-terminal) Estado - Retirado/Entregue
-// never appear here, since reaching either submits the invoice and drops
-// it out of get_kitchen_queue()'s docstatus=0 filter. Mirrors kitchen.py's
-// own _COMMON_STATES + _FLOWS shape (Na Fila/Preparando shared by both
-// Modalidades, then diverging) rather than re-deriving it.
+// One kanban column per Estado (CONTEXT.md) - mirrors kitchen.py's own
+// _COMMON_STATES + _FLOWS shape (Na Fila/Preparando shared by both
+// Modalidades, then diverging) rather than re-deriving it. Retirado has no
+// column of its own (not asked for) even though Entregue does - the same
+// shape as Entregue's would cover it if that changes; get_kitchen_queue()
+// only ever returns today's already-Entregue Pedidos (bounded, see its own
+// docstring), everything else here is still in-progress (docstatus=0).
 const COLUMNS = [
   { status: 'Na Fila', label: 'Na Fila' },
   { status: 'Preparando', label: 'Preparando' },
-  { status: 'Pronto para Retirada', label: 'Pronto para Retirada' },
+  { status: 'Pronto', label: 'Pronto' },
   { status: 'Saiu para Entrega', label: 'Saiu para Entrega' },
+  { status: 'Entregue', label: 'Entregue' },
 ] as const;
+
+function loadHiddenColumns(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
 
 function timeAgo(isoTimestamp: string): string {
   const then = new Date(isoTimestamp.replace(' ', 'T'));
@@ -96,6 +116,27 @@ export const KitchenScreenPage: React.FC = () => {
   const [advancingInvoice, setAdvancingInvoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [hiddenColumns, setHiddenColumns] = useState<Record<string, boolean>>(loadHiddenColumns);
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const columnMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(event.target as Node)) {
+        setIsColumnMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  function toggleColumnVisibility(status: string) {
+    setHiddenColumns((prev) => {
+      const next = { ...prev, [status]: !prev[status] };
+      localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
 
   const loadOrders = useCallback(async () => {
     try {
@@ -120,14 +161,15 @@ export const KitchenScreenPage: React.FC = () => {
     setAdvancingInvoice(order.invoice);
     try {
       await kitchenService.advance(order.invoice, order.next_status);
-      // The order either moves to its next state or, if that was the
-      // flow's terminal one, falls off the queue entirely (submitted) -
-      // either way the next poll would resolve it, but updating/removing
-      // it here keeps the screen from looking stale for 20s.
+      // Entregue still has its own column (get_kitchen_queue() keeps
+      // today's Entregue Pedidos around), so only Retirado (no column)
+      // needs to disappear here - everything else just moves column. The
+      // full loadOrders() right after resolves either case properly; this
+      // just keeps the screen from looking stale for the ~20s until then.
       setOrders((prev) =>
         prev
           .map((o) => (o.invoice === order.invoice ? { ...o, kitchen_status: order.next_status! } : o))
-          .filter((o) => o.invoice !== order.invoice || !['Retirado', 'Entregue'].includes(o.kitchen_status))
+          .filter((o) => o.invoice !== order.invoice || o.kitchen_status !== 'Retirado')
       );
       loadOrders();
     } catch {
@@ -150,13 +192,48 @@ export const KitchenScreenPage: React.FC = () => {
     return grouped;
   }, [orders]);
 
+  // Entregue is already-completed reference, not part of "how many
+  // pedidos need attention right now" - excluded from the header count.
+  const activeOrdersCount = orders.filter((o) => o.kitchen_status !== 'Entregue').length;
+  const visibleColumns = COLUMNS.filter((column) => !hiddenColumns[column.status]);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-gray-900">Tela de Cozinha</h1>
-        <Badge variant={orders.length > 0 ? 'warning' : 'secondary'}>
-          {orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={activeOrdersCount > 0 ? 'warning' : 'secondary'}>
+            {activeOrdersCount} {activeOrdersCount === 1 ? 'pedido' : 'pedidos'}
+          </Badge>
+          <div className="relative" ref={columnMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsColumnMenuOpen((prev) => !prev)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              Colunas
+            </button>
+            {isColumnMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1.5 z-50">
+                {COLUMNS.map((column) => (
+                  <label
+                    key={column.status}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!hiddenColumns[column.status]}
+                      onChange={() => toggleColumnVisibility(column.status)}
+                      className="rounded border-gray-300"
+                    />
+                    {column.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="p-6">
@@ -168,7 +245,7 @@ export const KitchenScreenPage: React.FC = () => {
           <Spinner message="Carregando pedidos..." />
         ) : (
           <div className="flex gap-4 items-start overflow-x-auto pb-4">
-            {COLUMNS.map((column) => {
+            {visibleColumns.map((column) => {
               const columnOrders = ordersByStatus[column.status] ?? [];
               const isCollapsed = !!collapsed[column.status];
               return (

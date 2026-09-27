@@ -12,7 +12,7 @@ _Avoid_: Order
 
 Todo Pedido começa em **Na fila** (aguardando início do preparo) e passa para **Preparando** (a cozinha está montando). Depois disso, os estados divergem por Modalidade:
 
-**Pronto para retirada** → **Retirado**:
+**Pronto** → **Retirado**:
 Estados exclusivos de um Pedido de Retirada — primeiro fica pronto aguardando o Cliente, depois é marcado como retirado quando ele busca.
 
 **Saiu para entrega** → **Entregue**:

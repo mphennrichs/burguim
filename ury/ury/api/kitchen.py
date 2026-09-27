@@ -12,6 +12,7 @@
 
 import frappe
 from frappe import _
+from frappe.utils import nowdate
 
 from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
 
@@ -20,7 +21,7 @@ from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
 # advance_kitchen_status() only allows moving to the very next entry.
 _COMMON_STATES = ["Na Fila", "Preparando"]
 _FLOWS = {
-    "Take Away": _COMMON_STATES + ["Pronto para Retirada", "Retirado"],
+    "Take Away": _COMMON_STATES + ["Pronto", "Retirado"],
     "Delivery": _COMMON_STATES + ["Saiu para Entrega", "Entregue"],
 }
 _TERMINAL_STATES = {"Retirado", "Entregue"}
@@ -54,15 +55,36 @@ def get_kitchen_queue():
     """Every not-yet-finished Pedido for the logged-in staff member's
     branch, oldest first - Retirada and Entrega together (the old
     delivery-only queue this replaces filtered to order_type="Delivery",
-    which is exactly what made it Entrega-only).
+    which is exactly what made it Entrega-only) - plus today's already
+    Entregue Pedidos, so the Kanban's "Entregue" column has something to
+    show instead of always being empty (reaching that terminal state
+    submits the invoice, which would otherwise drop it out of the queue
+    entirely). Bounded to today (posting_date) so this column doesn't
+    grow unbounded over time; there's no equivalent "Retirado" column
+    today by design (not asked for) - the same query shape would cover
+    it if that changes.
 
-    A Pedido stays docstatus=0 for its whole trip through the queue;
-    reaching the terminal state of its flow (Retirado/Entregue) submits
-    it in advance_kitchen_status(), same as the old queue's "mark
-    complete" - so "not yet finished" is just docstatus=0.
+    A Pedido stays docstatus=0 for its whole trip through the active
+    part of the queue; reaching the terminal state of its flow
+    (Retirado/Entregue) submits it in advance_kitchen_status(), same as
+    the old queue's "mark complete" - so "not yet finished" is just
+    docstatus=0.
     """
     branch = getBranch()
     currency_symbol = _resolve_branch_currency_symbol(branch)
+
+    fields = [
+        "name",
+        "customer",
+        "customer_name",
+        "shipping_address",
+        "contact_mobile",
+        "custom_comments",
+        "creation",
+        "order_type",
+        "custom_kitchen_status",
+        "grand_total",
+    ]
 
     invoices = frappe.get_all(
         "POS Invoice",
@@ -71,23 +93,25 @@ def get_kitchen_queue():
             "branch": branch,
             "order_type": ["in", list(_FLOWS.keys())],
         },
-        fields=[
-            "name",
-            "customer",
-            "customer_name",
-            "shipping_address",
-            "contact_mobile",
-            "custom_comments",
-            "creation",
-            "order_type",
-            "custom_kitchen_status",
-            "grand_total",
-        ],
+        fields=fields,
+        order_by="creation asc",
+    )
+
+    delivered_today = frappe.get_all(
+        "POS Invoice",
+        filters={
+            "docstatus": 1,
+            "branch": branch,
+            "order_type": "Delivery",
+            "custom_kitchen_status": "Entregue",
+            "posting_date": nowdate(),
+        },
+        fields=fields,
         order_by="creation asc",
     )
 
     orders = []
-    for inv in invoices:
+    for inv in invoices + delivered_today:
         items = frappe.get_all(
             "POS Invoice Item",
             filters={"parent": inv.name},
