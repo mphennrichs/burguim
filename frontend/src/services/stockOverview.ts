@@ -189,6 +189,14 @@ export const stockOverviewService = {
     await call('ury.ury.api.stock_entry.update_batch_expiry', { batch_no: batchNo, expiry_date: expiryDate });
   },
 
+  async adjustConsolidatedStock(itemCode: string, newQty: number): Promise<{ stock_entry: string; previous_qty: number; new_qty: number }> {
+    const res = await call<{ stock_entry: string; previous_qty: number; new_qty: number }>(
+      'ury.ury.api.stock_entry.adjust_consolidated_stock',
+      { item_code: itemCode, new_qty: newQty },
+    );
+    return unwrap(res, { stock_entry: '', previous_qty: 0, new_qty: newQty });
+  },
+
   async getBatchSourceEntry(batchNo: string): Promise<string> {
     const res = await call<{ stock_entry: string }>('ury.ury.api.stock_entry.get_batch_source_entry', { batch_no: batchNo });
     const data = unwrap<{ stock_entry: string }>(res, { stock_entry: '' });

@@ -15,7 +15,7 @@ import {
   type DataTableColumn,
   type BadgeProps,
 } from '@ury/ui';
-import { formatCurrency, translateUom } from '@ury/core';
+import { formatCurrency, translateUom, parseFrappeError } from '@ury/core';
 import {
   stockOverviewService,
   type MenuCostItem,
@@ -81,6 +81,10 @@ function purchaseUnitFactor(purchaseUnit: string, stockUom: string | undefined):
 // millilitres - what a recipe actually consumes), but showing "10000
 // Grama" instead of "10 Kg" on a stock screen is the kind of number a
 // person has to mentally divide by 1000 to make sense of.
+function bulkQtyFactor(stockUom: string | undefined): number {
+  return _BULK_UNIT_FOR[stockUom ?? ''] ? 1000 : 1;
+}
+
 function formatBulkQty(qty: number, stockUom: string | undefined): string {
   const bulk = _BULK_UNIT_FOR[stockUom ?? ''];
   if (bulk) {
@@ -134,6 +138,14 @@ export const StockOverviewPage: React.FC = () => {
   const [savingExpiryBatch, setSavingExpiryBatch] = useState<string | null>(null);
   const [cancellingBatch, setCancellingBatch] = useState<string | null>(null);
   const [confirmingCancelBatch, setConfirmingCancelBatch] = useState<string | null>(null);
+
+  // Ajustar Estoque Consolidado - cada linha ali é uma soma de vários
+  // lotes, então "editar" não é o mesmo caso de editar um lote isolado:
+  // o backend calcula a diferença e lança um ajuste (entrada/saída) em
+  // vez de editar qualquer registro em lugar.
+  const [editingConsolidatedItem, setEditingConsolidatedItem] = useState<string | null>(null);
+  const [consolidatedEditValue, setConsolidatedEditValue] = useState('');
+  const [savingConsolidatedItem, setSavingConsolidatedItem] = useState<string | null>(null);
 
   function reloadAll() {
     setLoading(true);
@@ -375,6 +387,33 @@ export const StockOverviewPage: React.FC = () => {
     }
   }
 
+  function handleStartEditConsolidated(item: ConsolidatedStockItem) {
+    setEditingConsolidatedItem(item.item_code);
+    // Editado na mesma unidade exibida (Kg/Litro quando aplicável), não
+    // na unidade base que o backend espera - convertida de volta ao salvar.
+    setConsolidatedEditValue(String(item.qty / bulkQtyFactor(item.uom)));
+  }
+
+  async function handleSaveConsolidated(item: ConsolidatedStockItem) {
+    const enteredQty = Number(consolidatedEditValue);
+    if (!Number.isFinite(enteredQty) || enteredQty < 0) {
+      showToast.error('Informe uma quantidade válida.');
+      return;
+    }
+    const newQty = enteredQty * bulkQtyFactor(item.uom);
+    setSavingConsolidatedItem(item.item_code);
+    try {
+      await stockOverviewService.adjustConsolidatedStock(item.item_code, newQty);
+      showToast.success('Estoque ajustado.');
+      setEditingConsolidatedItem(null);
+      await reloadAll();
+    } catch (err) {
+      showToast.error(parseFrappeError(err, 'Não foi possível ajustar o estoque.'));
+    } finally {
+      setSavingConsolidatedItem(null);
+    }
+  }
+
   const itemsMissingCost = useMemo(
     () => menuItems.filter((item) => item.cost === null),
     [menuItems],
@@ -530,10 +569,46 @@ export const StockOverviewPage: React.FC = () => {
         key: 'qty',
         header: 'Estoque total',
         align: 'right',
-        render: (i) => <span className="tabular-nums">{formatBulkQty(i.qty, i.uom)}</span>,
+        render: (i) =>
+          editingConsolidatedItem === i.item_code ? (
+            <div className="flex items-center justify-end gap-1">
+              <Input
+                type="number"
+                size="sm"
+                min="0"
+                step="0.001"
+                value={consolidatedEditValue}
+                onChange={(e) => setConsolidatedEditValue(e.target.value)}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground shrink-0">
+                {translateUom(_BULK_UNIT_FOR[i.uom] ?? i.uom)}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                disabled={savingConsolidatedItem === i.item_code}
+                onClick={() => handleSaveConsolidated(i)}
+              >
+                {savingConsolidatedItem === i.item_code ? '...' : 'Salvar'}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setEditingConsolidatedItem(null)}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="tabular-nums hover:underline"
+              onClick={() => handleStartEditConsolidated(i)}
+              title="Ajustar quantidade"
+            >
+              {formatBulkQty(i.qty, i.uom)}
+            </button>
+          ),
       },
     ],
-    [],
+    [editingConsolidatedItem, consolidatedEditValue, savingConsolidatedItem],
   );
 
   return (

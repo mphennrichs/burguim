@@ -322,3 +322,131 @@ def cancel_entry(stock_entry):
         frappe.throw(_("Este lançamento já não está mais ativo"))
     entry.cancel()
     return {"status": "Cancelled", "stock_entry": entry.name}
+
+
+def _non_expired_batches(item_code, warehouse):
+    """(batch_no, qty) pairs with stock on hand for `item_code` at
+    `warehouse`, soonest-expiry first - same shape/FEFO ordering as
+    stock_deduction._available_batches, but also excluding already-expired
+    batches, matching stock_overview.get_consolidated_stock's own
+    "b.expiry_date >= today" filter, since this is the write-side
+    counterpart to that read: the qty this function computes as "current"
+    must match what the owner sees on screen before adjusting it."""
+    return frappe.db.sql(
+        """
+        SELECT b.name AS batch_no, COALESCE(SUM(sbe.qty), 0) AS qty
+        FROM `tabBatch` b
+        LEFT JOIN `tabSerial and Batch Entry` sbe ON sbe.batch_no = b.name
+        LEFT JOIN `tabSerial and Batch Bundle` sbb ON sbb.name = sbe.parent
+        WHERE b.item = %(item_code)s
+            AND b.expiry_date IS NOT NULL
+            AND b.expiry_date >= %(today)s
+            AND (sbb.warehouse IS NULL OR sbb.warehouse = %(warehouse)s)
+            AND (sbb.name IS NULL OR (sbb.docstatus = 1 AND sbb.is_cancelled = 0))
+        GROUP BY b.name
+        HAVING qty > 0
+        ORDER BY b.expiry_date ASC
+        """,
+        {"item_code": item_code, "warehouse": warehouse, "today": nowdate()},
+        as_dict=True,
+    )
+
+
+@frappe.whitelist(methods=["POST"])
+def adjust_consolidated_stock(item_code, new_qty):
+    """Corrects an item's Estoque Consolidado total (stock_overview.
+    get_consolidated_stock) to `new_qty` - e.g. after a physical count
+    found a mismatch. Never edits a batch/Stock Entry in place (this
+    file's own established convention - see cancel_entry() above): the
+    difference is posted as a new adjustment Stock Entry instead. An
+    increase creates a fresh batch (Material Receipt, same shape as
+    record_purchase, at the item's last known buying rate if one exists);
+    a decrease consumes existing batches oldest-expiry-first (Material
+    Issue, same FEFO convention stock_deduction.py already uses for
+    sales) - no need to pick a batch by hand either way.
+    """
+    branch = getBranch()
+    new_qty = flt(new_qty)
+    if new_qty < 0:
+        frappe.throw(_("Quantidade não pode ser negativa"))
+
+    warehouse = _resolve_warehouse(item_code, branch)
+    if not warehouse:
+        frappe.throw(_("Nenhum depósito configurado para esta filial"))
+
+    batches = _non_expired_batches(item_code, warehouse)
+    current_qty = sum(flt(b.qty) for b in batches)
+    delta = new_qty - current_qty
+    if abs(delta) < 0.001:
+        frappe.throw(_("A quantidade informada já é igual à atual"))
+
+    if delta > 0:
+        item = frappe.get_doc("Item", item_code)
+        if not item.shelf_life_in_days:
+            frappe.throw(
+                _("Este item não tem validade padrão configurada - registre uma compra em vez de ajustar o consolidado.")
+            )
+        purchase_date = getdate(nowdate())
+        expiry_date = add_days(purchase_date, cint(item.shelf_life_in_days))
+
+        buying_price_list = _default_buying_price_list()
+        rate = flt(
+            frappe.db.get_value("Item Price", {"item_code": item_code, "price_list": buying_price_list}, "price_list_rate")
+            if buying_price_list else None
+        )
+
+        batch = frappe.get_doc({
+            "doctype": "Batch",
+            "batch_id": f"{item_code}-AJUSTE-{purchase_date.isoformat()}-{frappe.generate_hash(length=4)}",
+            "item": item_code,
+            "manufacturing_date": purchase_date,
+            "expiry_date": expiry_date,
+        })
+        batch.insert(ignore_permissions=True)
+
+        entry = frappe.get_doc({
+            "doctype": "Stock Entry",
+            "stock_entry_type": "Material Receipt",
+            "posting_date": purchase_date,
+            "items": [{
+                "item_code": item_code,
+                "qty": delta,
+                "basic_rate": rate,
+                "t_warehouse": warehouse,
+                "use_serial_batch_fields": 1,
+                "batch_no": batch.name,
+            }],
+        })
+    else:
+        remaining = -delta
+        rows = []
+        for b in batches:
+            if remaining <= 0:
+                break
+            take = min(remaining, flt(b.qty))
+            if take <= 0:
+                continue
+            rows.append({
+                "item_code": item_code,
+                "qty": take,
+                "s_warehouse": warehouse,
+                "use_serial_batch_fields": 1,
+                "batch_no": b.batch_no,
+            })
+            remaining -= take
+        if remaining > 0.001:
+            frappe.throw(
+                _("Não há lote suficiente para reduzir em {0} - só {1} disponível").format(flt(-delta), current_qty)
+            )
+        entry = frappe.get_doc({
+            "doctype": "Stock Entry",
+            "stock_entry_type": "Material Issue",
+            "purpose": "Material Issue",
+            "posting_date": nowdate(),
+            "items": rows,
+        })
+
+    entry.insert(ignore_permissions=True)
+    entry.submit()
+
+    return {"stock_entry": entry.name, "previous_qty": current_qty, "new_qty": new_qty}
