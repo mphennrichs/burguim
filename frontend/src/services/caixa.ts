@@ -123,6 +123,11 @@ export const caixaService = {
     });
   },
 
+  async customer(name: string): Promise<CustomerRecord> {
+    const res = await call<CustomerRecord>('ury.ury.api.caixa.get_customer', { customer: name });
+    return unwrap<CustomerRecord>(res, { name, customer_name: '', mobile_number: '', delivery_address: null });
+  },
+
   async customers(query?: string): Promise<CustomerRecord[]> {
     const res = await call<{ customers: CustomerRecord[] }>('ury.ury.api.caixa.list_customers', {
       query: query || undefined,

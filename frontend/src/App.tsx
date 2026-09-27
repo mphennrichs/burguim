@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/Dashboard/DashboardPage';
 import { KitchenScreenPage } from './pages/Kitchen/KitchenScreenPage';
 import { CaixaPage } from './pages/Caixa/CaixaPage';
 import { ClientesPage } from './pages/Clientes/ClientesPage';
+import { ClienteDetailPage } from './pages/Clientes/ClienteDetailPage';
 import { StockOverviewPage } from './pages/Stock/StockOverviewPage';
 import { BomPage } from './pages/Stock/BomPage';
 import { MenuPage } from './pages/Dashboard/MenuPage';
@@ -140,6 +141,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="caixa" element={<CaixaPage />} />
           <Route path="clientes" element={<ClientesPage />} />
+          <Route path="clientes/:customer" element={<ClienteDetailPage />} />
           <Route path="stock" element={<StockOverviewPage />} />
           <Route path="bom" element={<BomPage />} />
           <Route path="menu" element={<MenuPage />} />

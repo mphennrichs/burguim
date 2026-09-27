@@ -234,6 +234,20 @@ def get_order_detail(invoice):
 
 
 @frappe.whitelist()
+def get_customer(customer):
+    """One Cliente's own record, for the Cliente detail page (name/phone/
+    address) - list_customers already returns this shape per row, but a
+    page opened directly by URL (no row just clicked) needs its own fetch."""
+    getBranch()
+    doc = frappe.db.get_value(
+        "Customer", customer, ["name", "customer_name", "mobile_number", "delivery_address"], as_dict=True,
+    )
+    if not doc:
+        frappe.throw(_("Cliente {0} não encontrado").format(customer))
+    return doc
+
+
+@frappe.whitelist()
 def list_customers(query=None):
     """Clientes cadastrados (CONTEXT.md: identificados por telefone), pra
     aba Clientes do Caixa. Busca livre por nome ou telefone quando `query`
