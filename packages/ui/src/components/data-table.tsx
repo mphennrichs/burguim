@@ -14,6 +14,10 @@ export interface DataTableProps<T> {
   isLoading?: boolean;
   emptyMessage?: string;
   className?: string;
+  /** When set, each row becomes clickable (cursor + click handler) -
+   * opt-in, so every existing consumer without it keeps rendering plain
+   * static rows exactly as before. */
+  onRowClick?: (row: T) => void;
 }
 
 export function DataTable<T>({
@@ -22,6 +26,7 @@ export function DataTable<T>({
   isLoading,
   emptyMessage = "Nenhum resultado encontrado.",
   className,
+  onRowClick,
 }: DataTableProps<T>) {
   return (
     <div className={cn("relative w-full overflow-auto rounded-lg border", className)}>
@@ -56,7 +61,14 @@ export function DataTable<T>({
             </tr>
           ) : (
             rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-b transition-colors hover:bg-muted/50">
+              <tr
+                key={rowIndex}
+                className={cn(
+                  "border-b transition-colors hover:bg-muted/50",
+                  onRowClick && "cursor-pointer"
+                )}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
                 {columns.map((column) => (
                   <td
                     key={column.key}

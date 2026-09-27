@@ -173,3 +173,128 @@ def get_sales_history(days=30):
     )
     total = sum(o.grand_total or 0 for o in orders)
     return {"orders": orders, "total": total, "count": len(orders)}
+
+
+@frappe.whitelist()
+def get_order_detail(invoice):
+    """Full detail for one Pedido - items, observações, and a timeline of
+    when it moved through each Estado (CONTEXT.md). The timeline comes
+    from POS Invoice's own Version history, not a purpose-built log table:
+    POS Invoice has track_changes=1 (ERPNext core), so every
+    advance_kitchen_status() save/submit already leaves a Version row
+    behind with the old/new custom_kitchen_status and a timestamp - no
+    new tracking needed. The very first Estado ("Na Fila", the field's
+    default) never gets a Version of its own (Frappe doesn't diff values
+    on insert), so it's synthesized from the invoice's own creation time.
+    """
+    branch = getBranch()
+    doc = frappe.get_doc("POS Invoice", invoice)
+    if doc.branch != branch:
+        frappe.throw(_("Not permitted to view orders outside your branch"), frappe.PermissionError)
+
+    items = frappe.get_all(
+        "POS Invoice Item",
+        filters={"parent": invoice},
+        fields=["item_name", "qty", "rate", "amount"],
+        order_by="idx asc",
+    )
+
+    status_history = [{"status": "Na Fila", "changed_at": doc.creation}]
+    versions = frappe.get_all(
+        "Version",
+        filters={"ref_doctype": "POS Invoice", "docname": invoice},
+        fields=["creation", "data"],
+        order_by="creation asc",
+    )
+    for version in versions:
+        try:
+            changed = json.loads(version.data).get("changed") or []
+        except (TypeError, ValueError):
+            continue
+        for row in changed:
+            # Each row is [fieldname, old_value, new_value].
+            if row and row[0] == "custom_kitchen_status" and row[2]:
+                status_history.append({"status": row[2], "changed_at": version.creation})
+
+    return {
+        "invoice": doc.name,
+        "customer": doc.customer,
+        "customer_name": doc.customer_name,
+        "contact_mobile": doc.contact_mobile,
+        "shipping_address": doc.shipping_address,
+        "notes": doc.custom_comments or None,
+        "order_type": doc.order_type,
+        "kitchen_status": doc.custom_kitchen_status,
+        "grand_total": doc.grand_total,
+        "posting_date": doc.posting_date,
+        "posting_time": doc.posting_time,
+        "items": items,
+        "status_history": status_history,
+    }
+
+
+@frappe.whitelist()
+def list_customers(query=None):
+    """Clientes cadastrados (CONTEXT.md: identificados por telefone), pra
+    aba Clientes do Caixa. Busca livre por nome ou telefone quando `query`
+    é informado."""
+    getBranch()
+    filters = {}
+    or_filters = None
+    if query:
+        or_filters = {
+            "customer_name": ["like", f"%{query}%"],
+            "mobile_number": ["like", f"%{query}%"],
+        }
+    customers = frappe.get_all(
+        "Customer",
+        filters=filters,
+        or_filters=or_filters,
+        fields=["name", "customer_name", "mobile_number", "delivery_address"],
+        order_by="customer_name asc",
+        limit=200,
+    )
+    return {"customers": customers}
+
+
+@frappe.whitelist()
+def get_customer_orders(customer):
+    """Every completed Pedido (docstatus=1) for one Cliente, most recent
+    first - same shape as get_sales_history, filtered by the Customer
+    link instead of a date range, no day cap (a Cliente's full history)."""
+    getBranch()
+    orders = frappe.get_all(
+        "POS Invoice",
+        filters={"customer": customer, "docstatus": 1},
+        fields=["name", "customer_name", "posting_date", "posting_time", "order_type", "grand_total"],
+        order_by="posting_date desc, posting_time desc",
+        limit=500,
+    )
+    total = sum(o.grand_total or 0 for o in orders)
+    return {"orders": orders, "total": total, "count": len(orders)}
+
+
+@frappe.whitelist(methods=["POST"])
+def update_customer_address(customer, delivery_address):
+    getBranch()
+    if not frappe.db.exists("Customer", customer):
+        frappe.throw(_("Cliente {0} não encontrado").format(customer))
+    frappe.db.set_value("Customer", customer, "delivery_address", delivery_address)
+    return {"customer": customer, "delivery_address": delivery_address}
+
+
+@frappe.whitelist()
+def lookup_customer_by_phone(phone):
+    """Staff-facing phone lookup for the Novo Pedido tab's autofill toggle
+    - a real authenticated staff session, unlike self_ordering.py's
+    lookup_delivery_customer (allow_guest=True, gated by a session token
+    instead, meant for the customer-facing self-order flow only)."""
+    getBranch()
+    if not phone:
+        return {"found": False, "customer_name": None, "delivery_address": None}
+    customer = frappe.db.get_value(
+        "Customer", {"mobile_number": phone}, ["customer_name", "delivery_address"], as_dict=True,
+    )
+    if not customer:
+        return {"found": False, "customer_name": None, "delivery_address": None}
+    return {"found": True, "customer_name": customer.customer_name, "delivery_address": customer.delivery_address}
