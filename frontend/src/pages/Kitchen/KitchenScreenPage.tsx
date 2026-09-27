@@ -132,10 +132,10 @@ const OrderCard: React.FC<OrderCardProps> = ({
             <p className="text-xs text-muted-foreground text-center">
               Este pedido já tinha item em preparo. Os ingredientes foram consumidos?
             </p>
-            <div className="flex gap-2 w-full">
+            <div className="flex flex-col gap-2 w-full">
               <Button
                 variant="outline"
-                className="flex-1"
+                className="w-full"
                 disabled={resolving}
                 onClick={() => onResolveCancel(order, true)}
               >
@@ -143,7 +143,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
               </Button>
               <Button
                 variant="destructive"
-                className="flex-1"
+                className="w-full"
                 disabled={resolving}
                 onClick={() => onResolveCancel(order, false)}
               >
