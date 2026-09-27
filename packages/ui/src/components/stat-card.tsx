@@ -3,7 +3,10 @@ import { cn } from "../lib/cn";
 
 export interface StatCardProps {
   label: string;
-  value: string | number;
+  // string | number covers every existing caller; ReactNode is a superset,
+  // so this only adds the ability to pass e.g. a smaller-font span for a
+  // long value (a date) without touching any existing usage.
+  value: React.ReactNode;
   delta?: {
     value: string;
     direction: "up" | "down" | "flat";

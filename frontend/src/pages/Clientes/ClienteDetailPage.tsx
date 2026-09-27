@@ -28,6 +28,11 @@ const ORDER_TYPE_LABEL: Record<CaixaOrderType, string> = {
   Delivery: 'Entrega',
 };
 
+function formatDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : isoDate;
+}
+
 export const ClienteDetailPage: React.FC = () => {
   const { customer: customerName } = useParams<{ customer: string }>();
   const navigate = useNavigate();
@@ -164,8 +169,14 @@ export const ClienteDetailPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <StatCard label="Total de pedidos" value={orders.length} />
                 <StatCard label="Total gasto" value={formatCurrency(ordersTotal)} />
-                <StatCard label="Primeiro pedido" value={firstOrder ? firstOrder.posting_date : '—'} />
-                <StatCard label="Último pedido" value={lastOrder ? lastOrder.posting_date : '—'} />
+                <StatCard
+                  label="Primeiro pedido"
+                  value={<span className="text-lg">{firstOrder ? formatDate(firstOrder.posting_date) : '—'}</span>}
+                />
+                <StatCard
+                  label="Último pedido"
+                  value={<span className="text-lg">{lastOrder ? formatDate(lastOrder.posting_date) : '—'}</span>}
+                />
               </div>
 
               <div>
