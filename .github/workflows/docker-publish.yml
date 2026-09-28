@@ -1,7 +1,7 @@
 name: Build and Push Docker Image
 
 # Push na develop -> builda a imagem de produção (Frappe/ERPNext/HRMS + ury +
-# os 4 frontends Vite), publica no GHCR com tag :sha-<commit> e avisa o
+# os 2 frontends Vite), publica no GHCR com tag :sha-<commit> e avisa o
 # fogolab pra deployar essa versão exata. Este repo é agnóstico ao deployer
 # (não conhece o Komodo).
 

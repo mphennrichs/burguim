@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
 # Build the Burguim production image: Frappe/ERPNext/HRMS + the custom `ury`
-# app (this repo), with its 4 Vite frontends (self-order, pos, frontend,
-# mosaic) baked in.
+# app (this repo), with its 2 Vite frontends (self-order, frontend) baked
+# in. (urypos/pos/mosaic - the generic URY template's dine-in/salão POS,
+# table management and KOT display - were removed: Burguim has no dine-in,
+# table or captain workflow, see CONTEXT.md.)
 #
 # Stage 2 mirrors frappe_docker's official `images/layered/Containerfile`
 # almost verbatim (same base images, same `bench init` invocation, same
@@ -39,7 +41,7 @@ ARG FRAPPE_IMAGE_PREFIX=frappe
 ARG FRAPPE_PATH=https://github.com/frappe/frappe
 
 # ---------------------------------------------------------------------------
-# Stage 1: build the 4 Vite frontends from this repo.
+# Stage 1: build the 2 Vite frontends from this repo.
 # ---------------------------------------------------------------------------
 FROM node:20-bookworm-slim AS frontend-builder
 WORKDIR /app
@@ -47,33 +49,14 @@ WORKDIR /app
 COPY package.json ./
 COPY packages ./packages
 COPY self-order ./self-order
-COPY pos ./pos
 COPY frontend ./frontend
-COPY mosaic ./mosaic
 
 # Each app's `vite build` writes straight into ../ury/public/<app> and
 # ../ury/www/<app>.html (see each app's vite.config.ts / copy-html-entry
 # script) - same layout `bench get-app` produces for the `ury` app, so these
 # directories only need to exist, not be pre-populated.
-#
-# --ignore-scripts: root's postinstall hook also installs `urypos` (legacy,
-# untouched, not one of the 4 apps this image ships) - it isn't in this build
-# context, so the hook would fail with "can't cd to urypos". mosaic's own
-# install is run explicitly below instead.
-#
-# mosaic/proxyOptions.js (dev-server-only Vite proxy config, statically
-# imported by vite.config.js) does `require('../../../sites/common_site_config.json')`
-# - a path that only resolves inside a real frappe-bench checkout
-# (apps/ury/mosaic/../../../sites/...). It's never read at runtime during
-# `vite build`, but esbuild still has to resolve the import to load the
-# config, so a stub at the same relative location (/sites, three levels
-# above /app/mosaic) is enough.
-RUN mkdir -p ury/public ury/www /sites && \
-    echo '{}' > /sites/common_site_config.json && \
-    yarn install --check-files --ignore-scripts && \
-    yarn ury-mosaic-install && \
-    yarn ury-mosaic-build && \
-    yarn ury-posv2-build && \
+RUN mkdir -p ury/public ury/www && \
+    yarn install --check-files && \
     yarn ury-frontend-build && \
     yarn ury-self-order-build
 

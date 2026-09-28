@@ -53,12 +53,9 @@ page_js = {"point-of-sale": ["public/js/pos_extend.js"]}
 website_context = {"splash_image": "/assets/ury/Images/ury-logo.jpg"}
 
 website_route_rules = [
-    {"from_route": "/urypos/<path:app_path>", "to_route": "urypos"},
-    {"from_route": "/mosaic/<path:app_path>", "to_route": "mosaic"},
     {"from_route": "/ury/<path:app_path>", "to_route": "ury"},
     {"from_route": "/setup-wizard", "to_route": "ury"},
     {"from_route": "/order/<path:app_path>", "to_route": "order"},
-    {"from_route": "/pos/<path:app_path>", "to_route": "pos"},
 ]
 
 setup_wizard_requires = [
@@ -188,7 +185,6 @@ doc_events = {
     "POS Invoice": {
         "before_insert": "ury.ury.hooks.ury_pos_invoice.before_insert",
         "validate": "ury.ury.hooks.ury_pos_invoice.validate",
-        "after_insert":"ury.ury.api.ury_kot_order_number.set_order_number",
         "before_submit": "ury.ury.hooks.ury_pos_invoice.before_submit",
         "on_submit": [
             "ury.ury.hooks.ury_pos_invoice.on_submit",
@@ -209,7 +205,6 @@ doc_events = {
     "POS Opening Entry": {
         "validate":"ury.ury.hooks.ury_pos_opening_entry.set_cashier_room",
         "before_save": "ury.ury.hooks.ury_pos_opening_entry.before_save",
-        "before_insert":"ury.ury.api.ury_kot_order_number.set_last_invoice_in_pos_open",
         },
     "POS Closing Entry": {
         "before_save": "ury.ury.hooks.ury_pos_closing_entry.before_save",

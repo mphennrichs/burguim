@@ -1034,8 +1034,7 @@ def _has_eligible_captain_transfer_target(branch, room, exclude_user):
 def get_table_order_context(table):
     """Return table + active order + assignment + a computed permission map for `table`.
 
-    This is the server-authoritative replacement for the ownership check V1
-    performed client-side only (`urypos/src/stores/Table.js:379-397`): a
+    This is the server-authoritative ownership check: a
     Captain without elevated (`transfer_role_permissions`) or billing
     (`role_allowed_for_billing`) access may only view/modify a table's order
     if they are its assigned `waiter`. Combines Frappe DocType permission,

@@ -40,7 +40,7 @@ export const Header: React.FC = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [userInfo, setUserInfo] = useState({ fullName: 'Usuário Admin', email: 'admin@urypos.com' });
+  const [userInfo, setUserInfo] = useState({ fullName: 'Usuário Admin', email: 'admin@example.com' });
   // Falls back to the URY placeholder mark until the owner uploads their
   // own logo in Configurações → Identidade Visual.
   const [logoUrl, setLogoUrl] = useState<string>(defaultLogo);

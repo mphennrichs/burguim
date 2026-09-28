@@ -32,8 +32,7 @@ export const canCaptainTransfer = (
 
 /**
  * True if the user holds any role in the POS profile's `role_allowed_for_billing`
- * table (the "cashier" role check, mirrors `urypos/src/stores/Auth.js:121-126`'s
- * `billingRoles`/`this.cashier` derivation).
+ * table (the "cashier" role check).
  */
 const hasBillingRole = (user: User | null, posProfile: PosProfileCombined | null): boolean => {
   if (!user || !posProfile || !user.roles || !posProfile.role_allowed_for_billing?.length) {
