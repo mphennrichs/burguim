@@ -41,6 +41,16 @@ def _resolve_default_bom(item_code):
     )
 
 
+def _item_needs_prep(item_code):
+    """True for an item that's actually assembled to order (Preparo/
+    Produto com Receita) - false for one that's just sold as-is
+    (has_batch_no=1, e.g. a Refrigerante bought pronto e revendido: it's
+    never "preparado", so cancelling it never loses anything real,
+    regardless of Estado). Same has_batch_no distinction
+    _resolve_deductible_ingredients already keys off."""
+    return not frappe.db.get_value("Item", item_code, "has_batch_no")
+
+
 def _resolve_deductible_ingredients(item_code, sold_qty, _chain=()):
     """What should actually leave stock for one sale of `item_code`, and
     how much of each - see module docstring for the pre-produced-batch
@@ -183,16 +193,30 @@ def format_shortfalls(shortfalls):
     ).format(details)
 
 
+def _cart_item_code(row):
+    return row.get("item_code") if isinstance(row, dict) else row.item_code
+
+
 def deduct_stock_for_order(cart_items, branch, invoice_name):
     """Deducts real stock for a batch of order lines RIGHT NOW - at order
     creation (caixa.create_manual_order) or confirmation (self_ordering.
     add_customer_items), not at pickup/delivery. Same aggregated FEFO
     computation as deduct_stock_on_sale, just running earlier and tagging
-    the resulting Stock Entry with `custom_source_invoice` so:
+    the resulting Stock Entry(ies) with `custom_source_invoice` so:
       - a later cancellation (kitchen._finalize_cancelled_order) can find
         and reverse exactly what THIS call took (reverse_stock_for_order);
       - deduct_stock_on_sale's on_submit hook can tell this order's stock
         was already committed and must not deduct it again.
+
+    Splits `cart_items` into a "needs prep" group (Produto/Preparo com
+    Receita) and a "resold as-is" group (has_batch_no=1, e.g. Refrigerante)
+    BEFORE exploding/aggregating, creating up to 2 separate Stock Entries
+    tagged with `custom_needs_prep` - a resold item never gets physically
+    prepared, so its stock impact must always be reversible independently
+    of whatever the owner later decides about the rest of a cancelled
+    order (see _finalize_cancelled_order). Each group still aggregates
+    correctly within itself (two different burgers sharing the same Pão
+    Brioche still draw from one shrinking pool).
 
     Runs inside the caller's own request transaction - frappe.throw() here
     (insufficient stock, blocking enabled) unwinds the whole request,
@@ -204,35 +228,47 @@ def deduct_stock_for_order(cart_items, branch, invoice_name):
     second round), and each call must only deduct its own increment.
     """
     block = _should_block_on_insufficient_stock()
-    rows, shortfalls = compute_deduction_rows_and_shortfalls(cart_items, branch)
 
+    prep_items = [row for row in cart_items if _item_needs_prep(_cart_item_code(row))]
+    resold_items = [row for row in cart_items if not _item_needs_prep(_cart_item_code(row))]
+
+    prep_rows, prep_shortfalls = compute_deduction_rows_and_shortfalls(prep_items, branch)
+    resold_rows, resold_shortfalls = compute_deduction_rows_and_shortfalls(resold_items, branch)
+
+    shortfalls = prep_shortfalls + resold_shortfalls
     if shortfalls and block:
         frappe.throw(format_shortfalls(shortfalls))
 
-    if not rows:
-        return
+    for rows, needs_prep in ((prep_rows, 1), (resold_rows, 0)):
+        if not rows:
+            continue
+        entry = frappe.get_doc({
+            "doctype": "Stock Entry",
+            "stock_entry_type": "Material Issue",
+            "purpose": "Material Issue",
+            "custom_source_invoice": invoice_name,
+            "custom_needs_prep": needs_prep,
+            "items": rows,
+        })
+        entry.insert(ignore_permissions=True)
+        entry.submit()
 
-    entry = frappe.get_doc({
-        "doctype": "Stock Entry",
-        "stock_entry_type": "Material Issue",
-        "purpose": "Material Issue",
-        "custom_source_invoice": invoice_name,
-        "items": rows,
-    })
-    entry.insert(ignore_permissions=True)
-    entry.submit()
 
-
-def reverse_stock_for_order(invoice_name):
+def reverse_stock_for_order(invoice_name, needs_prep=None):
     """Puts back every ingredient deduct_stock_for_order() already took for
     this invoice - there can be more than one Material Issue (one per
-    self-ordering "round") - as a Material Receipt mirroring each one's
-    exact item/batch/qty (t_warehouse = the original s_warehouse), so FEFO/
-    expiry tracking isn't disturbed. Never re-queries availability (that's
-    an Issue concept, meaningless for a Receipt putting stock back)."""
+    self-ordering "round", and now one per needs-prep/resold split) - as a
+    Material Receipt mirroring each one's exact item/batch/qty (t_warehouse
+    = the original s_warehouse), so FEFO/expiry tracking isn't disturbed.
+    Never re-queries availability (that's an Issue concept, meaningless for
+    a Receipt putting stock back). `needs_prep` (0/1) restricts this to
+    only that half of the split; omit to reverse everything."""
+    filters = {"custom_source_invoice": invoice_name, "docstatus": 1, "stock_entry_type": "Material Issue"}
+    if needs_prep is not None:
+        filters["custom_needs_prep"] = needs_prep
     issue_names = frappe.get_all(
         "Stock Entry",
-        filters={"custom_source_invoice": invoice_name, "docstatus": 1, "stock_entry_type": "Material Issue"},
+        filters=filters,
         pluck="name",
     )
     for issue_name in issue_names:

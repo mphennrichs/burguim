@@ -15,7 +15,7 @@ from frappe import _
 from frappe.utils import nowdate
 
 from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
-from ury.ury.api.stock_deduction import compute_deduction_rows_and_shortfalls, reverse_stock_for_order
+from ury.ury.api.stock_deduction import compute_deduction_rows_and_shortfalls, reverse_stock_for_order, _item_needs_prep
 
 # Estados do Pedido (CONTEXT.md) - shared "Na Fila"/"Preparando"/"Pronto"
 # prefix (the kitchen finished montando, regardless of Modalidade), then
@@ -202,36 +202,36 @@ def advance_kitchen_status(invoice, new_status):
     return {"invoice": doc.name, "kitchen_status": new_status, "completed": new_status in _TERMINAL_STATES}
 
 
-def _item_needs_prep(item_code):
-    """True for an item that's actually assembled to order (Preparo/
-    Produto com Receita, has_batch_no=0) - false for one that's just sold
-    as-is (has_batch_no=1, e.g. a Refrigerante bought pronto e revendido:
-    it's never "preparado", so cancelling never loses anything real,
-    regardless of Estado). Same has_batch_no distinction
-    stock_deduction._resolve_deductible_ingredients already keys off."""
-    return not frappe.db.get_value("Item", item_code, "has_batch_no")
-
-
 def _finalize_cancelled_order(doc, restock):
     """Submits a Cancelado Pedido - always submitted (not left a draft
     forever) so it lands permanently in Histórico de Vendas/Cliente, same
     as a normal completed order, just flagged Cancelado instead.
 
+    `restock` only ever governs the items that actually needed prep
+    (Produto/Preparo com Receita) - an item sold as-is (Refrigerante,
+    has_batch_no=1) never got physically prepared, so it ALWAYS goes back
+    to stock regardless of what the owner decides for the rest of a mixed
+    Pedido (confirmed with the owner: the devolver/perda decision is per
+    Pedido, but a resold item's own "always returns" guarantee must not
+    get swallowed by a Receita item's "perda" in the same order).
+
     Stock impact depends on whether this Pedido already deducted its own
     ingredients at creation/confirmation (stock_deduction.
-    deduct_stock_for_order, tagged via custom_source_invoice):
-      - Already deducted (the normal case since that feature shipped):
-        `restock` reverses exactly what was taken (reverse_stock_for_order
-        - same batches, same qty); `not restock` is a no-op, since that
-        original deduction already IS the loss - CONTEXT.md has no advance
-        payment, so a cancelled Pedido that already consumed ingredients is
-        pure loss with zero revenue ("venda negativa"), not a real sale.
+    deduct_stock_for_order, which itself splits Material Issues by
+    custom_needs_prep for exactly this reason):
+      - Already deducted (the normal case since that feature shipped): the
+        resold-items entry always reverses; the needs-prep-items entry
+        reverses only if `restock` (otherwise that original deduction
+        already IS the loss - CONTEXT.md has no advance payment, so a
+        cancelled Pedido that already consumed real ingredients is pure
+        loss with zero revenue, "venda negativa", not a real sale).
       - Legacy Pedido (drafted before that feature shipped, nothing
         deducted yet): `restock` is a no-op (nothing to put back);
-        `not restock` must record the loss NOW, same as this function
-        always did before. Shortfalls are ignored in that legacy path
-        (never blocks resolving the cancellation over a stock discrepancy
-        that's a pre-existing problem, not this action's fault).
+        `not restock` must record the loss NOW for the needs-prep items
+        only (same resold-items-never-loss rule). Shortfalls are ignored
+        in that legacy path (never blocks resolving the cancellation over
+        a stock discrepancy that's a pre-existing problem, not this
+        action's fault).
     """
     already_deducted = bool(frappe.db.exists(
         "Stock Entry",
@@ -239,10 +239,12 @@ def _finalize_cancelled_order(doc, restock):
     ))
 
     if already_deducted:
+        reverse_stock_for_order(doc.name, needs_prep=0)
         if restock:
-            reverse_stock_for_order(doc.name)
+            reverse_stock_for_order(doc.name, needs_prep=1)
     elif not restock:
-        rows, _shortfalls = compute_deduction_rows_and_shortfalls(doc.items, doc.branch)
+        prep_items = [row for row in doc.items if _item_needs_prep(row.item_code)]
+        rows, _shortfalls = compute_deduction_rows_and_shortfalls(prep_items, doc.branch)
         if rows:
             entry = frappe.get_doc({
                 "doctype": "Stock Entry",

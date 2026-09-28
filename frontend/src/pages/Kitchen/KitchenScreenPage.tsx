@@ -163,7 +163,11 @@ const OrderCard: React.FC<OrderCardProps> = ({
               disabled={cancelling}
               onClick={() => onCancel(order)}
             >
-              {confirmingCancel ? 'Confirmar cancelamento?' : 'Cancelar Pedido'}
+              {confirmingCancel
+                ? order.kitchen_status === 'Saiu para Entrega'
+                  ? 'O entregador já saiu — confirmar cancelamento mesmo assim?'
+                  : 'Confirmar cancelamento?'
+                : 'Cancelar Pedido'}
             </Button>
           </>
         )}
