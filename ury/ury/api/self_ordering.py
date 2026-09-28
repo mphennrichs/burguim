@@ -37,6 +37,7 @@ from ury.ury.doctype.ury_order.ury_order import (
 )
 from ury.ury.api.branding import get_logo_url
 from ury.ury.api.cupom import validar_e_resolver_cupom, resolve_discount_percentage
+from ury.ury.api.stock_deduction import deduct_stock_for_order
 from frappe.rate_limiter import rate_limit
 
 SESSION_TOKEN_BYTES_HASH_LEN = 64  # frappe.generate_hash(length=..)
@@ -826,6 +827,18 @@ def add_customer_items(session, items, notes=None):
             invoice.save(ignore_permissions=True)
         except Exception as e:
             frappe.throw(_("Error while placing order: {0}").format(e))
+
+        # Deducts real stock right now, for THIS call's items only (never
+        # invoice.items as a whole - a running table's second round must
+        # not re-deduct the first round's already-committed ingredients).
+        # This is the guest-facing "confirmation" moment - the existing
+        # "Fazer Pedido"/"add more items" button click IS the commit point,
+        # no separate review screen needed. Throws (insufficient stock,
+        # blocking enabled) unwind this whole request, including the
+        # invoice.save() just above - the guest sees the error right on
+        # this click instead of the order silently failing at delivery.
+        cart_items = [{"item_code": ci["item"], "qty": ci["qty"]} for ci in clean_items]
+        deduct_stock_for_order(cart_items, invoice.branch, invoice.name)
 
         if not session.invoice:
             session.invoice = invoice.name

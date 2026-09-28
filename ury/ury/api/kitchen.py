@@ -15,7 +15,7 @@ from frappe import _
 from frappe.utils import nowdate
 
 from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
-from ury.ury.api.stock_deduction import compute_deduction_rows_and_shortfalls
+from ury.ury.api.stock_deduction import compute_deduction_rows_and_shortfalls, reverse_stock_for_order
 
 # Estados do Pedido (CONTEXT.md) - shared "Na Fila"/"Preparando"/"Pronto"
 # prefix (the kitchen finished montando, regardless of Modalidade), then
@@ -215,16 +215,33 @@ def _item_needs_prep(item_code):
 def _finalize_cancelled_order(doc, restock):
     """Submits a Cancelado Pedido - always submitted (not left a draft
     forever) so it lands permanently in Histórico de Vendas/Cliente, same
-    as a normal completed order, just flagged Cancelado instead. When
-    `restock` is False, records the real ingredient loss first (the same
-    aggregated FEFO computation a real sale's on_submit would run) as a
-    Material Issue - CONTEXT.md has no advance payment, so a cancelled
-    Pedido that already consumed ingredients is pure loss with zero
-    revenue ("venda negativa"), not a real sale. Shortfalls are ignored
-    here (never blocks resolving the cancellation over a stock
-    discrepancy that's a pre-existing problem, not this action's fault).
+    as a normal completed order, just flagged Cancelado instead.
+
+    Stock impact depends on whether this Pedido already deducted its own
+    ingredients at creation/confirmation (stock_deduction.
+    deduct_stock_for_order, tagged via custom_source_invoice):
+      - Already deducted (the normal case since that feature shipped):
+        `restock` reverses exactly what was taken (reverse_stock_for_order
+        - same batches, same qty); `not restock` is a no-op, since that
+        original deduction already IS the loss - CONTEXT.md has no advance
+        payment, so a cancelled Pedido that already consumed ingredients is
+        pure loss with zero revenue ("venda negativa"), not a real sale.
+      - Legacy Pedido (drafted before that feature shipped, nothing
+        deducted yet): `restock` is a no-op (nothing to put back);
+        `not restock` must record the loss NOW, same as this function
+        always did before. Shortfalls are ignored in that legacy path
+        (never blocks resolving the cancellation over a stock discrepancy
+        that's a pre-existing problem, not this action's fault).
     """
-    if not restock:
+    already_deducted = bool(frappe.db.exists(
+        "Stock Entry",
+        {"custom_source_invoice": doc.name, "docstatus": 1, "stock_entry_type": "Material Issue"},
+    ))
+
+    if already_deducted:
+        if restock:
+            reverse_stock_for_order(doc.name)
+    elif not restock:
         rows, _shortfalls = compute_deduction_rows_and_shortfalls(doc.items, doc.branch)
         if rows:
             entry = frappe.get_doc({

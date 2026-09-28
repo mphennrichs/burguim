@@ -183,6 +183,79 @@ def format_shortfalls(shortfalls):
     ).format(details)
 
 
+def deduct_stock_for_order(cart_items, branch, invoice_name):
+    """Deducts real stock for a batch of order lines RIGHT NOW - at order
+    creation (caixa.create_manual_order) or confirmation (self_ordering.
+    add_customer_items), not at pickup/delivery. Same aggregated FEFO
+    computation as deduct_stock_on_sale, just running earlier and tagging
+    the resulting Stock Entry with `custom_source_invoice` so:
+      - a later cancellation (kitchen._finalize_cancelled_order) can find
+        and reverse exactly what THIS call took (reverse_stock_for_order);
+      - deduct_stock_on_sale's on_submit hook can tell this order's stock
+        was already committed and must not deduct it again.
+
+    Runs inside the caller's own request transaction - frappe.throw() here
+    (insufficient stock, blocking enabled) unwinds the whole request,
+    including whatever `invoice.save()` the caller already did, exactly
+    like deduct_stock_on_sale already unwinds a submit today. `cart_items`
+    should be only the lines just being added in THIS call, never the
+    invoice's full item history - self_ordering's add_customer_items can
+    be called more than once per invoice (a running table ordering a
+    second round), and each call must only deduct its own increment.
+    """
+    block = _should_block_on_insufficient_stock()
+    rows, shortfalls = compute_deduction_rows_and_shortfalls(cart_items, branch)
+
+    if shortfalls and block:
+        frappe.throw(format_shortfalls(shortfalls))
+
+    if not rows:
+        return
+
+    entry = frappe.get_doc({
+        "doctype": "Stock Entry",
+        "stock_entry_type": "Material Issue",
+        "purpose": "Material Issue",
+        "custom_source_invoice": invoice_name,
+        "items": rows,
+    })
+    entry.insert(ignore_permissions=True)
+    entry.submit()
+
+
+def reverse_stock_for_order(invoice_name):
+    """Puts back every ingredient deduct_stock_for_order() already took for
+    this invoice - there can be more than one Material Issue (one per
+    self-ordering "round") - as a Material Receipt mirroring each one's
+    exact item/batch/qty (t_warehouse = the original s_warehouse), so FEFO/
+    expiry tracking isn't disturbed. Never re-queries availability (that's
+    an Issue concept, meaningless for a Receipt putting stock back)."""
+    issue_names = frappe.get_all(
+        "Stock Entry",
+        filters={"custom_source_invoice": invoice_name, "docstatus": 1, "stock_entry_type": "Material Issue"},
+        pluck="name",
+    )
+    for issue_name in issue_names:
+        issue = frappe.get_doc("Stock Entry", issue_name)
+        rows = [{
+            "item_code": row.item_code,
+            "qty": row.qty,
+            "t_warehouse": row.s_warehouse,
+            "use_serial_batch_fields": 1,
+            "batch_no": row.batch_no,
+        } for row in issue.items]
+        if not rows:
+            continue
+        entry = frappe.get_doc({
+            "doctype": "Stock Entry",
+            "stock_entry_type": "Material Receipt",
+            "purpose": "Material Receipt",
+            "items": rows,
+        })
+        entry.insert(ignore_permissions=True)
+        entry.submit()
+
+
 def deduct_stock_on_sale(doc, method):
     # A cancelled Pedido's stock impact (if any) is resolved explicitly by
     # kitchen.cancel_kitchen_order()/resolve_cancelled_order() before this
@@ -190,6 +263,14 @@ def deduct_stock_on_sale(doc, method):
     # would double-count (or wrongly deduct a "devolver ao estoque"
     # cancellation that should have zero stock impact).
     if getattr(doc, "custom_kitchen_status", None) == "Cancelado":
+        return
+
+    # A Pedido created/confirmed after deduct_stock_for_order() went live
+    # already committed its own stock at order time - this submit is just
+    # the pickup/delivery handoff confirmation, not a second sale. Only a
+    # legacy Pedido (drafted before that existed) has no such Stock Entry
+    # and still falls through to deducting here, same as always.
+    if frappe.db.exists("Stock Entry", {"custom_source_invoice": doc.name, "docstatus": 1}):
         return
 
     branch = getattr(doc, "branch", None)

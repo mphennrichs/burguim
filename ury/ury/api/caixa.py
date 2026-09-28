@@ -31,10 +31,8 @@ from ury.ury.doctype.ury_order.ury_order import (
     price_items_for_invoice,
 )
 from ury.ury.api.stock_deduction import (
-    compute_deduction_rows_and_shortfalls,
     compute_max_sellable_qty,
-    format_shortfalls,
-    _should_block_on_insufficient_stock,
+    deduct_stock_for_order,
 )
 
 _ORDER_TYPES = ("Take Away", "Delivery")
@@ -119,17 +117,6 @@ def create_manual_order(items, order_type, customer_phone, customer_name=None, d
     if not items:
         frappe.throw(_("Nenhum item no pedido"))
 
-    # Same check deduct_stock_on_sale() runs at submit time, moved to
-    # before the invoice/batch even exist - catching an insufficient-
-    # stock item here means the Caixa never builds an order that would
-    # only fail later at the Tela de Cozinha's final submit (confirmed
-    # live: that's exactly what happened before this check existed).
-    if _should_block_on_insufficient_stock():
-        cart_items = [{"item_code": it.get("item"), "qty": it.get("qty")} for it in items]
-        _, shortfalls = compute_deduction_rows_and_shortfalls(cart_items, branch)
-        if shortfalls:
-            frappe.throw(format_shortfalls(shortfalls))
-
     invoice, _name = _resolve_or_create_pos_invoice(
         table=None, invoiceNo=None, order_type=order_type, is_payment=None,
     )
@@ -179,6 +166,15 @@ def create_manual_order(items, order_type, customer_phone, customer_name=None, d
     invoice.invoice_created = 1
 
     invoice.save()
+
+    # Deducts real stock right now, at order creation - not later at the
+    # Tela de Cozinha's final submit. Throws (format_shortfalls) if
+    # insufficient and blocking is enabled - the exception unwinds this
+    # WHOLE request, including the invoice.save() above (nothing has been
+    # committed yet), so a rejected order never lingers as a half-created
+    # draft in the kitchen queue.
+    cart_items = [{"item_code": it.get("item"), "qty": it.get("qty")} for it in items]
+    deduct_stock_for_order(cart_items, branch, invoice.name)
 
     return {"invoice": invoice.name, "grand_total": invoice.grand_total}
 
