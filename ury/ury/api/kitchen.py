@@ -15,7 +15,12 @@ from frappe import _
 from frappe.utils import nowdate
 
 from ury.ury_pos.api import getBranch, ensure_pos_opening_entry
-from ury.ury.api.stock_deduction import compute_deduction_rows_and_shortfalls, reverse_stock_for_order, _item_needs_prep
+from ury.ury.api.stock_deduction import (
+    compute_deduction_rows_and_shortfalls,
+    reverse_stock_for_order,
+    _item_needs_prep,
+    _invoice_tag,
+)
 
 # Estados do Pedido (CONTEXT.md) - shared "Na Fila"/"Preparando"/"Pronto"
 # prefix (the kitchen finished montando, regardless of Modalidade), then
@@ -235,7 +240,7 @@ def _finalize_cancelled_order(doc, restock):
     """
     already_deducted = bool(frappe.db.exists(
         "Stock Entry",
-        {"custom_source_invoice": doc.name, "docstatus": 1, "stock_entry_type": "Material Issue"},
+        {"custom_source_invoice": _invoice_tag(doc.doctype, doc.name), "docstatus": 1, "stock_entry_type": "Material Issue"},
     ))
 
     if already_deducted:

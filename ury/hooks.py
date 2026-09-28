@@ -415,6 +415,8 @@ fixtures = [
                     "POS Invoice-custom_comments",
                     "POS Invoice-custom_kitchen_status",
                     "POS Invoice-custom_cupom_aplicado",
+                    "Stock Entry-custom_source_invoice",
+                    "Stock Entry-custom_needs_prep",
                     "POS Profile-custom_multiple_cashier_configuration",
                     "POS Profile-custom_enable_multiple_cashier",
                     "POS Profile User-custom_main_cashier",

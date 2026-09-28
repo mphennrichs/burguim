@@ -100,6 +100,72 @@ def _available_batches(item_code, warehouse):
     )
 
 
+def _compute_grouped_deduction(cart_items, branch, group_fn):
+    """Core FEFO computation shared by every stock-check/deduction entry
+    point. `group_fn(row)` buckets each cart line into a group key (or
+    just returns a constant to not split at all); availability is still
+    resolved ONCE per ingredient, aggregated across EVERY line regardless
+    of group, so two lines sharing an ingredient - two different burgers
+    both using Pão Brioche, or a Refrigerante sold on its own AND used as
+    an ingredient inside some other Receita in the same cart - always
+    draw from a single correctly-shrinking pool. Only the resulting rows
+    (which batch/qty actually got allocated) are partitioned by group
+    afterward, split proportionally to each group's own remaining need as
+    each batch is consumed - never re-deriving availability per group,
+    which would let two groups each "reserve" the same units.
+
+    Returns (rows_by_group, shortfalls): `rows_by_group` is a dict of
+    group_key -> Material Issue line list; `shortfalls` is a list of
+    (item_code, missing_qty) pairs, aggregated across groups (a shortage
+    is a shortage regardless of which group needed the missing part).
+    """
+    needed_by_group = {}
+    for row in cart_items:
+        item_code = row.get("item_code") if isinstance(row, dict) else row.item_code
+        sold_qty = flt(row.get("qty") if isinstance(row, dict) else row.qty)
+        if sold_qty <= 0:
+            continue
+        group = group_fn(row)
+        for ingredient_code, ingredient_qty in _resolve_deductible_ingredients(item_code, sold_qty):
+            per_group = needed_by_group.setdefault(ingredient_code, {})
+            per_group[group] = per_group.get(group, 0) + ingredient_qty
+
+    rows_by_group = {}
+    shortfalls = []
+
+    for item_code, per_group in needed_by_group.items():
+        warehouse = _resolve_warehouse(item_code, branch)
+        if not warehouse:
+            continue  # no depósito configured for this branch - can't resolve where to deduct from
+
+        remaining_by_group = dict(per_group)
+        for batch in _available_batches(item_code, warehouse):
+            if sum(remaining_by_group.values()) <= 0:
+                break
+            batch_remaining = flt(batch.qty)
+            for group, qty_needed in remaining_by_group.items():
+                if qty_needed <= 0 or batch_remaining <= 0:
+                    continue
+                take = min(qty_needed, batch_remaining)
+                if take <= 0:
+                    continue
+                rows_by_group.setdefault(group, []).append({
+                    "item_code": item_code,
+                    "qty": take,
+                    "s_warehouse": warehouse,
+                    "use_serial_batch_fields": 1,
+                    "batch_no": batch.batch_no,
+                })
+                remaining_by_group[group] -= take
+                batch_remaining -= take
+
+        total_remaining = sum(remaining_by_group.values())
+        if total_remaining > 0:
+            shortfalls.append((item_code, total_remaining))
+
+    return rows_by_group, shortfalls
+
+
 def compute_deduction_rows_and_shortfalls(cart_items, branch):
     """Shared by deduct_stock_on_sale() (on_submit) and caixa.py's
     pre-creation stock check - same "explode each sold line into real
@@ -110,50 +176,9 @@ def compute_deduction_rows_and_shortfalls(cart_items, branch):
     work). Returns (rows, shortfalls) - `rows` is the Material Issue line
     shape deduct_stock_on_sale inserts as-is; `shortfalls` is a list of
     (item_code, missing_qty) pairs.
-
-    Aggregated across every line first (rather than resolved line by
-    line) so two products sharing an ingredient - e.g. two different
-    burgers both using Pão Brioche - draw from a single correctly-
-    shrinking pool instead of each independently seeing the full
-    pre-sale quantity as available.
     """
-    needed = {}
-    for row in cart_items:
-        item_code = row.get("item_code") if isinstance(row, dict) else row.item_code
-        sold_qty = flt(row.get("qty") if isinstance(row, dict) else row.qty)
-        if sold_qty <= 0:
-            continue
-        for ingredient_code, ingredient_qty in _resolve_deductible_ingredients(item_code, sold_qty):
-            needed[ingredient_code] = needed.get(ingredient_code, 0) + ingredient_qty
-
-    rows = []
-    shortfalls = []
-
-    for item_code, total_qty in needed.items():
-        warehouse = _resolve_warehouse(item_code, branch)
-        if not warehouse:
-            continue  # no depósito configured for this branch - can't resolve where to deduct from
-
-        remaining = total_qty
-        for batch in _available_batches(item_code, warehouse):
-            if remaining <= 0:
-                break
-            take = min(remaining, flt(batch.qty))
-            if take <= 0:
-                continue
-            rows.append({
-                "item_code": item_code,
-                "qty": take,
-                "s_warehouse": warehouse,
-                "use_serial_batch_fields": 1,
-                "batch_no": batch.batch_no,
-            })
-            remaining -= take
-
-        if remaining > 0:
-            shortfalls.append((item_code, remaining))
-
-    return rows, shortfalls
+    rows_by_group, shortfalls = _compute_grouped_deduction(cart_items, branch, group_fn=lambda row: None)
+    return rows_by_group.get(None, []), shortfalls
 
 
 def compute_max_sellable_qty(item_code, branch):
@@ -197,7 +222,15 @@ def _cart_item_code(row):
     return row.get("item_code") if isinstance(row, dict) else row.item_code
 
 
-def deduct_stock_for_order(cart_items, branch, invoice_name):
+def _invoice_tag(doctype, invoice_name):
+    """`custom_source_invoice`'s value - `doc.name` alone isn't globally
+    unique across doctypes (a Sales Invoice and a POS Invoice can share a
+    name), so every reader/writer of this field qualifies it with the
+    doctype it actually belongs to."""
+    return f"{doctype}:{invoice_name}"
+
+
+def deduct_stock_for_order(cart_items, branch, invoice_name, doctype="POS Invoice"):
     """Deducts real stock for a batch of order lines RIGHT NOW - at order
     creation (caixa.create_manual_order) or confirmation (self_ordering.
     add_customer_items), not at pickup/delivery. Same aggregated FEFO
@@ -208,15 +241,20 @@ def deduct_stock_for_order(cart_items, branch, invoice_name):
       - deduct_stock_on_sale's on_submit hook can tell this order's stock
         was already committed and must not deduct it again.
 
-    Splits `cart_items` into a "needs prep" group (Produto/Preparo com
-    Receita) and a "resold as-is" group (has_batch_no=1, e.g. Refrigerante)
-    BEFORE exploding/aggregating, creating up to 2 separate Stock Entries
-    tagged with `custom_needs_prep` - a resold item never gets physically
-    prepared, so its stock impact must always be reversible independently
-    of whatever the owner later decides about the rest of a cancelled
-    order (see _finalize_cancelled_order). Each group still aggregates
-    correctly within itself (two different burgers sharing the same Pão
-    Brioche still draw from one shrinking pool).
+    Splits the resulting Material Issue rows into a "needs prep" group
+    (Produto/Preparo com Receita) and a "resold as-is" group
+    (has_batch_no=1, e.g. Refrigerante), creating up to 2 separate Stock
+    Entries tagged with `custom_needs_prep` - a resold item never gets
+    physically prepared, so its stock impact must always be reversible
+    independently of whatever the owner later decides about the rest of a
+    cancelled order (see _finalize_cancelled_order). Availability itself
+    is still resolved ONCE across every line regardless of group (via
+    _compute_grouped_deduction) - critical when the SAME ingredient shows
+    up in both groups, e.g. a Refrigerante sold on its own AND used as a
+    component inside some other Receita in the same cart: checking each
+    group's availability independently would let both "reserve" the same
+    units and over-commit stock the second `entry.submit()` would then
+    fail on (or silently oversell, if blocking is off).
 
     Runs inside the caller's own request transaction - frappe.throw() here
     (insufficient stock, blocking enabled) unwinds the whole request,
@@ -229,32 +267,30 @@ def deduct_stock_for_order(cart_items, branch, invoice_name):
     """
     block = _should_block_on_insufficient_stock()
 
-    prep_items = [row for row in cart_items if _item_needs_prep(_cart_item_code(row))]
-    resold_items = [row for row in cart_items if not _item_needs_prep(_cart_item_code(row))]
+    rows_by_group, shortfalls = _compute_grouped_deduction(
+        cart_items, branch, group_fn=lambda row: _item_needs_prep(_cart_item_code(row))
+    )
 
-    prep_rows, prep_shortfalls = compute_deduction_rows_and_shortfalls(prep_items, branch)
-    resold_rows, resold_shortfalls = compute_deduction_rows_and_shortfalls(resold_items, branch)
-
-    shortfalls = prep_shortfalls + resold_shortfalls
     if shortfalls and block:
         frappe.throw(format_shortfalls(shortfalls))
 
-    for rows, needs_prep in ((prep_rows, 1), (resold_rows, 0)):
+    for needs_prep in (True, False):
+        rows = rows_by_group.get(needs_prep)
         if not rows:
             continue
         entry = frappe.get_doc({
             "doctype": "Stock Entry",
             "stock_entry_type": "Material Issue",
             "purpose": "Material Issue",
-            "custom_source_invoice": invoice_name,
-            "custom_needs_prep": needs_prep,
+            "custom_source_invoice": _invoice_tag(doctype, invoice_name),
+            "custom_needs_prep": 1 if needs_prep else 0,
             "items": rows,
         })
         entry.insert(ignore_permissions=True)
         entry.submit()
 
 
-def reverse_stock_for_order(invoice_name, needs_prep=None):
+def reverse_stock_for_order(invoice_name, needs_prep=None, doctype="POS Invoice"):
     """Puts back every ingredient deduct_stock_for_order() already took for
     this invoice - there can be more than one Material Issue (one per
     self-ordering "round", and now one per needs-prep/resold split) - as a
@@ -262,8 +298,12 @@ def reverse_stock_for_order(invoice_name, needs_prep=None):
     = the original s_warehouse), so FEFO/expiry tracking isn't disturbed.
     Never re-queries availability (that's an Issue concept, meaningless for
     a Receipt putting stock back). `needs_prep` (0/1) restricts this to
-    only that half of the split; omit to reverse everything."""
-    filters = {"custom_source_invoice": invoice_name, "docstatus": 1, "stock_entry_type": "Material Issue"}
+    only that half of the split; omit to reverse everything. The Receipt
+    is tagged with the same `custom_source_invoice` as what it's reversing
+    (not left blank) so the audit trail actually shows which Pedido a
+    reversal belongs to, not just which one the original Issue was for."""
+    tag = _invoice_tag(doctype, invoice_name)
+    filters = {"custom_source_invoice": tag, "docstatus": 1, "stock_entry_type": "Material Issue"}
     if needs_prep is not None:
         filters["custom_needs_prep"] = needs_prep
     issue_names = frappe.get_all(
@@ -286,6 +326,7 @@ def reverse_stock_for_order(invoice_name, needs_prep=None):
             "doctype": "Stock Entry",
             "stock_entry_type": "Material Receipt",
             "purpose": "Material Receipt",
+            "custom_source_invoice": tag,
             "items": rows,
         })
         entry.insert(ignore_permissions=True)
@@ -306,7 +347,7 @@ def deduct_stock_on_sale(doc, method):
     # the pickup/delivery handoff confirmation, not a second sale. Only a
     # legacy Pedido (drafted before that existed) has no such Stock Entry
     # and still falls through to deducting here, same as always.
-    if frappe.db.exists("Stock Entry", {"custom_source_invoice": doc.name, "docstatus": 1}):
+    if frappe.db.exists("Stock Entry", {"custom_source_invoice": _invoice_tag(doc.doctype, doc.name), "docstatus": 1}):
         return
 
     branch = getattr(doc, "branch", None)
