@@ -10,10 +10,14 @@ export interface SellableItem {
   disabled: number;
   special_dish: number;
   item_image: string | null;
-  // Real stock check (FEFO/BOM-explosion, for one unit) - false means
-  // there isn't enough of missing_ingredient right now to make it.
+  // Real stock check (FEFO/BOM-explosion) - available is false when
+  // there isn't even 1 unit of missing_ingredient right now. max_qty is
+  // how many whole units can actually be sold right now (null = no
+  // stock model, never limited) - lets the cart itself hit the real
+  // limit even when `available` was true when the menu loaded.
   available: boolean;
   missing_ingredient: string | null;
+  max_qty: number | null;
 }
 
 export interface SalesHistoryOrder {

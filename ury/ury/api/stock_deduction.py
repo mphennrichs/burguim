@@ -146,6 +146,35 @@ def compute_deduction_rows_and_shortfalls(cart_items, branch):
     return rows, shortfalls
 
 
+def compute_max_sellable_qty(item_code, branch):
+    """How many whole units of `item_code` real stock can support right
+    now, and which ingredient caps it - same FEFO resolution as
+    compute_deduction_rows_and_shortfalls, just expressed as a ratio
+    (available / needed-per-unit) instead of a shortfall for one
+    specific cart quantity. Lets the Caixa's item picker disable a "+"
+    once the CART quantity itself reaches the real limit, not just when
+    the item has zero stock left. Returns (None, None) when the item has
+    no stock model at all (nothing to deduct - so it's never limited)."""
+    needed = {}
+    for ingredient_code, qty_per_unit in _resolve_deductible_ingredients(item_code, 1):
+        needed[ingredient_code] = needed.get(ingredient_code, 0) + qty_per_unit
+    if not needed:
+        return None, None
+
+    max_qty = None
+    limiting_ingredient = None
+    for ingredient_code, qty_per_unit in needed.items():
+        if qty_per_unit <= 0:
+            continue
+        warehouse = _resolve_warehouse(ingredient_code, branch)
+        available = sum(flt(b.qty) for b in _available_batches(ingredient_code, warehouse)) if warehouse else 0
+        possible = available / qty_per_unit
+        if max_qty is None or possible < max_qty:
+            max_qty = possible
+            limiting_ingredient = ingredient_code
+    return max_qty, limiting_ingredient
+
+
 def format_shortfalls(shortfalls):
     details = ", ".join(f"{item_code} (faltam {flt(qty)})" for item_code, qty in shortfalls)
     return frappe._(

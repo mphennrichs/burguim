@@ -156,6 +156,26 @@ export const CaixaPage: React.FC = () => {
 
   const cartTotal = useMemo(() => cart.reduce((sum, l) => sum + l.rate * l.qty, 0), [cart]);
 
+  const itemsByCode = useMemo(() => {
+    const map: Record<string, SellableItem> = {};
+    for (const item of items) map[item.item] = item;
+    return map;
+  }, [items]);
+
+  const cartQtyByItem = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const line of cart) map[line.item] = line.qty;
+    return map;
+  }, [cart]);
+
+  // How many more of this item the cart can still take before hitting
+  // real stock (null = unlimited) - used both to grey out the item
+  // picker and to cap the "+" on a cart line already at the limit.
+  function remainingQty(item: SellableItem): number | null {
+    if (item.max_qty == null) return null;
+    return item.max_qty - (cartQtyByItem[item.item] || 0);
+  }
+
   function resetOrderForm() {
     setCart([]);
     setCustomerName('');
@@ -286,15 +306,22 @@ export const CaixaPage: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {items.map((item) => {
-                    const outOfStock = !item.available;
+                    const remaining = remainingQty(item);
+                    const cartAtLimit = remaining !== null && remaining < 1;
+                    const outOfStock = !item.available || cartAtLimit;
                     const blocked = !!item.sold_out || (outOfStock && blockOnInsufficientStock);
+                    const hint = !item.available
+                      ? `Sem estoque${item.missing_ingredient ? `: falta ${item.missing_ingredient}` : ''}`
+                      : cartAtLimit
+                        ? 'Limite de estoque atingido no carrinho'
+                        : null;
                     return (
                       <button
                         key={item.item}
                         type="button"
                         disabled={blocked}
                         onClick={() => addToCart(item)}
-                        title={outOfStock && item.missing_ingredient ? `Falta: ${item.missing_ingredient}` : undefined}
+                        title={hint ?? undefined}
                         className="rounded-lg border border-gray-200 p-3 text-left hover:border-primary hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <div className="font-medium text-sm">{item.item_name}</div>
@@ -304,10 +331,8 @@ export const CaixaPage: React.FC = () => {
                         {!!item.sold_out && (
                           <div className="text-xs text-destructive mt-1">Esgotado</div>
                         )}
-                        {!item.sold_out && outOfStock && (
-                          <div className="text-xs text-destructive mt-1">
-                            Sem estoque{item.missing_ingredient ? `: falta ${item.missing_ingredient}` : ''}
-                          </div>
+                        {!item.sold_out && hint && (
+                          <div className="text-xs text-destructive mt-1">{hint}</div>
                         )}
                       </button>
                     );
@@ -329,28 +354,42 @@ export const CaixaPage: React.FC = () => {
                       Nenhum item adicionado ainda.
                     </div>
                   ) : (
-                    cart.map((line) => (
-                      <div key={line.item} className="flex items-center justify-between gap-2 text-sm">
-                        <div className="flex-1 min-w-0">
-                          <div className="truncate font-medium">{line.item_name}</div>
-                          <div className="text-muted-foreground tabular-nums">
-                            {formatCurrency(line.rate)} x {line.qty}
+                    cart.map((line) => {
+                      const menuItem = itemsByCode[line.item];
+                      const maxQty = menuItem?.max_qty ?? null;
+                      const atLimit = blockOnInsufficientStock && maxQty != null && line.qty >= maxQty;
+                      return (
+                        <div key={line.item} className="flex items-center justify-between gap-2 text-sm">
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-medium">{line.item_name}</div>
+                            <div className="text-muted-foreground tabular-nums">
+                              {formatCurrency(line.rate)} x {line.qty}
+                            </div>
+                            {atLimit && (
+                              <div className="text-xs text-destructive">Limite de estoque atingido</div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button type="button" variant="outline" size="sm" onClick={() => changeQty(line.item, -1)}>
+                              -
+                            </Button>
+                            <span className="w-6 text-center tabular-nums">{line.qty}</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={atLimit}
+                              onClick={() => changeQty(line.item, 1)}
+                            >
+                              +
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => removeFromCart(line.item)}>
+                              x
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button type="button" variant="outline" size="sm" onClick={() => changeQty(line.item, -1)}>
-                            -
-                          </Button>
-                          <span className="w-6 text-center tabular-nums">{line.qty}</span>
-                          <Button type="button" variant="outline" size="sm" onClick={() => changeQty(line.item, 1)}>
-                            +
-                          </Button>
-                          <Button type="button" variant="outline" size="sm" onClick={() => removeFromCart(line.item)}>
-                            x
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 

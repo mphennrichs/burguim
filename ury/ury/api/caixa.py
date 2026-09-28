@@ -32,6 +32,7 @@ from ury.ury.doctype.ury_order.ury_order import (
 )
 from ury.ury.api.stock_deduction import (
     compute_deduction_rows_and_shortfalls,
+    compute_max_sellable_qty,
     format_shortfalls,
     _should_block_on_insufficient_stock,
 )
@@ -46,22 +47,24 @@ def get_sellable_items(order_type=None):
     reuses the same resolver self_ordering.py's customer-facing menu does,
     rather than re-querying URY Menu directly.
 
-    Each item also gets `available`/`missing_ingredient`: whether there's
-    real stock (stock_deduction's own FEFO/BOM-explosion check, for one
-    unit) to actually sell it right now - same computation
-    create_manual_order uses to block an order, surfaced here too so the
-    Caixa can grey the item out and see WHY before ever adding it to the
-    cart, instead of only discovering the shortage after building the
-    whole order (or worse, at the Tela de Cozinha's final submit)."""
+    Each item also gets `available`/`missing_ingredient`/`max_qty`: real
+    stock (stock_deduction's own FEFO/BOM-explosion check) expressed as
+    how many whole units can actually be sold right now - same
+    computation create_manual_order uses to block an order, surfaced
+    here too so the Caixa can grey the item out (and see WHY) before
+    ever adding it to the cart, or stop a "+" once the cart itself
+    reaches that limit, instead of only discovering the shortage after
+    building the whole order (or worse, at the Tela de Cozinha's final
+    submit). `max_qty` is None when the item has no stock model at all
+    (nothing to deduct - so it's never limited)."""
     branch = getBranch()
     menu = resolve_restaurant_menu(branch=branch, room=None, order_type=order_type, cashier=True)
     items = menu["items"]
     for item in items:
-        _, shortfalls = compute_deduction_rows_and_shortfalls(
-            [{"item_code": item["item"], "qty": 1}], branch
-        )
-        item["available"] = not shortfalls
-        item["missing_ingredient"] = shortfalls[0][0] if shortfalls else None
+        max_qty, limiting_ingredient = compute_max_sellable_qty(item["item"], branch)
+        item["max_qty"] = max_qty
+        item["available"] = max_qty is None or max_qty >= 1
+        item["missing_ingredient"] = None if item["available"] else limiting_ingredient
     return {"items": items}
 
 
