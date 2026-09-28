@@ -35,10 +35,38 @@ def _should_block_on_insufficient_stock():
     return bool(frappe.db.get_single_value("URY Stock Settings", "block_sale_on_insufficient_stock"))
 
 
+def _request_cache(key):
+    """A plain dict cache scoped to the current request - `frappe.local` is
+    a fresh object per request, so this never leaks stale data across
+    requests, unlike a module-level dict. Used to avoid re-querying the
+    same Item/BOM lookup once per cart line/menu item during a single
+    computation - a cardápio with many items, or a cart with several
+    lines of the same recipe, was hitting the DB once per item_code per
+    call otherwise. Goes through getattr/setattr (not frappe.local's own
+    __dict__ directly), since frappe.local is a werkzeug Local proxy and
+    normal attribute access is the documented/safe way to stash
+    per-request state on it."""
+    cache = getattr(frappe.local, key, None)
+    if cache is None:
+        cache = {}
+        setattr(frappe.local, key, cache)
+    return cache
+
+
+def _has_batch_no(item_code):
+    cache = _request_cache("_ury_has_batch_no_cache")
+    if item_code not in cache:
+        cache[item_code] = bool(frappe.db.get_value("Item", item_code, "has_batch_no"))
+    return cache[item_code]
+
+
 def _resolve_default_bom(item_code):
-    return frappe.db.get_value(
-        "BOM", {"item": item_code, "is_active": 1, "is_default": 1, "docstatus": 1}, "name"
-    )
+    cache = _request_cache("_ury_default_bom_cache")
+    if item_code not in cache:
+        cache[item_code] = frappe.db.get_value(
+            "BOM", {"item": item_code, "is_active": 1, "is_default": 1, "docstatus": 1}, "name"
+        )
+    return cache[item_code]
 
 
 def _item_needs_prep(item_code):
@@ -48,7 +76,7 @@ def _item_needs_prep(item_code):
     never "preparado", so cancelling it never loses anything real,
     regardless of Estado). Same has_batch_no distinction
     _resolve_deductible_ingredients already keys off."""
-    return not frappe.db.get_value("Item", item_code, "has_batch_no")
+    return not _has_batch_no(item_code)
 
 
 def _resolve_deductible_ingredients(item_code, sold_qty, _chain=()):
@@ -58,7 +86,7 @@ def _resolve_deductible_ingredients(item_code, sold_qty, _chain=()):
     `_chain` guards against a cyclical BOM (shouldn't exist - BOM's own
     check_recursion refuses to save one - but this must never hang the
     checkout if one somehow does)."""
-    if frappe.db.get_value("Item", item_code, "has_batch_no"):
+    if _has_batch_no(item_code):
         return [(item_code, sold_qty)]
 
     if item_code in _chain:
@@ -77,13 +105,24 @@ def _resolve_deductible_ingredients(item_code, sold_qty, _chain=()):
     return result
 
 
-def _available_batches(item_code, warehouse):
+def _available_batches(item_code, warehouse, for_update=False):
     """(batch_no, qty) pairs with stock on hand for this item in this
     warehouse, soonest-expiry first (FEFO) - same Serial and Batch Entry
     query stock_overview.get_expiring_batches already uses, since
-    Stock Ledger Entry.batch_no isn't populated in this ERPNext version."""
+    Stock Ledger Entry.batch_no isn't populated in this ERPNext version.
+
+    `for_update=True` (used when actually about to deduct, not just
+    showing a grayout/limit in the UI) takes a row lock on the `Batch`
+    rows examined, for the rest of the caller's transaction - without it,
+    two concurrent requests for the last unit of the same batch can both
+    read "1 available" before either commits, and both decide they can
+    take it. MySQL/InnoDB allows FOR UPDATE on a GROUP BY/HAVING query
+    (it locks every underlying row scanned, aggregate or not); the second
+    request simply blocks here until the first's transaction ends (commit
+    releases the lock; frappe.throw()'s implicit rollback does too), so it
+    re-reads the now-current quantity instead of a stale snapshot."""
     return frappe.db.sql(
-        """
+        f"""
         SELECT b.name AS batch_no, COALESCE(SUM(sbe.qty), 0) AS qty
         FROM `tabBatch` b
         LEFT JOIN `tabSerial and Batch Entry` sbe ON sbe.batch_no = b.name
@@ -94,13 +133,14 @@ def _available_batches(item_code, warehouse):
         GROUP BY b.name
         HAVING qty > 0
         ORDER BY b.expiry_date ASC
+        {"FOR UPDATE" if for_update else ""}
         """,
         {"item_code": item_code, "warehouse": warehouse},
         as_dict=True,
     )
 
 
-def _compute_grouped_deduction(cart_items, branch, group_fn):
+def _compute_grouped_deduction(cart_items, branch, group_fn, for_update=True):
     """Core FEFO computation shared by every stock-check/deduction entry
     point. `group_fn(row)` buckets each cart line into a group key (or
     just returns a constant to not split at all); availability is still
@@ -113,6 +153,13 @@ def _compute_grouped_deduction(cart_items, branch, group_fn):
     afterward, split proportionally to each group's own remaining need as
     each batch is consumed - never re-deriving availability per group,
     which would let two groups each "reserve" the same units.
+
+    `for_update` (default True - every real caller is about to commit a
+    deduction) locks the batch rows read here for the rest of the
+    caller's transaction, so a second concurrent request for the same
+    scarce ingredient blocks until this one commits or rolls back,
+    instead of both reading the same stale "available" snapshot and both
+    deciding they can take it.
 
     Returns (rows_by_group, shortfalls): `rows_by_group` is a dict of
     group_key -> Material Issue line list; `shortfalls` is a list of
@@ -139,7 +186,7 @@ def _compute_grouped_deduction(cart_items, branch, group_fn):
             continue  # no depósito configured for this branch - can't resolve where to deduct from
 
         remaining_by_group = dict(per_group)
-        for batch in _available_batches(item_code, warehouse):
+        for batch in _available_batches(item_code, warehouse, for_update=for_update):
             if sum(remaining_by_group.values()) <= 0:
                 break
             batch_remaining = flt(batch.qty)
