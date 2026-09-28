@@ -180,7 +180,14 @@ def _compute_grouped_deduction(cart_items, branch, group_fn, for_update=True):
     rows_by_group = {}
     shortfalls = []
 
-    for item_code, per_group in needed_by_group.items():
+    # Sorted (not dict/cart order) so every concurrent checkout acquires
+    # its FOR UPDATE locks across ingredients in the SAME global order -
+    # without this, two carts sharing 2+ scarce ingredients but listing
+    # them in different order could lock-acquire crosswise (A holds X
+    # waiting on Y, B holds Y waiting on X) and deadlock; MariaDB kills one
+    # transaction outright (ER_LOCK_DEADLOCK, no retry anywhere in this
+    # app), aborting the whole checkout instead of a clean shortfall error.
+    for item_code, per_group in sorted(needed_by_group.items()):
         warehouse = _resolve_warehouse(item_code, branch)
         if not warehouse:
             continue  # no depósito configured for this branch - can't resolve where to deduct from
@@ -214,14 +221,18 @@ def _compute_grouped_deduction(cart_items, branch, group_fn, for_update=True):
 
 
 def compute_deduction_rows_and_shortfalls(cart_items, branch):
-    """Shared by deduct_stock_on_sale() (on_submit) and caixa.py's
-    pre-creation stock check - same "explode each sold line into real
-    ingredients, aggregate, then check FEFO availability" computation,
-    just without committing anything. `cart_items` is any iterable of
-    objects/dicts with `item_code`/`qty` (a saved POS Invoice Item row or
-    a plain {"item_code":..., "qty":...} dict from an unsaved cart both
-    work). Returns (rows, shortfalls) - `rows` is the Material Issue line
-    shape deduct_stock_on_sale inserts as-is; `shortfalls` is a list of
+    """Shared by deduct_stock_on_sale() (on_submit, for a legacy Pedido
+    that never went through deduct_stock_for_order) and kitchen.py's
+    _finalize_cancelled_order legacy path - same "explode each sold line
+    into real ingredients, aggregate, then check FEFO availability"
+    computation as _compute_grouped_deduction (this is just that with a
+    single, un-split group), locking the rows it reads (see
+    _available_batches) since both callers are about to commit a real
+    deduction. `cart_items` is any iterable of objects/dicts with
+    `item_code`/`qty` (a saved POS Invoice Item row or a plain
+    {"item_code":..., "qty":...} dict from an unsaved cart both work).
+    Returns (rows, shortfalls) - `rows` is the Material Issue line shape
+    deduct_stock_on_sale inserts as-is; `shortfalls` is a list of
     (item_code, missing_qty) pairs.
     """
     rows_by_group, shortfalls = _compute_grouped_deduction(cart_items, branch, group_fn=lambda row: None)
