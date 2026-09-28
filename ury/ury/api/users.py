@@ -40,8 +40,8 @@ def delete_user(user):
 @frappe.whitelist(methods=["POST"])
 def set_user_password(user, new_password):
     _require_manager()
-    if not new_password or len(new_password) < 6:
-        frappe.throw(_("A senha deve ter pelo menos 6 caracteres"))
+    if not new_password:
+        frappe.throw(_("Informe uma senha"))
     doc = frappe.get_doc("User", user)
     doc.new_password = new_password
     doc.save(ignore_permissions=True)

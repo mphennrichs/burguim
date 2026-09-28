@@ -455,7 +455,6 @@ export const UserPage: React.FC = () => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
-              minLength={6}
             />
           </div>
           <div>
@@ -465,7 +464,6 @@ export const UserPage: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              minLength={6}
             />
           </div>
           <div className="pt-6 flex justify-end gap-3 border-t mt-4 border-gray-100">
