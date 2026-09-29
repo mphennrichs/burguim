@@ -185,6 +185,31 @@ export const UserPage: React.FC = () => {
           });
         }
       } else {
+        // O e-mail É o nome do documento User no Frappe - se já existir um
+        // (mesmo desativado, mesmo que a exclusão dele tenha sido bloqueada
+        // por ter histórico), o insert abaixo falha com um erro genérico de
+        // "já existe". Checa antes pra dar uma mensagem clara sobre o motivo
+        // real, em vez de deixar o Dono achar que a exclusão anterior "não
+        // propagou" (delete no Frappe é síncrono - ou funciona por completo
+        // na hora, ou é bloqueado por completo, nunca fica pela metade).
+        const existing = await call<any>('frappe.client.get_list', {
+          doctype: 'User',
+          filters: { name: newUser.email },
+          fields: ['name', 'enabled'],
+          limit: 1,
+        });
+        const existingRecords = (existing as any)?.message || existing;
+        if (Array.isArray(existingRecords) && existingRecords.length > 0) {
+          const already = existingRecords[0];
+          showToast.error(
+            already.enabled
+              ? 'Já existe um usuário ativo com esse e-mail. Edite-o na lista em vez de criar um novo.'
+              : 'Já existe um usuário desativado com esse e-mail (provavelmente não pôde ser excluído por ter histórico). Edite-o na lista pra reaproveitá-lo, ou use outro e-mail.',
+          );
+          setSaving(false);
+          return;
+        }
+
         await call('frappe.client.insert', {
           doc: {
             doctype: 'User',

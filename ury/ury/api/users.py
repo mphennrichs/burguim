@@ -29,10 +29,19 @@ def delete_user(user):
     try:
         frappe.delete_doc("User", user, ignore_permissions=True)
     except frappe.LinkExistsError:
+        # Nothing was deleted - this fails synchronously and completely, in
+        # the same request (there's no partial/delayed "propagation" state
+        # in Frappe's delete_doc: it's either fully undone here, or it fully
+        # succeeded and the row is already gone). The user's `name` IS their
+        # e-mail, so as long as this record exists (enabled or not) that
+        # e-mail can never be reused by a new account - editing/re-enabling
+        # THIS record is the only way to "recreate" this person.
         frappe.throw(
             _(
-                "Este usuário já foi referenciado em algum registro (ex: um Pedido como Caixa/Atendente) "
-                "e não pode ser excluído. Desative o usuário em vez de excluir."
+                "Não foi possível excluir: este usuário já aparece em outro registro "
+                "(ex: um Pedido como Caixa/Atendente), então a exclusão foi bloqueada por completo - "
+                "nada foi apagado. O e-mail dele continua reservado. Em vez de excluir, edite este "
+                "mesmo usuário (ou desative-o) para reaproveitá-lo."
             )
         )
 
