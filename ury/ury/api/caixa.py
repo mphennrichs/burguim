@@ -249,6 +249,7 @@ def get_order_detail(invoice):
         filters={"parent": invoice},
         fields=["item_name", "qty", "rate", "amount"],
         order_by="idx asc",
+        limit_page_length=0,
     )
 
     status_history = [{"status": "Na Fila", "changed_at": doc.creation}]
@@ -257,6 +258,7 @@ def get_order_detail(invoice):
         filters={"ref_doctype": "POS Invoice", "docname": invoice},
         fields=["creation", "data"],
         order_by="creation asc",
+        limit_page_length=0,
     )
     for version in versions:
         try:

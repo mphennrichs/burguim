@@ -501,6 +501,7 @@ def _linked_item_options(child_doctype, parent_item_code, invoice_price_list):
         child_doctype,
         filters={"parenttype": "Item", "parent": parent_item_code},
         fields=["item"],
+        limit_page_length=0,
     )
 
     options = []

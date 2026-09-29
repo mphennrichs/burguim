@@ -93,6 +93,12 @@ def get_kitchen_queue():
         "grand_total",
     ]
 
+    # frappe.get_all() defaults to limit_page_length=20 when not passed -
+    # this is THE active queue (every not-yet-finished Pedido), which must
+    # never be silently truncated: a busy night with more than 20 orders in
+    # flight at once would just drop the newest ones off the Tela de
+    # Cozinha with no error, no warning, nothing. Same for a single order's
+    # own line items (a large order could plausibly have more than 20).
     invoices = frappe.get_all(
         "POS Invoice",
         filters={
@@ -102,6 +108,7 @@ def get_kitchen_queue():
         },
         fields=fields,
         order_by="creation asc",
+        limit_page_length=0,
     )
 
     delivered_today = frappe.get_all(
@@ -115,6 +122,7 @@ def get_kitchen_queue():
         },
         fields=fields,
         order_by="creation asc",
+        limit_page_length=0,
     )
 
     orders = []
@@ -124,6 +132,7 @@ def get_kitchen_queue():
             filters={"parent": inv.name},
             fields=["item_name", "qty", "amount"],
             order_by="idx asc",
+            limit_page_length=0,
         )
         orders.append({
             "invoice": inv.name,

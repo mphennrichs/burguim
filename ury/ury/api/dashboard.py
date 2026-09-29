@@ -106,7 +106,15 @@ def get_module_records(doctype, branch=None):
     fields = SAFE_FIELDS_BY_DOCTYPE.get(doctype, ["*"])
 
     try:
-        records = frappe.get_all(doctype, filters=filters, fields=fields)
+        # frappe.get_all() defaults to limit_page_length=20 when not passed -
+        # this endpoint backs full "management" list screens (Usuário, Item,
+        # etc.), not a paginated table, so a doctype with more than 20 rows
+        # was silently truncated. Confirmed live: a User that genuinely
+        # existed (visible in Frappe's own /app/user list) was missing from
+        # our own Usuário screen for exactly this reason - looked like a
+        # failed/half-done delete when it never had anything to do with
+        # delete at all.
+        records = frappe.get_all(doctype, filters=filters, fields=fields, limit_page_length=0)
         if doctype == "User":
             for r in records:
                 r["roles"] = frappe.get_all("Has Role", filters={"parent": r.name}, fields=["role"])
