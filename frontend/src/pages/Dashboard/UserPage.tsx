@@ -39,6 +39,8 @@ export const UserPage: React.FC = () => {
     first_name: '',
     last_name: '',
     email: '',
+    username: '',
+    password: '',
     role: 'URY Cashier',
     enabled: true,
   });
@@ -84,13 +86,14 @@ export const UserPage: React.FC = () => {
 
   const openAddDrawer = () => {
     setEditingUser(null);
-    setNewUser({ first_name: '', last_name: '', email: '', role: 'URY Cashier', enabled: true });
+    setNewUser({ first_name: '', last_name: '', email: '', username: '', password: '', role: 'URY Cashier', enabled: true });
     setIsDrawerOpen(true);
   };
 
   const openEditDrawer = async (user: UserRecord) => {
     setEditingUser(user);
     let userRole = 'URY Cashier';
+    let username = '';
 
     try {
       const fullUserRes = await call('frappe.client.get', {
@@ -102,10 +105,11 @@ export const UserPage: React.FC = () => {
       if (fullUser.roles && Array.isArray(fullUser.roles) && fullUser.roles.length > 0) {
         userRole = fullUser.roles[0].role;
       }
+      username = fullUser.username || '';
     } catch (err) {
       console.error('Failed to fetch user roles', err);
     }
-    
+
     if (userRole === 'URY Cashier' && user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
       userRole = user.roles[0].role;
     }
@@ -114,6 +118,8 @@ export const UserPage: React.FC = () => {
       first_name: user.first_name || '',
       last_name: user.last_name || '',
       email: user.email || '',
+      username,
+      password: '',
       role: userRole,
       enabled: user.enabled === 1,
     };
@@ -130,12 +136,14 @@ export const UserPage: React.FC = () => {
       const original = {
         first_name: (originalUser.first_name || '').trim(),
         last_name: (originalUser.last_name || '').trim(),
+        username: (originalUser.username || '').trim(),
         role: originalUser.role,
         enabled: originalUser.enabled ? 1 : 0,
       };
       const current = {
         first_name: (newUser.first_name || '').trim(),
         last_name: (newUser.last_name || '').trim(),
+        username: (newUser.username || '').trim(),
         role: newUser.role,
         enabled: newUser.enabled ? 1 : 0,
       };
@@ -154,6 +162,7 @@ export const UserPage: React.FC = () => {
           fieldname: {
             first_name: newUser.first_name,
             last_name: newUser.last_name,
+            username: newUser.username || null,
             enabled: newUser.enabled ? 1 : 0,
           },
         });
@@ -182,11 +191,25 @@ export const UserPage: React.FC = () => {
             email: newUser.email,
             first_name: newUser.first_name,
             last_name: newUser.last_name,
-            send_welcome_email: 1,
+            username: newUser.username || undefined,
+            // Só manda o e-mail de "defina sua senha" quando o Dono NÃO
+            // definiu uma senha na hora (abaixo) - já fica pronta pra uso.
+            send_welcome_email: newUser.password ? 0 : 1,
             enabled: newUser.enabled ? 1 : 0,
             roles: [{ role: newUser.role }],
           },
         });
+
+        // new_password é permlevel 1 em User (somente leitura pra URY
+        // Manager pelas permissões padrão) - frappe.client.insert não
+        // consegue setá-lo mesmo vindo no doc. set_user_password() existe
+        // exatamente pra isso: roda ignore_permissions=True no servidor.
+        if (newUser.password) {
+          await call('ury.ury.api.users.set_user_password', {
+            user: newUser.email,
+            new_password: newUser.password,
+          });
+        }
       }
       fetchUsers();
       setIsDrawerOpen(false);
@@ -392,15 +415,47 @@ export const UserPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-gray-700 mb-1.5">ID do Usuário</label>
+            <label className="block font-semibold text-gray-700 mb-1.5">E-mail (login)</label>
             <Input
               type="email"
               value={newUser.email}
               onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              placeholder="nome@exemplo.com"
               required
               disabled={!!editingUser}
             />
+            <p className="text-xs text-gray-500 mt-1">
+              É com esse e-mail que o usuário faz login - precisa ser um e-mail de verdade.
+            </p>
           </div>
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1.5">Nome de usuário (opcional)</label>
+            <Input
+              value={newUser.username}
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+              placeholder="ex: fogo"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Se preenchido, também dá pra fazer login com esse nome, além do e-mail.
+            </p>
+          </div>
+
+          {!editingUser && (
+            <div>
+              <label className="block font-semibold text-gray-700 mb-1.5">Senha (opcional)</label>
+              <Input
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                placeholder="Deixe em branco para enviar convite por e-mail"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Se definir uma senha aqui, o usuário já pode logar direto - sem senha, ele recebe um
+                e-mail pra criar a própria.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block font-semibold text-gray-700 mb-1.5">Função</label>
