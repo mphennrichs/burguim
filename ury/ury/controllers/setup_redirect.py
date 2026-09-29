@@ -7,6 +7,12 @@ _SKIP_PREFIXES = ("ury", "api", "assets", "files", "private", "login")
 # PathResolver strips leading slashes, so these are first-segment matches.
 _REDIRECT_PREFIXES = ("", "app", "desk", "apps", "setup-wizard")
 
+# Once setup IS complete, these exact (not prefix) landing paths send a
+# logged-in user to /ury instead - the real day-to-day system. Deep-linking
+# into a specific Desk screen (e.g. /app/user for an admin task Desk still
+# covers) is untouched; only the bare landing routes redirect.
+_HOME_LANDING_PATHS = {"", "app", "desk", "apps"}
+
 
 def is_ury_setup_complete():
     """Return True only once both Frappe's own setup wizard AND URY's Step 2
@@ -59,8 +65,22 @@ def _should_redirect_to_ury_setup(path):
     return first in _REDIRECT_PREFIXES
 
 
+def _should_redirect_to_ury_home(path):
+    """True when a logged-in user, once setup IS complete, lands on a bare
+    Desk/root path - /ury is the real day-to-day system now, not Frappe's
+    generic Desk. Exact match (not prefix) so a specific Desk screen someone
+    deep-links to for an admin task is never intercepted."""
+    if frappe.session.user == "Guest":
+        return False
+    if not is_ury_setup_complete():
+        return False
+    return _normalize_path(path) in _HOME_LANDING_PATHS
+
+
 def website_path_resolver(path):
-    """Send incomplete sites to the URY wizard before Desk is rendered.
+    """Send incomplete sites to the URY wizard before Desk is rendered, or -
+    once setup is done - send a bare landing path straight to /ury instead
+    of Frappe's generic Desk (see _should_redirect_to_ury_home).
 
     Used as the `website_path_resolver` hook so the redirect happens inside
     PathResolver (which handles frappe.Redirect) rather than before_request
@@ -72,17 +92,26 @@ def website_path_resolver(path):
         frappe.local.flags.redirect_location = _setup_wizard_target()
         raise frappe.Redirect(302)
 
+    if _should_redirect_to_ury_home(path):
+        frappe.local.flags.redirect_location = "/ury"
+        raise frappe.Redirect(302)
+
     return resolve_path(path)
 
 
 def on_session_creation(login_manager=None):
-    """Hint login toward the wizard. LoginManager.set_user_info may overwrite
-    home_page afterwards; website_path_resolver is the real intercept.
+    """Hint login toward the right landing page - the wizard while setup
+    isn't done, /ury once it is. LoginManager.set_user_info may overwrite
+    home_page afterwards; website_path_resolver is the real intercept for
+    either case (this is just a same-request hint so the login form's own
+    client-side redirect goes straight there too, not just a later request
+    into an unrelated Desk path).
     """
-    if is_ury_setup_complete():
-        return
     frappe.local.response["message"] = "Logged In"
-    frappe.local.response["home_page"] = _setup_wizard_target()
+    if not is_ury_setup_complete():
+        frappe.local.response["home_page"] = _setup_wizard_target()
+    elif frappe.session.user != "Guest":
+        frappe.local.response["home_page"] = "/ury"
 
 
 def extend_bootinfo(bootinfo):
