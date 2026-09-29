@@ -43,20 +43,20 @@ export const UserPage: React.FC = () => {
     enabled: true,
   });
   const [originalUser, setOriginalUser] = useState<any>(null);
-  const [allRoles, setAllRoles] = useState<{name: string}[]>([]);
 
-  const fetchRoles = async () => {
-    try {
-      const res = await call<any>('frappe.client.get_list', { doctype: 'Role', fields: ['name'], limit: 1000 });
-      const records = res.message || res;
-      setAllRoles(Array.isArray(records) ? records : []);
-    } catch (err) {
-      console.error('Failed to fetch roles', err);
-      setAllRoles([]);
-    }
-  };
-
-  const URY_ROLES = ['URY Manager', 'URY Waiter', 'URY Cashier'];
+  // Only the 2 papéis CONTEXT.md actually defines (Dono/Caixa) - not the raw
+  // list of every Role in the system (was pulling in every core Frappe/
+  // ERPNext role plus a stray "Administrator" Role record that looks like
+  // it should grant full access but isn't the tested path useAuth.isManager
+  // relies on - confirmed live: a user given that role could log in but got
+  // "Acesso Negado" on every /ury screen. "URY Manager" is the real one.
+  const STAFF_ROLE_OPTIONS: { value: string; label: string }[] = [
+    { value: 'URY Manager', label: 'Dono' },
+    { value: 'URY Cashier', label: 'Caixa' },
+  ];
+  const ROLE_LABEL: Record<string, string> = Object.fromEntries(
+    STAFF_ROLE_OPTIONS.map((r) => [r.value, r.label]),
+  );
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -72,12 +72,12 @@ export const UserPage: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchRoles();
   }, [activeBranchId]);
 
   const getDisplayRole = (user: UserRecord): string => {
     if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
-      return user.roles[0].role;
+      const role = user.roles[0].role;
+      return ROLE_LABEL[role] || role;
     }
     return 'Usuário';
   };
@@ -408,15 +408,7 @@ export const UserPage: React.FC = () => {
               id="role"
               value={newUser.role}
               onChange={(_, value) => setNewUser({ ...newUser, role: value })}
-              options={
-                allRoles.length > 0
-                  ? allRoles.map(r => ({ value: r.name, label: r.name }))
-                  : [
-                      { value: 'URY Cashier', label: 'URY Cashier' },
-                      { value: 'URY Waiter', label: 'URY Waiter' },
-                      { value: 'URY Manager', label: 'URY Manager' },
-                    ]
-              }
+              options={STAFF_ROLE_OPTIONS}
             />
           </div>
 
