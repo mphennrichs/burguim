@@ -4,7 +4,7 @@ import { Factory, Plus, Trash2, Edit2 } from 'lucide-react';
 import { Card, Button, Input, Spinner, showToast } from '@ury/ui';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { dashboardService } from '../../services/dashboard';
-import { call } from '@ury/core';
+import { call, sortOptionsAlphabetically } from '@ury/core';
 import SideDrawer from '../../components/layout/SideDrawer';
 
 interface ProductionUnitRecord {
@@ -348,7 +348,7 @@ export const ProductionUnitPage: React.FC = () => {
               id="branch"
               value={newUnit.branch}
               onChange={(_, val) => setNewUnit({ ...newUnit, branch: val })}
-              options={branches.map(b => ({ value: b.name, label: b.name }))}
+              options={sortOptionsAlphabetically(branches.map(b => ({ value: b.name, label: b.name })))}
               placeholder="Selecione a Filial..."
             />
           </div>
@@ -382,7 +382,7 @@ export const ProductionUnitPage: React.FC = () => {
                       <SearchableSelect
                         id={`item-group-${index}`}
                         value={row.item_group}
-                        options={filteredOptions}
+                        options={sortOptionsAlphabetically(filteredOptions)}
                         placeholder="Selecione o Grupo de Itens..."
                         onChange={(_, value) => {
                           const isDup = itemGroupRows.some((r, rIdx) => r.item_group === value && rIdx !== index);

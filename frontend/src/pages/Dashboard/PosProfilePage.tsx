@@ -3,7 +3,7 @@ import { useBranchContext } from '../../context/BranchContext';
 import { Printer, Shield, Settings2, Plus, X, ArrowLeft, Edit2, Eye, Layers, Save } from 'lucide-react';
 import { Card, Button, Badge, Input, Spinner, showToast } from '@ury/ui';
 import { Switch } from '../../components/ui/switch';
-import { call, getDefaultSellingPriceList, parseFrappeError } from '@ury/core';
+import { call, getDefaultSellingPriceList, parseFrappeError, sortOptionsAlphabetically } from '@ury/core';
 import SideDrawer from '../../components/layout/SideDrawer';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 
@@ -456,10 +456,10 @@ export const PosProfilePage: React.FC = () => {
                         disabled={!isEditMode}
                         value={profileForm.branch || ''}
                         onChange={(_, val) => setProfileForm(p => ({ ...p, branch: val }))}
-                        options={[
+                        options={sortOptionsAlphabetically([
                           { value: '', label: 'Selecione a Filial' },
                           ...branches.map((b: any) => ({ value: b.id, label: b.name }))
-                        ]}
+                        ])}
                         placeholder="Selecione a Filial"
                       />
                     </div>
@@ -470,10 +470,10 @@ export const PosProfilePage: React.FC = () => {
                         disabled={!isEditMode}
                         value={profileForm.company || ''}
                         onChange={(_, val) => setProfileForm(p => ({ ...p, company: val }))}
-                        options={[
+                        options={sortOptionsAlphabetically([
                           { value: '', label: 'Selecione a Empresa' },
                           ...options.companies.map((c: any) => ({ value: c.name, label: c.name }))
-                        ]}
+                        ])}
                         placeholder="Selecione a Empresa"
                       />
                     </div>
@@ -484,10 +484,10 @@ export const PosProfilePage: React.FC = () => {
                         disabled={!isEditMode}
                         value={profileForm.warehouse || ''}
                         onChange={(_, val) => setProfileForm(p => ({ ...p, warehouse: val }))}
-                        options={[
+                        options={sortOptionsAlphabetically([
                           { value: '', label: 'Selecione o Depósito' },
                           ...options.warehouses.map((w: any) => ({ value: w.name, label: w.name }))
-                        ]}
+                        ])}
                         placeholder="Selecione o Depósito"
                       />
                     </div>
@@ -628,10 +628,10 @@ export const PosProfilePage: React.FC = () => {
                               newRows[idx].user = val;
                               setProfileForm({...profileForm, applicable_for_users: newRows});
                             }}
-                            options={[
+                            options={sortOptionsAlphabetically([
                               { value: '', label: 'Selecione o Usuário' },
                               ...options.users.map((u: any) => ({ value: u.name, label: u.full_name || u.name }))
-                            ]}
+                            ])}
                             placeholder="Selecione o Usuário"
                           />
                         </div>
@@ -690,10 +690,10 @@ export const PosProfilePage: React.FC = () => {
                               newRows[idx].mode_of_payment = val;
                               setProfileForm({...profileForm, payments: newRows});
                             }}
-                            options={[
+                            options={sortOptionsAlphabetically([
                               { value: '', label: 'Selecione a Forma de Pagamento' },
                               ...options.payments.map((p: any) => ({ value: p.name, label: p.name }))
-                            ]}
+                            ])}
                             placeholder="Selecione a Forma de Pagamento"
                           />
                         </div>
@@ -850,10 +850,10 @@ export const PosProfilePage: React.FC = () => {
                 id="add_profile_company"
                 value={addForm.company}
                 onChange={(_, val) => setAddForm({...addForm, company: val})}
-                options={[
+                options={sortOptionsAlphabetically([
                   { value: '', label: 'Selecione a Empresa' },
                   ...options.companies.map((c: any) => ({ value: c.name, label: c.name }))
-                ]}
+                ])}
                 placeholder="Selecione a Empresa"
               />
             </div>
@@ -864,10 +864,10 @@ export const PosProfilePage: React.FC = () => {
                   id="add_profile_branch"
                   value={addForm.branch}
                   onChange={(_, val) => setAddForm({...addForm, branch: val})}
-                  options={[
+                  options={sortOptionsAlphabetically([
                     { value: '', label: 'Selecione a Filial' },
                     ...branches.map((b: any) => ({ value: b.id, label: b.name }))
-                  ]}
+                  ])}
                   placeholder="Selecione a Filial"
                 />
               ) : (
@@ -882,10 +882,10 @@ export const PosProfilePage: React.FC = () => {
                 id="add_profile_warehouse"
                 value={addForm.warehouse}
                 onChange={(_, val) => setAddForm({...addForm, warehouse: val})}
-                options={[
+                options={sortOptionsAlphabetically([
                   { value: '', label: 'Selecione o Depósito' },
                   ...options.warehouses.map((w: any) => ({ value: w.name, label: w.name }))
-                ]}
+                ])}
                 placeholder="Selecione o Depósito"
               />
             </div>
@@ -921,10 +921,10 @@ export const PosProfilePage: React.FC = () => {
                         newRows[idx].user = val;
                         setAddForm({...addForm, applicable_for_users: newRows});
                       }}
-                      options={[
+                      options={sortOptionsAlphabetically([
                         { value: '', label: 'Selecione o Usuário' },
                         ...options.users.map((u: any) => ({ value: u.name, label: u.full_name || u.name }))
-                      ]}
+                      ])}
                       placeholder="Selecione o Usuário"
                     />
                   </div>
@@ -974,10 +974,10 @@ export const PosProfilePage: React.FC = () => {
                         newRows[idx].mode_of_payment = val;
                         setAddForm({...addForm, payments: newRows});
                       }}
-                      options={[
+                      options={sortOptionsAlphabetically([
                         { value: '', label: 'Selecione a Forma de Pagamento' },
                         ...options.payments.map((p: any) => ({ value: p.name, label: p.name }))
-                      ]}
+                      ])}
                       placeholder="Selecione a Forma de Pagamento"
                     />
                   </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { call, formatCurrency } from '@ury/core';
+import { call, formatCurrency, sortOptionsAlphabetically } from '@ury/core';
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from '@ury/ui';
 import { Banknote, TrendingUp, TrendingDown, Percent, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useBranchContext } from '../../context/BranchContext';
@@ -190,10 +190,10 @@ export function DailyPnl() {
               id="branch-select"
               value={branch}
               onChange={(_, val) => setBranch(val)}
-              options={branches.map((b) => ({
+              options={sortOptionsAlphabetically(branches.map((b) => ({
                 value: b.id,
                 label: b.name,
-              }))}
+              })))}
               strict
             />
           </div>

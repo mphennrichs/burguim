@@ -24,6 +24,12 @@ import {
 } from '../../services/stockOverview';
 import { CreateItemInline } from '../../components/common/CreateItemInline';
 
+function sortByItemName<T extends { item_name?: string; name: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) =>
+    (a.item_name || a.name).localeCompare(b.item_name || b.name, 'pt-BR', { sensitivity: 'base' }),
+  );
+}
+
 type Tab = 'receitas' | 'ingredientes' | 'produtos' | 'nova';
 
 interface IngredientRow {
@@ -675,7 +681,7 @@ export const BomPage: React.FC = () => {
                         <>
                           <Select id="bom-output" value={outputItem} onChange={(e) => setOutputItem(e.target.value)}>
                             <option value="">Selecione um item</option>
-                            {outputCandidates.map((item) => (
+                            {sortByItemName(outputCandidates).map((item) => (
                               <option key={item.name} value={item.name}>
                                 {item.item_name}
                               </option>
@@ -717,7 +723,7 @@ export const BomPage: React.FC = () => {
                               onChange={(e) => updateRow(index, { item_code: e.target.value })}
                             >
                               <option value="">Selecione</option>
-                              {candidates.map((item) => (
+                              {sortByItemName(candidates).map((item) => (
                                 <option key={item.name} value={item.name}>
                                   {item.item_name}
                                 </option>

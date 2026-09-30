@@ -29,6 +29,12 @@ import { CreateItemInline } from '../../components/common/CreateItemInline';
 
 type Tab = 'custos' | 'validade' | 'consolidado' | 'comprar' | 'produzir' | 'config';
 
+function sortByItemName<T extends { item_name?: string; name: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) =>
+    (a.item_name || a.name).localeCompare(b.item_name || b.name, 'pt-BR', { sensitivity: 'base' }),
+  );
+}
+
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -732,7 +738,7 @@ export const StockOverviewPage: React.FC = () => {
                       onChange={(e) => handleItemChange(e.target.value)}
                     >
                       <option value="">Selecione um ingrediente</option>
-                      {purchasableItems.map((item) => (
+                      {sortByItemName(purchasableItems).map((item) => (
                         <option key={item.name} value={item.name}>
                           {item.item_name}
                         </option>
@@ -861,7 +867,7 @@ export const StockOverviewPage: React.FC = () => {
                         onChange={(e) => handleProdItemChange(e.target.value)}
                       >
                         <option value="">Selecione</option>
-                        {productionItems.map((item) => (
+                        {sortByItemName(productionItems).map((item) => (
                           <option key={item.name} value={item.name}>
                             {item.item_name}
                           </option>

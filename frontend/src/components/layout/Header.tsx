@@ -193,7 +193,7 @@ export const Header: React.FC = () => {
 
                 <div className="my-1 border-t border-gray-100" />
 
-                {branches.map((b) => (
+                {[...branches].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map((b) => (
                   <button
                     key={b.id}
                     onClick={() => {

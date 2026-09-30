@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useConfigure } from '../../../context/ConfigureContext';
-import { call } from '@ury/core';
+import { call, sortOptionsAlphabetically } from '@ury/core';
 import { SearchableSelect, Option } from '../../common/SearchableSelect';
 import { Button } from '@ury/ui';
 import { Plus, Trash2 } from 'lucide-react';
@@ -23,7 +23,7 @@ export function PaymentSection() {
       .then((res: any) => {
         const rows: { name: string }[] = res?.message ?? res ?? [];
         const names = rows.map((r: { name: string }) => r.name);
-        const opts = names.map(n => ({ value: n, label: n }));
+        const opts = sortOptionsAlphabetically(names.map(n => ({ value: n, label: n })));
         setAllModes(opts);
 
         // Pre-select defaults that exist in the list and aren't already selected

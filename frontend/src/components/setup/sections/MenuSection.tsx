@@ -5,14 +5,15 @@ import { Plus, Trash2 } from 'lucide-react';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { Switch } from '../../ui/switch';
 import { MenuBulkUpload } from '../../common/MenuBulkUpload';
+import { sortOptionsAlphabetically } from '@ury/core';
 
-const COURSE_OPTIONS = [
+const COURSE_OPTIONS = sortOptionsAlphabetically([
   { value: 'Starters', label: 'Entradas' },
   { value: 'Main Course', label: 'Prato Principal' },
   { value: 'Beverages', label: 'Bebidas' },
   { value: 'Desserts', label: 'Sobremesas' },
   { value: 'Sides', label: 'Acompanhamentos' },
-];
+]);
 
 export function MenuSection() {
   const {

@@ -7,6 +7,7 @@ import { setupService, SetupPayload } from '../../services/setup';
 import setupSchema from '../../data/forms/setup.json';
 import { ProgressModal } from '../../components/setup/ProgressModal';
 import { Switch } from '../../components/ui/switch';
+import { sortOptionsAlphabetically } from '@ury/core';
 
 const FISCAL_YEARS: Record<string, string> = {
   Afghanistan: '12-21',
@@ -96,10 +97,10 @@ export default function SetupPage() {
 
         setDynamicOptions(prev => ({
           ...prev,
-          languages: formattedLangs,
-          countries: formattedCountries,
-          currencies: formattedCurrencies,
-          timezones: formattedTimezones
+          languages: sortOptionsAlphabetically(formattedLangs),
+          countries: sortOptionsAlphabetically(formattedCountries),
+          currencies: sortOptionsAlphabetically(formattedCurrencies),
+          timezones: sortOptionsAlphabetically(formattedTimezones)
         }));
         
         const defaultLanguage = (defaults.languages as any)?.default_language || 'English';
@@ -127,9 +128,12 @@ export default function SetupPage() {
 
       setDynamicOptions(prev => ({
         ...prev,
-        charts_of_accounts: formattedCharts
+        // Sorted for display, but the API's own original order still picks
+        // the default below (its first entry is the recommended chart for
+        // this country, not just alphabetically first).
+        charts_of_accounts: sortOptionsAlphabetically(formattedCharts)
       }));
-      
+
       if (defaults.timezone) formRef.current?.setFieldValue('timezone', defaults.timezone);
       if (defaults.currency) formRef.current?.setFieldValue('currency', defaults.currency);
       if (formattedCharts[0]?.value) {

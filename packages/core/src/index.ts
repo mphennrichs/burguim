@@ -9,3 +9,5 @@ export { formatCurrency, formatCompactCurrency, formatInvoiceTime, flt, getDefau
 export { initPrinting, loadQzPrinter, disconnectQzPrinter, printWithQz } from './print/qz';
 export { validateFieldValue } from './utils/validateField';
 export type { ValidationMessages } from './utils/validateField';
+export { sortOptionsAlphabetically } from './utils/sortOptions';
+export type { SortableOption } from './utils/sortOptions';

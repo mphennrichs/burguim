@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useBranchContext } from '../../context/BranchContext';
 import { Utensils, Search, Plus, LayoutGrid, List, Edit2, Check, X, Trash2 } from 'lucide-react';
 import { Card, Button, Badge, Input, Spinner, showToast } from '@ury/ui';
-import { formatCurrency, call, parseFrappeError } from '@ury/core';
+import { formatCurrency, call, parseFrappeError, sortOptionsAlphabetically } from '@ury/core';
 import { dashboardService } from '../../services/dashboard';
 import SideDrawer from '../../components/layout/SideDrawer';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
@@ -819,10 +819,10 @@ export const MenuPage: React.FC = () => {
             <SearchableSelect
               id="selected-menu"
               value={selectedMenu}
-              options={[
+              options={sortOptionsAlphabetically([
                 { value: 'all', label: 'Todos os Itens do Menu' },
                 ...menus.map((m) => ({ value: m.name, label: m.menu_name || m.name }))
-              ]}
+              ])}
               placeholder="Selecionar Menu..."
               onChange={(_, val) => setSelectedMenu(val)}
             />
@@ -832,10 +832,10 @@ export const MenuPage: React.FC = () => {
             <SearchableSelect
               id="category-filter"
               value={categoryFilter}
-              options={[
+              options={sortOptionsAlphabetically([
                 { value: 'all', label: 'Todas as Categorias' },
                 ...categories.map((c) => ({ value: c, label: c }))
-              ]}
+              ])}
               placeholder="Selecionar Categoria..."
               onChange={(_, val) => setCategoryFilter(val)}
             />
@@ -1094,7 +1094,7 @@ export const MenuPage: React.FC = () => {
                 id="target_menu"
                 value={newItem.target_menu}
                 onChange={(_, value) => setNewItem({ ...newItem, target_menu: value })}
-                options={menus.map(m => ({ value: m.name, label: m.menu_name || m.name }))}
+                options={sortOptionsAlphabetically(menus.map(m => ({ value: m.name, label: m.menu_name || m.name })))}
               />
             </div>
           )}
@@ -1106,12 +1106,12 @@ export const MenuPage: React.FC = () => {
                 id="existing-item"
                 value={addExistingItem}
                 placeholder="Buscar ingrediente, preparo ou produto..."
-                options={[
+                options={sortOptionsAlphabetically([
                   { value: '', label: 'Nenhum - criar item novo' },
                   ...allItems
                     .filter((i) => !items.some((existing) => existing.item === i.name))
                     .map((i) => ({ value: i.name, label: i.item_name || i.name })),
-                ]}
+                ])}
                 onChange={(_, value) => {
                   setAddExistingItem(value);
                   const picked = allItems.find((i) => i.name === value);
@@ -1209,11 +1209,11 @@ export const MenuPage: React.FC = () => {
                   setNewItem({ ...newItem, course: value });
                 }
               }}
-              options={[
+              options={sortOptionsAlphabetically([
                 { value: '', label: 'Nenhuma' },
                 ...availableCourses.map(c => ({ value: c.name, label: c.name })),
                 { value: 'CREATE_NEW_COURSE', label: '+ Criar Nova Categoria' }
-              ]}
+              ])}
             />
           </div>
 
@@ -1301,7 +1301,7 @@ export const MenuPage: React.FC = () => {
               id="branch"
               value={newMenu.branch}
               onChange={(_, value) => setNewMenu({ ...newMenu, branch: value })}
-              options={branchOptions.map(b => ({ value: b.name, label: b.title || b.name }))}
+              options={sortOptionsAlphabetically(branchOptions.map(b => ({ value: b.name, label: b.title || b.name })))}
               placeholder="Selecionar Filial..."
             />
           </div>
@@ -1326,10 +1326,10 @@ export const MenuPage: React.FC = () => {
               </div>
 
               {newMenuRows.map((row, index) => {
-                const options = [
+                const options = sortOptionsAlphabetically([
                   ...allItems.map(i => ({ value: i.name, label: i.item_name || i.name })),
                   { value: 'CREATE_NEW_ITEM', label: '+ Criar Novo Item' }
-                ];
+                ]);
 
                 return (
                   <div key={row.id} className="flex items-center gap-3 relative" style={{ zIndex: 50 - index }}>
@@ -1498,7 +1498,7 @@ export const MenuPage: React.FC = () => {
               value={newCourseIcon}
               onChange={(_, value) => setNewCourseIcon(value)}
               placeholder="Selecionar Ícone..."
-              options={[
+              options={sortOptionsAlphabetically([
                 { value: '', label: 'Nenhum' },
                 { value: 'Utensils', label: 'Talheres' },
                 { value: 'Coffee', label: 'Café' },
@@ -1510,7 +1510,7 @@ export const MenuPage: React.FC = () => {
                 { value: 'Wine', label: 'Vinho' },
                 { value: 'Soup', label: 'Sopa' },
                 { value: 'Sandwich', label: 'Sanduíche' },
-              ]}
+              ])}
             />
           </div>
 

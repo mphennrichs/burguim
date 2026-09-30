@@ -4,7 +4,7 @@ import { Save, Plus, X, Eye, Edit2, ArrowLeft, Building2, UtensilsCrossed, Map }
 import { Card, Button, Input, Spinner, showToast } from '@ury/ui';
 import { Switch } from '../../components/ui/switch';
 import SideDrawer from '../../components/layout/SideDrawer';
-import { call, getLoggedUser } from '@ury/core';
+import { call, getLoggedUser, sortOptionsAlphabetically } from '@ury/core';
 import { dashboardService } from '../../services/dashboard';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 
@@ -578,10 +578,10 @@ export const BranchPage: React.FC = () => {
                         id="active_menu"
                         value={restaurantForm.active_menu || ''}
                         onChange={(_, val) => setRestaurantForm(p => ({ ...p, active_menu: val }))}
-                        options={[
+                        options={sortOptionsAlphabetically([
                           { value: '', label: 'Nenhum' },
                           ...menus.map((m) => ({ value: m.name, label: m.menu_name || m.name }))
-                        ]}
+                        ])}
                         disabled={!isEditMode}
                         placeholder="Nenhum"
                       />
@@ -628,10 +628,10 @@ export const BranchPage: React.FC = () => {
                                     newRows[idx].ury_room = val;
                                     setRestaurantForm({...restaurantForm, menu_for_room: newRows});
                                   }}
-                                  options={[
+                                  options={sortOptionsAlphabetically([
                                     { value: '', label: 'Selecione a Sala' },
                                     ...rooms.map(r => ({ value: r.name, label: r.room_name || r.name }))
-                                  ]}
+                                  ])}
                                   disabled={!isEditMode}
                                   placeholder="Selecione a Sala"
                                 />
@@ -647,10 +647,10 @@ export const BranchPage: React.FC = () => {
                                       newRows[idx].ury_menu = val;
                                       setRestaurantForm({...restaurantForm, menu_for_room: newRows});
                                     }}
-                                    options={[
+                                    options={sortOptionsAlphabetically([
                                       { value: '', label: 'Selecione o Cardápio' },
                                       ...menus.map(m => ({ value: m.name, label: m.menu_name || m.name }))
-                                    ]}
+                                    ])}
                                     disabled={!isEditMode}
                                     placeholder="Selecione o Cardápio"
                                   />
@@ -699,10 +699,10 @@ export const BranchPage: React.FC = () => {
                       id="default_room"
                       value={restaurantForm.default_room || ''}
                       onChange={(_, val) => setRestaurantForm(p => ({ ...p, default_room: val }))}
-                      options={[
+                      options={sortOptionsAlphabetically([
                         { value: '', label: 'Nenhuma' },
                         ...rooms.map((r) => ({ value: r.name, label: r.room_name || r.name }))
-                      ]}
+                      ])}
                       disabled={!isEditMode}
                       placeholder="Nenhuma"
                     />
@@ -766,10 +766,10 @@ export const BranchPage: React.FC = () => {
                                       newRows[idx].ury_menu = val;
                                       setRestaurantForm({...restaurantForm, order_type_menu: newRows});
                                     }}
-                                    options={[
+                                    options={sortOptionsAlphabetically([
                                       { value: '', label: 'Selecione o Cardápio' },
                                       ...menus.map(m => ({ value: m.name, label: m.menu_name || m.name }))
-                                    ]}
+                                    ])}
                                     disabled={!isEditMode}
                                     placeholder="Selecione o Cardápio"
                                   />
@@ -905,10 +905,10 @@ export const BranchPage: React.FC = () => {
               id="add_branch_company"
               value={addForm.company}
               onChange={(_, val) => setAddForm({...addForm, company: val})}
-              options={[
+              options={sortOptionsAlphabetically([
                 { value: '', label: 'Selecione a Empresa' },
                 ...companies.map((c: any) => ({ value: c.name, label: c.name }))
-              ]}
+              ])}
               placeholder="Selecione a Empresa"
             />
           </div>

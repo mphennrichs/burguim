@@ -3,6 +3,17 @@ import { useConfigure, generateRandomPassword } from '../../../context/Configure
 import { Input, Button } from '@ury/ui';
 import { Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { SearchableSelect } from '../../common/SearchableSelect';
+import { sortOptionsAlphabetically } from '@ury/core';
+
+// Mesmos 2 papéis reais que a tela de Usuário (Dashboard/UserPage.tsx)
+// oferece - "URY Captain" era sobra do template genérico de salão/mesa
+// (Burguim não tem isso, ver CONTEXT.md), e mostrar o nome técnico da
+// Role em vez de um rótulo em português só confundia na hora de criar o
+// primeiro usuário no assistente de configuração.
+const USER_ROLE_OPTIONS = sortOptionsAlphabetically([
+  { value: 'URY Manager', label: 'Dono' },
+  { value: 'URY Cashier', label: 'Caixa' },
+]);
 
 function UserRow({ user, usersLength, updateUser, deleteUser }: any) {
   const [showPassword, setShowPassword] = React.useState(false);
@@ -71,11 +82,7 @@ function UserRow({ user, usersLength, updateUser, deleteUser }: any) {
           <SearchableSelect
             id={`user-role-${user.id}`}
             value={user.role}
-            options={[
-              { value: 'URY Cashier', label: 'URY Cashier' },
-              { value: 'URY Captain', label: 'URY Captain' },
-              { value: 'URY Manager', label: 'URY Manager' },
-            ]}
+            options={USER_ROLE_OPTIONS}
             onChange={(_, val) => updateUser(user.id, { role: val })}
           />
         </div>

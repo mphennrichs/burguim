@@ -798,9 +798,9 @@ export const ReportSettingsPage: React.FC = () => {
                                   )
                                 }
                               >
+                                <SelectItem value="Online Orders">Pedidos Online</SelectItem>
                                 <SelectItem value="Gross Sales">Vendas Brutas</SelectItem>
                                 <SelectItem value="Net Sales">Vendas Líquidas</SelectItem>
-                                <SelectItem value="Online Orders">Pedidos Online</SelectItem>
                               </Select>
                             </td>
                             <td className="p-3.5 text-right">

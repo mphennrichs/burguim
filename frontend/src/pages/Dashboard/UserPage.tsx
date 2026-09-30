@@ -5,7 +5,7 @@ import { Card, Button, Badge, Input, Spinner, showToast } from '@ury/ui';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { Switch } from '../../components/ui/switch';
 import { dashboardService } from '../../services/dashboard';
-import { call, parseFrappeError } from '@ury/core';
+import { call, parseFrappeError, sortOptionsAlphabetically } from '@ury/core';
 import { useAuth } from '../../store/useAuth';
 import SideDrawer from '../../components/layout/SideDrawer';
 
@@ -52,10 +52,10 @@ export const UserPage: React.FC = () => {
   // it should grant full access but isn't the tested path useAuth.isManager
   // relies on - confirmed live: a user given that role could log in but got
   // "Acesso Negado" on every /ury screen. "URY Manager" is the real one.
-  const STAFF_ROLE_OPTIONS: { value: string; label: string }[] = [
+  const STAFF_ROLE_OPTIONS: { value: string; label: string }[] = sortOptionsAlphabetically([
     { value: 'URY Manager', label: 'Dono' },
     { value: 'URY Cashier', label: 'Caixa' },
-  ];
+  ]);
   const ROLE_LABEL: Record<string, string> = Object.fromEntries(
     STAFF_ROLE_OPTIONS.map((r) => [r.value, r.label]),
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select, Textarea, showToast } from '@ury/ui';
-import { translateUom, parseFrappeError } from '@ury/core';
+import { translateUom, parseFrappeError, sortOptionsAlphabetically } from '@ury/core';
 import { stockOverviewService } from '../../services/stockOverview';
 
 // Two UI contexts, not two "kinds" of item (see CONTEXT.md "Tipos de
@@ -130,9 +130,9 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Unidade</label>
           <Select value={uom} onChange={(e) => setUom(e.target.value)}>
-            {uoms.map((u) => (
-              <option key={u} value={u}>
-                {translateUom(u)}
+            {sortOptionsAlphabetically(uoms.map((u) => ({ value: u, label: translateUom(u) }))).map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </Select>
@@ -182,7 +182,7 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
             <label className="text-xs font-medium text-muted-foreground">Grupo (opcional)</label>
             <Select value={group} onChange={(e) => setGroup(e.target.value)}>
               <option value="">Automático</option>
-              {groups.map((g) => (
+              {[...groups].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })).map((g) => (
                 <option key={g} value={g}>
                   {g}
                 </option>
