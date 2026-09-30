@@ -210,31 +210,21 @@ export const UserPage: React.FC = () => {
           return;
         }
 
-        await call('frappe.client.insert', {
-          doc: {
-            doctype: 'User',
-            email: newUser.email,
-            first_name: newUser.first_name,
-            last_name: newUser.last_name,
-            username: newUser.username || undefined,
-            // Só manda o e-mail de "defina sua senha" quando o Dono NÃO
-            // definiu uma senha na hora (abaixo) - já fica pronta pra uso.
-            send_welcome_email: newUser.password ? 0 : 1,
-            enabled: newUser.enabled ? 1 : 0,
-            roles: [{ role: newUser.role }],
-          },
+        // create_staff_user (não frappe.client.insert direto) - além de
+        // new_password ser permlevel 1 (só leitura pra URY Manager), um
+        // insert genérico nunca vincula o usuário a uma Filial (URY User
+        // em Branch), e sem isso getBranch() derruba TODA tela operacional
+        // (Caixa, Cozinha, Receitas, Estoque) com "User is not Associated
+        // with any Branch" - confirmado ao vivo.
+        await call('ury.ury.api.users.create_staff_user', {
+          email: newUser.email,
+          first_name: newUser.first_name,
+          last_name: newUser.last_name,
+          username: newUser.username || undefined,
+          role: newUser.role,
+          password: newUser.password || undefined,
+          enabled: newUser.enabled ? 1 : 0,
         });
-
-        // new_password é permlevel 1 em User (somente leitura pra URY
-        // Manager pelas permissões padrão) - frappe.client.insert não
-        // consegue setá-lo mesmo vindo no doc. set_user_password() existe
-        // exatamente pra isso: roda ignore_permissions=True no servidor.
-        if (newUser.password) {
-          await call('ury.ury.api.users.set_user_password', {
-            user: newUser.email,
-            new_password: newUser.password,
-          });
-        }
       }
       fetchUsers();
       setIsDrawerOpen(false);
