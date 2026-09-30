@@ -627,8 +627,9 @@ export const BomPage: React.FC = () => {
             <div className="space-y-4">
               <CreateItemInline
                 kind="ingredient"
-                label="Criar ingrediente novo"
+                label="Novo ingrediente"
                 onCreated={handleIngredientCreatedInTab}
+                variant="button"
               />
               {ingredients.length === 0 ? (
                 <Card>

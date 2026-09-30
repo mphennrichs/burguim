@@ -25,9 +25,15 @@ interface CreateItemInlineProps {
     shelf_life_in_days: number | null;
     description: string | null;
   }) => void;
+  // 'link' (default): small inline text trigger - fits next to a form
+  // field or inside a row (ex: BOM output/ingredient pickers). 'button':
+  // a proper top-right corner Button, matching the "+ Nova receita"
+  // pattern (ex: the Ingredientes tab's own list, which is a standalone
+  // page section, not an inline pick-or-create field).
+  variant?: 'link' | 'button';
 }
 
-export function CreateItemInline({ kind, label, onCreated }: CreateItemInlineProps) {
+export function CreateItemInline({ kind, label, onCreated, variant = 'link' }: CreateItemInlineProps) {
   const [open, setOpen] = useState(false);
   const [uoms, setUoms] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
@@ -100,6 +106,19 @@ export function CreateItemInline({ kind, label, onCreated }: CreateItemInlinePro
   }
 
   if (!open) {
+    if (variant === 'button') {
+      // Right-aligned only while collapsed (matches "+ Nova receita"'s own
+      // row) - once open, the form below renders full-width, unconstrained
+      // by this wrapper (same as "Nova receita" itself, which swaps to an
+      // entirely separate, non-flex-aligned view when clicked).
+      return (
+        <div className="flex justify-end">
+          <Button type="button" size="sm" onClick={() => setOpen(true)}>
+            + {label}
+          </Button>
+        </div>
+      );
+    }
     return (
       <button
         type="button"
