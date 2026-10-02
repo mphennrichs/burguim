@@ -342,3 +342,26 @@ class TestKitchenCancel(FrappeTestCase):
             self._stock_qty(TEST_INGREDIENT), ingredient_before,
             "The needs-prep item's (Hambúrguer) ingredient must remain deducted as loss.",
         )
+
+    def test_delivering_orders_that_sold_out_a_resold_item_still_submits(self):
+        """URY deducts stock when the Pedido is created and is the only stock
+        authority. ERPNext's POS Invoice stock handling on submit used to run a
+        second model on top (availability = Bin minus unclosed POS Invoices, plus a
+        Serial and Batch Bundle per batch row), so delivering the last units failed."""
+        self._purchase(TEST_RESOLD, qty=2)
+        invoices = [
+            self._create_order([{"item": TEST_RESOLD, "item_name": TEST_RESOLD, "qty": 1}]) for _ in range(2)
+        ]
+
+        frappe.set_user(self.manager.name)
+        for invoice in invoices:
+            for status in ("Preparando", "Pronto", "Retirado"):
+                advance_kitchen_status(invoice, status)
+
+        for invoice in invoices:
+            self.assertEqual(frappe.db.get_value("POS Invoice", invoice, "docstatus"), 1)
+            self.assertFalse(
+                frappe.db.exists("Serial and Batch Bundle", {"voucher_type": "POS Invoice", "voucher_no": invoice}),
+                "ERPNext must not move/reserve batch stock for a POS Invoice - URY already did.",
+            )
+        self.assertEqual(self._stock_qty(TEST_RESOLD), 0, "Each sale must be deducted exactly once.")

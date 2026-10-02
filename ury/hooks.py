@@ -173,9 +173,9 @@ has_permission = {
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+override_doctype_class = {
+	"POS Invoice": "ury.ury.controllers.pos_invoice.URYPOSInvoice",
+}
 
 # Document Events
 # ---------------
