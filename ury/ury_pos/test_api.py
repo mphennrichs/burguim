@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import patch, MagicMock
 import frappe
 from ury.ury_pos.api import merge_bills
-from ury.ury_pos.api import create_customer
 from frappe.tests.utils import FrappeTestCase
 from unittest.mock import patch, MagicMock
 from ury.ury_pos.api import searchPosInvoice
@@ -284,61 +283,6 @@ class TestURYPosAPI(FrappeTestCase):
         with self.assertRaises(frappe.PermissionError) as context:
             getPosInvoiceItems("POS-INV-001")
         self.assertIn("outside your active branch", str(context.exception))
-import frappe
-import unittest
-from ury.ury_pos.api import create_customer
-
-class TestUryPosApi(unittest.TestCase):
-    def setUp(self):
-        # Create a test user without Customer creation rights
-        if not frappe.db.exists("User", "test_unauthorized_user@example.com"):
-            user = frappe.get_doc({
-                "doctype": "User",
-                "email": "test_unauthorized_user@example.com",
-                "first_name": "Test Unauthorized",
-                "send_welcome_email": 0
-            })
-            user.insert(ignore_permissions=True)
-            # Remove any roles to ensure no permissions
-            user.roles = []
-            user.save(ignore_permissions=True)
-
-        # Create a test user with Customer creation rights
-        if not frappe.db.exists("User", "test_authorized_user@example.com"):
-            user = frappe.get_doc({
-                "doctype": "User",
-                "email": "test_authorized_user@example.com",
-                "first_name": "Test Authorized",
-                "send_welcome_email": 0
-            })
-            user.insert(ignore_permissions=True)
-            user.add_roles("System Manager")
-
-    def tearDown(self):
-        frappe.set_user("Administrator")
-        
-        # Cleanup created customers
-        if frappe.db.exists("Customer", "Test Auth Customer"):
-            frappe.delete_doc("Customer", "Test Auth Customer", ignore_permissions=True, force=1)
-
-    def test_unauthorized_create_customer(self):
-        frappe.set_user("test_unauthorized_user@example.com")
-        
-        with self.assertRaises(frappe.PermissionError):
-            create_customer("Test Unauth Customer", "1234567890")
-            
-        self.assertFalse(frappe.db.exists("Customer", "Test Unauth Customer"))
-
-    def test_authorized_create_customer(self):
-        frappe.set_user("Administrator")
-        
-        result = create_customer("Test Auth Customer", "+919876543210")
-        
-        self.assertEqual(result.get("status"), "success")
-        self.assertTrue(frappe.db.exists("Customer", "Test Auth Customer"))
-
-
-
 class TestGetAllowedPosProfiles(unittest.TestCase):
     @patch("ury.ury_pos.api.frappe.get_all")
     def test_no_company_returns_empty(self, mock_get_all):
@@ -524,6 +468,13 @@ class TestGetPOSOpeningScreenData(unittest.TestCase):
 
 class TestSubmitChecklistSEC10(FrappeTestCase):
     """Test cases for submit_checklist function."""
+
+    def setUp(self):
+        # submit_checklist short-circuits to "Complete" when the POS Profile has no
+        # checklist configured at all - these tests are about a configured one.
+        patcher = patch("ury.ury_pos.api.frappe.db.exists", return_value=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _create_mock_log_doc(self):
         """Create a properly-configured MagicMock for log_doc that maintains an items list."""

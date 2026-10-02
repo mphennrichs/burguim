@@ -35,7 +35,7 @@ MOD = "ury.ury.api.self_ordering"
 class TestQRTokenRoundtrip(unittest.TestCase):
     @patch(f"{MOD}.frappe.db.exists")
     @patch(f"{MOD}.frappe.get_doc")
-    @patch(f"{MOD}._get_profile_secret")
+    @patch(f"{MOD}.frappe.db.get_value")
     def test_verify_qr_token_valid_table_token(self, mock_secret, mock_get_doc, mock_exists):
         secret = "test-secret"
         mock_secret.return_value = secret
@@ -56,7 +56,7 @@ class TestQRTokenRoundtrip(unittest.TestCase):
         self.assertEqual(table, "Table 7")
         self.assertEqual(source, "QR Table")
 
-    @patch(f"{MOD}._get_profile_secret")
+    @patch(f"{MOD}.frappe.db.get_value")
     def test_verify_qr_token_bad_signature_rejected(self, mock_secret):
         mock_secret.return_value = "test-secret"
         payload = "Profile A|Table 7"
@@ -76,6 +76,13 @@ class TestAddCustomerItemsAppendOnly(unittest.TestCase):
     appends new rows and re-derives price server-side — it must never trust
     a client-supplied rate/tax/cost-center, and must never replace existing
     invoice.items wholesale."""
+
+    def setUp(self):
+        # Stock deduction at order confirmation is covered for real in
+        # test_stock_deduction/test_caixa; here it's outside the unit under test.
+        patcher = patch(f"{MOD}.deduct_stock_for_order")
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _session_doc(self, table="Table 7", invoice=None, source="QR Table"):
         session = MagicMock()
@@ -696,9 +703,16 @@ class TestQRPickup(unittest.TestCase):
     (add_customer_items, get_customer_order) must work exactly as it does
     for a table session, and the response must carry a pickup reference."""
 
+    def setUp(self):
+        # Stock deduction at order confirmation is covered for real in
+        # test_stock_deduction/test_caixa; here it's outside the unit under test.
+        patcher = patch(f"{MOD}.deduct_stock_for_order")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     @patch(f"{MOD}.frappe.db.exists")
     @patch(f"{MOD}.frappe.get_doc")
-    @patch(f"{MOD}._get_profile_secret")
+    @patch(f"{MOD}.frappe.db.get_value")
     def test_verify_qr_token_pickup_resolves_no_table(self, mock_secret, mock_get_doc, mock_exists):
         secret = "test-secret"
         mock_secret.return_value = secret

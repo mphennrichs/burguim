@@ -78,11 +78,24 @@ class TestWebsitePathResolver(FrappeTestCase):
 		frappe.session.user = self.original_user
 		frappe.local.flags.redirect_location = ""
 
-	@patch("frappe.website.path_resolver.resolve_path", return_value="ury")
+	@patch("frappe.website.path_resolver.resolve_path", return_value="app/user")
 	@patch("ury.ury.controllers.setup_redirect.is_ury_setup_complete", return_value=True)
-	def test_passes_through_when_setup_complete(self, _mock_complete, mock_resolve):
-		self.assertEqual(website_path_resolver("app"), "ury")
-		mock_resolve.assert_called_once_with("app")
+	def test_deep_desk_link_passes_through_when_setup_complete(self, _mock_complete, mock_resolve):
+		self.assertEqual(website_path_resolver("app/user"), "app/user")
+		mock_resolve.assert_called_once_with("app/user")
+
+	@patch("ury.ury.controllers.setup_redirect.is_ury_setup_complete", return_value=True)
+	def test_bare_landing_path_redirects_to_ury_when_setup_complete(self, _mock_complete):
+		for path in ("", "app", "desk", "apps"):
+			with self.subTest(path=path), self.assertRaises(frappe.Redirect):
+				website_path_resolver(path)
+			self.assertEqual(frappe.local.flags.redirect_location, "/ury")
+
+	@patch("frappe.website.path_resolver.resolve_path", return_value="app")
+	@patch("ury.ury.controllers.setup_redirect.is_ury_setup_complete", return_value=True)
+	def test_guest_on_bare_landing_path_is_not_redirected_to_ury(self, _mock_complete, mock_resolve):
+		frappe.session.user = "Guest"
+		self.assertEqual(website_path_resolver("app"), "app")
 
 	@patch("frappe.website.path_resolver.resolve_path", return_value="login")
 	@patch("ury.ury.controllers.setup_redirect.is_ury_setup_complete", return_value=False)
@@ -156,10 +169,10 @@ class TestBootAndSessionHooks(FrappeTestCase):
 		self.assertEqual(frappe.local.response.get("home_page"), "/ury/setup-wizard/0")
 
 	@patch("ury.ury.controllers.setup_redirect.is_ury_setup_complete", return_value=True)
-	def test_on_session_creation_noop_when_complete(self, _mock_complete):
+	def test_on_session_creation_lands_on_ury_when_complete(self, _mock_complete):
 		frappe.local.response.pop("home_page", None)
 		on_session_creation()
-		self.assertIsNone(frappe.local.response.get("home_page"))
+		self.assertEqual(frappe.local.response.get("home_page"), "/ury")
 
 	@patch("ury.ury.controllers.setup_redirect._setup_wizard_target", return_value="/ury/setup-wizard/1")
 	@patch("ury.ury.controllers.setup_redirect.is_ury_setup_complete", return_value=False)
