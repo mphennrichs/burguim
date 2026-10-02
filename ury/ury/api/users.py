@@ -78,9 +78,15 @@ def delete_user(user):
         frappe.throw(_("Não é possível excluir a conta Administrator"))
     if user == frappe.session.user:
         frappe.throw(_("Não é possível excluir sua própria conta"))
+    # Branch membership (URY User rows, written by create_staff_user) is our own
+    # bookkeeping, not history - left in place it makes delete_doc's link check
+    # block EVERY staff user created through the Usuário screen.
+    frappe.db.savepoint("delete_user")
     try:
+        frappe.db.delete("URY User", {"user": user, "parenttype": "Branch"})
         frappe.delete_doc("User", user, ignore_permissions=True)
     except frappe.LinkExistsError:
+        frappe.db.rollback(save_point="delete_user")
         # Nothing was deleted - this fails synchronously and completely, in
         # the same request (there's no partial/delayed "propagation" state
         # in Frappe's delete_doc: it's either fully undone here, or it fully

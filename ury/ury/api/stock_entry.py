@@ -90,6 +90,10 @@ def record_purchase(item_code, qty, rate, purchase_date=None, expiry_date=None):
 
     if expiry_date:
         expiry_date = getdate(expiry_date)
+        if expiry_date < purchase_date:
+            frappe.throw(_("A validade ({0}) é anterior à data informada - confira a data").format(
+                frappe.format(expiry_date, "Date")
+            ))
     elif item.shelf_life_in_days:
         expiry_date = add_days(purchase_date, cint(item.shelf_life_in_days))
     else:
@@ -211,6 +215,10 @@ def record_production(item_code, qty, purchase_date=None, expiry_date=None):
     purchase_date = getdate(purchase_date) if purchase_date else getdate(nowdate())
     if expiry_date:
         expiry_date = getdate(expiry_date)
+        if expiry_date < purchase_date:
+            frappe.throw(_("A validade ({0}) é anterior à data informada - confira a data").format(
+                frappe.format(expiry_date, "Date")
+            ))
     elif item.shelf_life_in_days:
         expiry_date = add_days(purchase_date, cint(item.shelf_life_in_days))
     else:

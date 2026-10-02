@@ -2,7 +2,6 @@ import frappe
 import json
 from frappe import _
 from datetime import date, datetime, timedelta
-from frappe.utils import validate_phone_number
 
 
 #GetTable  decripted temporarily
@@ -853,48 +852,6 @@ def posOpening():
         frappe.msgprint(title="Message", indicator="red", msg=("Please Open POS Entry"))
     return flag
 
-
-@frappe.whitelist(methods=["POST"])
-def create_customer(customer_name, mobile_number=None, customer_group="Individual", territory="India"):
-    if not frappe.has_permission("Customer", "create"):
-        frappe.throw("Not permitted to create customers", frappe.PermissionError)
-        
-    if not customer_name:
-        frappe.throw("Customer name is required")
-    if not mobile_number:
-        frappe.throw("Mobile Number is required")
-    try:
-        validate_phone_number(mobile_number, throw=True)
-    except Exception:
-        frappe.throw("Invalid mobile number format")
-
-    """Create a new customer"""
-    try:
-        customer = frappe.get_doc({
-            "doctype": "Customer",
-            "customer_name": customer_name,
-            "mobile_number": mobile_number,
-            "customer_group": customer_group,
-            "territory": territory
-        })
-        customer.insert()
-        frappe.db.commit()
-
-        return {
-            "status": "success",
-            "message": "Customer created successfully",
-            "customer_name": customer_name,
-            "mobile_number": mobile_number,
-            "customer_group": customer_group,
-            "territory": territory
-        }
-
-    except Exception as e:
-        frappe.log_error(message=frappe.get_traceback(), title="Customer Creation Failed")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
 
 @frappe.whitelist()
 def get_open_pos_opening_entries(pos_profile):

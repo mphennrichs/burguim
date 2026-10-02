@@ -28,16 +28,9 @@ def rename_course(old_name, new_name, icon=None):
     if new_name != old_name:
         if frappe.db.exists("URY Menu Course", new_name):
             frappe.throw(_("Já existe uma categoria chamada {0}").format(new_name))
-        # This Frappe version's rename_doc() doesn't take ignore_permissions
-        # as a kwarg (confirmed live: "unexpected keyword argument") - the
-        # portable way to bypass permission checks for a call that doesn't
-        # expose its own param for it is the global flag every permission
-        # check consults internally, not the kwarg.
-        frappe.flags.ignore_permissions = True
-        try:
-            frappe.rename_doc("URY Menu Course", old_name, new_name)
-        finally:
-            frappe.flags.ignore_permissions = False
+        # frappe.rename_doc() takes no ignore_permissions kwarg (it crashed live);
+        # URY Manager already has write on URY Menu Course, which is all it checks.
+        frappe.rename_doc("URY Menu Course", old_name, new_name)
 
     if icon is not None:
         frappe.db.set_value("URY Menu Course", new_name, "icon", icon)

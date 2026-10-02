@@ -456,14 +456,19 @@ _PREP_NOTES_FIELD = "custom_preparation_notes"
 def _ensure_preparation_notes_field():
     if frappe.get_meta("BOM").has_field(_PREP_NOTES_FIELD):
         return
-    from frappe.custom.doctype.custom_field.custom_field import create_custom_field
-
-    create_custom_field("BOM", {
+    # One-time schema setup, not the caller's own action - a URY Manager has no
+    # Custom Field create permission, so the site's first recipe failed with
+    # PermissionError whenever it wasn't created by Administrator.
+    frappe.get_doc({
+        "doctype": "Custom Field",
+        "dt": "BOM",
         "fieldname": _PREP_NOTES_FIELD,
         "label": "Modo de preparo",
         "fieldtype": "Text",
         "insert_after": "description",
-    })
+        "is_system_generated": 1,
+    }).insert(ignore_permissions=True)
+    frappe.clear_cache(doctype="BOM")
 
 
 @frappe.whitelist()
