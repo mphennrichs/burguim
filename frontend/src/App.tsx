@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { call } from '@ury/core';
 import SetupPage from './pages/Setup/SetupPage';
 import ConfigurePage from './pages/Setup/ConfigurePage';
@@ -47,6 +47,7 @@ interface WizardStatus {
 }
 
 function SetupGuard() {
+  const location = useLocation();
   const [status, setStatus] = useState<WizardStatus | null>(null);
 
   useEffect(() => {
@@ -90,9 +91,11 @@ function SetupGuard() {
     );
   }
 
-  const isSetupRoute = window.location.pathname.startsWith(
-    '/ury/setup-wizard/'
-  );
+  // The router's own location, never window.location: right after <Navigate>,
+  // window.location already shows the wizard URL while the router still renders
+  // the old route - mixing the two rendered the dashboard branch instead of the
+  // wizard and left a blank page on a fresh install's first visit to /ury.
+  const isSetupRoute = location.pathname.startsWith('/setup-wizard/');
 
   if (!status.step2_complete && !isSetupRoute) {
     return (

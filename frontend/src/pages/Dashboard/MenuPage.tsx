@@ -813,7 +813,7 @@ export const MenuPage: React.FC = () => {
     <div className="space-y-4 max-w-[1600px] mx-auto">
 
       {/* Section: Menu Selector — Partition Style */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-3 border-b border-gray-200 -mx-6 px-6 -mt-6 pt-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-200 -mx-6 px-6 -mt-6 pt-6">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="w-full sm:w-48">
             <SearchableSelect
@@ -857,7 +857,7 @@ export const MenuPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3 ml-auto">
           <div className="relative w-full md:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input

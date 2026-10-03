@@ -49,9 +49,12 @@ def get_business_setup():
 
 @frappe.whitelist()
 def get_branches():
-    if frappe.session.user == "Guest":
-        frappe.throw("Not permitted")
-    _ensure_setup_allowed()
+    # Read-only list behind the topbar branch selector - every staff member
+    # needs it after setup too. _ensure_setup_allowed() guards the WRITE side
+    # of the wizard; applied here it 403'd every Dono/Caixa, so the selector
+    # was always empty.
+    if frappe.session.user == "Guest" or frappe.get_cached_value("User", frappe.session.user, "user_type") != "System User":
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
 
     comp = frappe.defaults.get_user_default("Company") or frappe.db.get_value("Company", {}, "name")
     tax_id = frappe.db.get_value("Company", comp, "tax_id") if comp else None
@@ -138,6 +141,24 @@ def create_setup_user(email, name, password=None, role="URY Cashier"):
         from frappe.utils.password import update_password
         update_password(user=email, pwd=password)
     return {"status": "created", "email": email}
+
+def _ensure_mode_of_payment_account(mode_of_payment, company):
+    """The POS Profile created further down refuses any payment method with no
+    default account for its company ("Defina dinheiro ou conta bancária padrão
+    no modo de pagamentos") - which is every method on a brand-new company,
+    including ERPNext's own "Cash". Link it to the company's cash account (bank
+    account as a fallback) if it isn't linked yet."""
+    if frappe.db.exists("Mode of Payment Account", {"parent": mode_of_payment, "company": company}):
+        return
+    account = frappe.get_cached_value("Company", company, "default_cash_account") or frappe.get_cached_value(
+        "Company", company, "default_bank_account"
+    )
+    if not account:
+        return
+    mop = frappe.get_doc("Mode of Payment", mode_of_payment)
+    mop.append("accounts", {"company": company, "default_account": account})
+    mop.save(ignore_permissions=True)
+
 
 @frappe.whitelist(methods=["POST"])
 def submit_configure_data(data):
@@ -370,6 +391,7 @@ def submit_configure_data(data):
             results["payment_methods"].append(pm_doc.name)
         else:
             results["payment_methods"].append(p_name)
+        _ensure_mode_of_payment_account(p_name, default_company)
 
     # 7. System Users
     results["users"] = []

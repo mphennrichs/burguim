@@ -29,6 +29,10 @@ import { CreateItemInline } from '../../components/common/CreateItemInline';
 
 type Tab = 'custos' | 'validade' | 'consolidado' | 'comprar' | 'produzir' | 'config';
 
+function isCostIncomplete(item: MenuCostItem): boolean {
+  return item.cost !== null && (item.missing_cost_for?.length ?? 0) > 0;
+}
+
 function sortByItemName<T extends { item_name?: string; name: string }>(items: T[]): T[] {
   return [...items].sort((a, b) =>
     (a.item_name || a.name).localeCompare(b.item_name || b.name, 'pt-BR', { sensitivity: 'base' }),
@@ -424,8 +428,14 @@ export const StockOverviewPage: React.FC = () => {
     () => menuItems.filter((item) => item.cost === null),
     [menuItems],
   );
+  // A recipe with an unpriced ingredient still comes back with a cost (that
+  // ingredient counted as zero) - shown, but never treated as a real cost.
+  const itemsIncompleteCost = useMemo(
+    () => menuItems.filter(isCostIncomplete),
+    [menuItems],
+  );
   const itemsWithCost = useMemo(
-    () => menuItems.filter((item) => item.cost !== null),
+    () => menuItems.filter((item) => item.cost !== null && !isCostIncomplete(item)),
     [menuItems],
   );
   const averageMarginPercent = useMemo(() => {
@@ -453,10 +463,20 @@ export const StockOverviewPage: React.FC = () => {
         header: 'Custo',
         align: 'right',
         render: (i) =>
-          i.cost !== null ? (
-            <span className="tabular-nums">{formatCurrency(i.cost)}</span>
-          ) : (
+          i.cost === null ? (
             <Badge variant="warning" size="sm">Sem custo cadastrado</Badge>
+          ) : isCostIncomplete(i) ? (
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="flex items-center gap-1.5">
+                <Badge variant="warning" size="sm">Incompleto</Badge>
+                <span className="tabular-nums text-muted-foreground">{formatCurrency(i.cost)}</span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                falta preço de: {i.missing_cost_for.join(', ')}
+              </span>
+            </div>
+          ) : (
+            <span className="tabular-nums">{formatCurrency(i.cost)}</span>
           ),
       },
       {
@@ -464,7 +484,7 @@ export const StockOverviewPage: React.FC = () => {
         header: 'Margem',
         align: 'right',
         render: (i) =>
-          i.margin !== null ? (
+          i.margin !== null && !isCostIncomplete(i) ? (
             <span className="tabular-nums">{formatCurrency(i.margin)}</span>
           ) : (
             '—'
@@ -475,7 +495,7 @@ export const StockOverviewPage: React.FC = () => {
         header: 'Margem %',
         align: 'right',
         render: (i) =>
-          i.margin_percent !== null ? (
+          i.margin_percent !== null && !isCostIncomplete(i) ? (
             <Badge variant={i.margin_percent >= 50 ? 'success' : i.margin_percent >= 20 ? 'warning' : 'danger'} size="sm">
               {i.margin_percent.toFixed(1)}%
             </Badge>
@@ -683,6 +703,18 @@ export const StockOverviewPage: React.FC = () => {
                     {itemsMissingCost.map((i) => i.item_name).join(', ')}
                   </span>
                   . Cadastre a receita em &quot;Receitas (BOM)&quot; ou registre uma compra com preço para ver o custo aqui.
+                </div>
+              )}
+              {itemsIncompleteCost.length > 0 && (
+                <div className="rounded-md bg-orange-50 border border-orange-200 p-3 text-sm text-orange-800">
+                  Custo incompleto (algum ingrediente da receita ainda não tem preço de compra, então o custo
+                  real é maior e a margem fica de fora da média):{' '}
+                  <span className="font-medium">
+                    {itemsIncompleteCost
+                      .map((i) => `${i.item_name} (falta: ${i.missing_cost_for.join(', ')})`)
+                      .join('; ')}
+                  </span>
+                  . Registre uma compra com preço desses ingredientes.
                 </div>
               )}
               {menuItems.length === 0 ? (
