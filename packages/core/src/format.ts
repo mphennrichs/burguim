@@ -55,9 +55,12 @@ export async function getDefaultBuyingPriceList(): Promise<string | null> {
 }
 
 export function formatCurrency(amount: number): string {
-  const symbol = storage.getItem('currencySymbol') || '₹';
+  const symbol = storage.getItem('currencySymbol') || 'R$';
   const roundedAmount = flt(amount, 2);
-  const formattedVal = typeof roundedAmount === 'number' && !isNaN(roundedAmount) ? roundedAmount.toLocaleString('en-IN') : roundedAmount;
+  const formattedVal =
+    typeof roundedAmount === 'number' && !isNaN(roundedAmount)
+      ? roundedAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : roundedAmount;
   return `${symbol} ${formattedVal}`;
 }
 
@@ -81,21 +84,19 @@ export function flt(v: number | string | null | undefined, decimals: number = 2)
  * e.g. 600000 -> "₹6L", 12500000 -> "₹1.25Cr", 8200 -> "₹8.2k".
  */
 export function formatCompactCurrency(amount: number): string {
-  const symbol = storage.getItem('currencySymbol') || '₹';
+  const symbol = storage.getItem('currencySymbol') || 'R$';
   if (typeof amount !== 'number' || isNaN(amount)) return `${symbol} ${amount}`;
 
   const sign = amount < 0 ? '-' : '';
   const abs = Math.abs(amount);
 
-  const trim = (value: number) => {
-    const rounded = Math.round(value * 100) / 100;
-    return rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-  };
+  const trim = (value: number) =>
+    (Math.round(value * 100) / 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
-  if (abs >= 1_00_00_000) return `${sign}${symbol}${trim(abs / 1_00_00_000)}Cr`;
-  if (abs >= 1_00_000) return `${sign}${symbol}${trim(abs / 1_00_000)}L`;
-  if (abs >= 1_000) return `${sign}${symbol}${trim(abs / 1_000)}k`;
-  return `${sign}${symbol}${trim(abs)}`;
+  if (abs >= 1_000_000_000) return `${sign}${symbol} ${trim(abs / 1_000_000_000)} bi`;
+  if (abs >= 1_000_000) return `${sign}${symbol} ${trim(abs / 1_000_000)} mi`;
+  if (abs >= 1_000) return `${sign}${symbol} ${trim(abs / 1_000)} mil`;
+  return `${sign}${symbol} ${trim(abs)}`;
 }
 
 export const formatInvoiceTime = (timestamp: string | null) => {
